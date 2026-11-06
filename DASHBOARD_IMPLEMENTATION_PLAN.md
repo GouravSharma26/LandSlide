@@ -1,163 +1,130 @@
-# Dashboard Implementation Plan: Himalayan Landslide Intelligence
+# Himalayan Landslide Intelligence — Dashboard Implementation Plan
 
-**Project:** Himalayan Landslide Intelligence – Rainfall-Triggered Landslide Detection & Susceptibility Analytics  
-**Architecture:** Modular Python / Streamlit Application  
-**Execution Command:** `streamlit run dashboard/app.py`  
-**Target Completion:** November 2026
+**Project:** Himalayan Landslide Intelligence: Multi-Source Remote Sensing for Landslide Event Detection and Susceptibility Prediction  
+**Status:** Step 4 Completed & Verified (All 8 Sections Fully Operational)
 
 ---
 
-## 1. System Architecture & Directory Layout
+## 1. System Architecture Overview
 
-The application is structured into modular layers adhering to separation of concerns: presentation components, analytical engines, data loading, validation, and styling.
+The dashboard is organized into eight modular analytical views styled with a dark navy (`#0E1117`), cyan (`#00F0FF`), and purple (`#A855F7`) aesthetic, communicating scientific rigor, transparent limitations, and decoupled ML workflows.
 
-```text
-LANDSLIDE/
-├── dashboard/
-│   ├── app.py                      # Application entry point, multi-page router & theme setup
-│   ├── config.py                   # Centralized paths, color palettes, bounding boxes, feature lists
-│   ├── requirements.txt            # Explicit dependency specifications
-│   ├── README.md                   # Installation, execution, and architectural guide
-│   ├── assets/
-│   │   ├── styles.css              # Custom CSS: dark navy theme, glassmorphism cards, badges
-│   │   └── logo.png                # Generated modern geospatial dashboard insignia
-│   ├── components/
-│   │   ├── sidebar.py              # Navigation menu, global geographic/date filters, reset button
-│   │   ├── kpi_cards.py            # Reusable metric indicator cards with deltas and status pills
-│   │   ├── charts.py               # Reusable Plotly charts (histograms, bars, scatter, ROC, PR, heatmap)
-│   │   └── maps.py                 # PyDeck and Plotly geospatial renderers (points, density, 0.5° grid)
-│   ├── pages/
-│   │   ├── overview.py             # Page 1: Executive Overview & High-level KPIs
-│   │   ├── geographic_explorer.py  # Page 2: Interactive Spatial Explorer
-│   │   ├── data_explorer.py        # Page 3: Landslide Records & Source Catalog Explorer
-│   │   ├── environmental_analysis.py # Page 4: Multisource Environmental & Trigger Analysis
-│   │   ├── model_performance.py    # Page 5: ML Benchmarks, ROC/PR Curves & SHAP Explainability
-│   │   ├── susceptibility_analysis.py # Page 6: Regional 0.5° Susceptibility Grid & Uncertainty
-│   │   └── data_quality.py         # Page 7: Data Quality, Missingness & Methodology Caveats
-│   └── utils/
-│       ├── data_loader.py          # Cached data ingest with schema enforcement & error fallbacks
-│       ├── preprocessing.py        # Coordinate transformations, binning, and cleaning helpers
-│       ├── validation.py           # Integrity checks, bounding-box assertion, null-value audits
-│       ├── metrics.py              # Statistical summaries, ROC/PR calculations, confusion matrices
-│       └── visualization.py        # Plotly layout themes, color scales, and formatting utilities
-├── tests/
-│   ├── test_data_loader.py         # Automated tests for data loading and caching
-│   ├── test_validation.py          # Automated tests for coordinate ranges and schema integrity
-│   └── test_metrics.py             # Automated tests for model metric calculations and consistency
-├── outputs/                        # Research artifacts from Phases 2-5
-├── Landslide_Reports.csv           # Raw NASA catalog
-├── PROJECT_AUDIT.md                # Forensic repository audit
-├── DATA_DICTIONARY.md              # Exhaustive variable metadata
-└── DASHBOARD_IMPLEMENTATION_PLAN.md # This document
+```
+dashboard/
+├── app.py                             # Main Streamlit router with custom CSS injection
+├── config.py                          # Artifact paths, color schemes, feature schemas, status badges
+├── assets/
+│   ├── logo.png                       # Visual branding
+│   ├── styles.css                     # Custom glassmorphism dark navy stylesheet
+│   └── screenshots/                   # Verification screenshots of all 8 sections
+│       ├── page1_executive_overview.png
+│       ├── page2_geographic_explorer.png
+│       ├── page3_data_catalog_quality.png
+│       ├── page4_environmental_analysis.png
+│       ├── page5_event_detection.png
+│       ├── page6_susceptibility_prediction.png
+│       ├── page7_explainability_uncertainty.png
+│       └── page8_methodology_governance.png
+├── components/
+│   ├── sidebar.py                     # 8-section research navigation, filters, provenance status
+│   ├── kpi_cards.py                   # High-contrast metric cards with glassmorphism borders
+│   ├── charts.py                      # Reusable Plotly charts (ROC, PR, SHAP, sensitivity, distributions)
+│   └── maps.py                        # Plotly Mapbox and PyDeck 3D geospatial visualizers
+├── pages/
+│   ├── overview.py                    # Section 1: Executive Overview
+│   ├── geographic_explorer.py         # Section 2: Geographic Explorer
+│   ├── data_quality.py                # Section 3: Data Catalog & Quality
+│   ├── environmental_analysis.py      # Section 4: Environmental Analysis
+│   ├── event_detection.py             # Section 5: Event Detection (Workflow A)
+│   ├── susceptibility_prediction.py   # Section 6: Susceptibility Prediction (Workflow B)
+│   ├── explainability_uncertainty.py  # Section 7: Explainability & Uncertainty
+│   └── methodology_governance.py      # Section 8: Research Methodology & Governance
+└── utils/
+    ├── data_loader.py                 # Cached artifact loaders with fallback logic
+    ├── metrics.py                     # Evaluation metrics and curve calculators
+    ├── preprocessing.py               # Geographic bounds and subzone filtering
+    ├── validation.py                  # Schema and missingness validators
+    └── visualization.py               # Custom dark Plotly theme generator
 ```
 
 ---
 
-## 2. UI/UX Design System & Aesthetics
+## 2. Eight Section Implementation Specifications
 
-### Color Palette
-- **Deep Navy Background:** `#0B132B` (primary dark canvas)
-- **Secondary Card Background:** `#1C2541` (elevated surface container)
-- **Tertiary Surface / Borders:** `#2A3B5C` and `#3A506B`
-- **Primary Accent (Cyan/Teal):** `#48E5C2` / `#5BC0BE` (metrics, positive highlights, high susceptibility)
-- **Secondary Accent (Purple/Indigo):** `#6C63FF` / `#7B2CBF` (machine learning, predictions)
-- **Warning Accent (Coral/Orange):** `#FF6B6B` / `#FFAA00` (uncertainty, high risk alerts)
-- **Text Palette:** Pure White (`#FFFFFF`) for headers, Off-White (`#E0E6ED`) for body, Muted Slate (`#8E9AAF`) for secondary labels.
+### Section 1: Executive Overview
+- **Objective:** High-level executive synthesis of dataset, geographic domain, and dual ML capabilities.
+- **Components:**
+  - 8 KPI cards: Raw reports (14,750), cleaned paired points (254), positive rainfall events (127), baseline controls (127), peak detection AUROC (0.984), peak susceptibility AUROC (0.973), regional grid cells (765), and spatial purge distance (100 km).
+  - Decoupled workflow cards summarizing Workflow A (Detection) and Workflow B (Susceptibility).
+  - Temporal distribution charts (yearly counts and monthly monsoon sensitivity).
+  - Primary trigger breakdown donut chart and model benchmark scorecard.
 
-### Typography & Structure
-- Clean sans-serif font stack (`system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif`).
-- Glassmorphism effect on KPI cards (`backdrop-filter: blur(8px); background: rgba(28, 37, 65, 0.85); border: 1px solid rgba(72, 229, 194, 0.2)`).
-- Collapsible responsive sidebar with clear active page indicators.
+### Section 2: Geographic Explorer
+- **Objective:** Interactive spatial exploration across the Himalayan mountain arc ($26.0^\circ\text{N} - 35.5^\circ\text{N}$, $74.0^\circ\text{E} - 97.0^\circ\text{E}$).
+- **Components:**
+  - Regional subzone filtering: India (J&K / Ladakh / HP), India (Uttarakhand), India (Northeast / Sikkim), Nepal.
+  - Layer toggles: Observation sites (positive vs control markers) with hover metadata (coordinates, trigger, accuracy).
+  - 0.5° regional susceptibility lattice overlay (765 cells) with continuous probability heatmaps.
+  - 3D column landscape layer in PyDeck.
+  - Disclosure alert on the 0.5° macro resolution and catalog coordinate uncertainty.
 
----
+### Section 3: Data Catalog & Quality
+- **Objective:** Rigorous audit of data cleaning, missing data root causes, and Version 2.0 hillslope protocol.
+- **Components:**
+  - 7-Stage Preprocessing Funnel table (tracking sample losses from 14,750 down to 127 events).
+  - Missingness percentage chart and physical root-cause attribution table (documenting 31.5% monsoon cloud obscuration).
+  - Version 1.0 vs Version 2.0 comparison table.
+  - Two-sample Kolmogorov-Smirnov test statistics proving flat-terrain bias in Version 1.0 ($p < 10^{-50}$).
+  - CSV download buttons for the funnel and missingness audit tables.
 
-## 3. Detailed Page Implementation Blueprint
+### Section 4: Environmental Analysis
+- **Objective:** Physical feature distributions across 4 Earth observation domains.
+- **Components:**
+  - 5 interactive tabs: Rainfall & Hydrology, Topography, Sentinel-1 SAR Backscatter, Sentinel-2 Optical Indices, and Correlation/VIF.
+  - Box and violin plots comparing positive events vs. diagnostic controls.
+  - Descriptive Variance Inflation Factor (VIF) audit table and Pearson correlation heatmap.
+  - Verified Antecedent Precipitation Index ($\alpha = 0.90$).
 
-### Page 1: Executive Overview (`pages/overview.py`)
-- **Key Metrics / KPIs:**
-  - Raw Landslide Reports (14,750 global).
-  - Cleaned Himalayan Observations (254 points).
-  - Positive Events (127) vs. Synthetic Hard Negatives (127).
-  - Best Model AUROC (0.976 XGBoost Reduced / 0.982 RF Full).
-  - 0.5-Degree Susceptibility Grid Cells (765 cells covering ~2.2M $\text{km}^2$).
-  - Observation Temporal Span (2017 to 2020).
-- **Interactive Visualizations:**
-  - Landslide occurrences by year (temporal trend).
-  - Monthly distribution (monsoon seasonality analysis highlighting July–September peaks).
-  - Landslide trigger distribution (rainfall, monsoon, downpour).
-  - High-level model comparison scorecard (AUROC, PR-AUC, F1).
+### Section 5: Event Detection (Workflow A)
+- **Objective:** Post-hoc satellite disturbance classification.
+- **Classification:** *Experimental Point-Zone Disturbance Assessment*.
+- **Components:**
+  - Positional uncertainty callout box: 57.5% of events carry $\pm 5\text{ km}$ catalog error; single 10m pixels capture zone disturbance, not verified scars.
+  - Outer fold transparency table: Reports Fold 0 through Fold 4, with Fold 4 AUROC transparently reported as undefined ($NaN$) due to 0 positive events in the northwestern Kashmir test partition.
+  - Calibrated probability threshold slider with dynamic confusion matrix, specificity, and sensitivity readouts.
+  - Out-of-fold ROC curves and Precision-Recall curves.
+  - Differential SAR disturbance diagnostic scatter plot ($\Delta\text{VH}$ vs $\Delta\text{VV}$).
 
-### Page 2: Geographic Explorer (`pages/geographic_explorer.py`)
-- **Interactive Spatial Map:**
-  - Multi-layer geospatial viewer using Plotly Mapbox and PyDeck.
-  - Positive landslide events (glowing cyan/red markers with hover details: date, trigger, accuracy).
-  - Negative control points (purple/gray markers).
-  - Susceptibility grid heatmap overlay (0.5-degree cells color-coded by predicted probability).
-- **Controls & Filters:**
-  - Filter by Country / Administrative Region (India, Nepal, Bhutan, China, Pakistan).
-  - Latitude and Longitude bounding box slider.
-  - Layer toggles: Positives, Negatives, Susceptibility Grid, Uncertainty Overlay.
+### Section 6: Susceptibility Prediction (Workflow B)
+- **Objective:** Pre-event spatial landslide susceptibility modeling.
+- **Classification:** *Rainfall-Conditioned Susceptibility — Diagnostic Baseline*.
+- **Components:**
+  - Multi-configuration selector: Cloud-Independent Core Model (10 features, 0% optical nulls) vs Optical-Enhanced Model (13 features) vs Reduced Diagnostic Model (8 features, slope & TRI excluded).
+  - Zero temporal leakage enforcement notice (banning post-event radar, deltas, event rain, and coordinates).
+  - 0.5° Regional Susceptibility Lattice Explorer (765 cells) conditioned on the September 2026 synoptic late-monsoon window.
+  - Susceptibility score histogram and inter-model disagreement distribution ($|\text{RF} - \text{XGB}|$).
 
-### Page 3: Landslide Data Explorer (`pages/data_explorer.py`)
-- **Detailed Inventory Analysis:**
-  - NASA COOLR / GLC event distribution analysis.
-  - Location accuracy breakdown (known $\le 1\text{ km}$, $5\text{ km}$, $25\text{ km}$, etc.).
-  - Fatalities and injuries distribution analysis.
-  - Filterable data table with search, sorting, and multi-attribute filtering (country, year, trigger, setting).
-  - Direct CSV download of filtered subsets.
+### Section 7: Explainability & Uncertainty
+- **Objective:** Global TreeSHAP interpretability and spatial autocorrelation sensitivity analysis.
+- **Components:**
+  - TreeSHAP mean $|SHAP|$ bar charts for Random Forest and XGBoost across both workflows.
+  - Physical explanation for why slope dominates and why differential radar deltas show modest point attribution under coordinate uncertainty.
+  - Spatial Purging Sensitivity Analysis ($0, 50, 100, 200, 437.8\text{ km}$): Dual-axis chart showing retained training samples vs out-of-fold AUROC as buffer distance increases.
 
-### Page 4: Environmental Analysis (`pages/environmental_analysis.py`)
-- **Multisource Earth Observation Visualizer:**
-  - **Precipitation:** 1-day, 7-day, 30-day cumulative rainfall and Antecedent Precipitation Index (API).
-  - **Topography:** Elevation, Slope, Aspect, Curvature, Terrain Ruggedness Index (TRI), Topographic Wetness Index (TWI).
-  - **Optical:** NDVI (vegetation), NDWI (water/moisture), BSI (bare soil).
-  - **SAR Radar:** Sentinel-1 VV/VH backscatter and temporal change ($\Delta\text{VV}$, $\Delta\text{VH}$).
-- **Analytical Modules:**
-  - Feature distributions comparing Positive vs. Negative samples (KDE / box plots).
-  - Interactive Pearson correlation heatmap across all 18 features.
-  - Transparent missingness viewer highlighting the 31.5% optical gaps caused by monsoon clouds.
-
-### Page 5: Machine Learning Performance (`pages/model_performance.py`)
-- **Spatial Out-of-Fold Evaluation:**
-  - Benchmark comparison table: Full Set (18 features) vs. Reduced Set (16 features without slope/TRI).
-  - Out-of-fold ROC curves (RF vs. XGBoost) with AUROC annotations.
-  - Out-of-fold Precision-Recall curves with PR-AUC annotations.
-  - Confusion matrices at customizable decision thresholds (default: $0.5$).
-- **Explainable AI (XAI):**
-  - Gini / Gain feature importance bar charts.
-  - Interactive SHAP summary plots and mean absolute SHAP value rankings for both RF and XGBoost.
-  - Documentation of the negative-sampling terrain confound and spatial cross-validation rationale.
-
-### Page 6: Susceptibility Analysis (`pages/susceptibility_analysis.py`)
-- **Macro-Grid Geovisualization:**
-  - Display the 765 valid cells from `phase5_susceptibility_grid.csv`.
-  - Toggle between Ensemble Susceptibility, Random Forest Susceptibility, and XGBoost Susceptibility.
-  - Dual Uncertainty Views:
-    1. RF Tree Uncertainty (standard deviation across 500 decision trees).
-    2. Inter-Model Disagreement ($|\text{RF} - \text{XGB}|$).
-- **Filtering & Zonation:**
-  - Susceptibility tier classification: Very Low ($<0.2$), Low ($0.2-0.4$), Moderate ($0.4-0.6$), High ($0.6-0.8$), Very High ($>0.8$).
-  - Spatial summary by latitude/longitude zones.
-  - Clear disclaimer stating the grid is $0.5^\circ \times 0.5^\circ$ (~55 km) macro-resolution.
-
-### Page 7: Data Quality and Methodology (`pages/data_quality.py`)
-- **Transparency & Scientific Integrity:**
-  - Missing value completeness audit across all datasets.
-  - Step-by-step cleaning funnel visualization (from 14,750 raw records down to 127 positive events).
-  - Negative sampling methodology review (slope $< 5^\circ$ adaptive buffer).
-  - Honest disclosure of sample size limitations (254 points) and terrain confound.
-  - Explicit warning: Not a real-time operational warning system.
+### Section 8: Research Methodology & Governance
+- **Objective:** Formal mathematical formulations, prohibited variable contracts, and reproducibility audit.
+- **Components:**
+  - Formal mathematical equations for Workflow A and Workflow B.
+  - Prohibited feature matrix detailing allowed vs banned variables for each pipeline.
+  - Spatial 5-fold cluster cross-validation and inner spatial grouping architecture diagram.
+  - Mandatory scientific limitation disclosures (not a real-time warning system, positional uncertainty, flat-terrain bias).
+  - One-click download button for the complete `experiment_metadata.json` audit log.
 
 ---
 
-## 4. Engineering & Robustness Strategy
+## 3. Verification & Compliance Record
 
-1. **Deterministic Model & SHAP Loading:**
-   - To prevent crashes from pickle version mismatch across environments, the app will inspect `phase4_final_models.joblib`. If unpickling encounters an XGBoost serialization error, it will immediately execute the verified, deterministic refit from Phase 5 Cell 2 on `outputs/phase3_feature_table.csv` using identical seeds (`random_state=42`). Execution takes ~1.5 seconds and is cached via `@st.cache_resource`.
-2. **Data Caching:**
-   - All dataset loads wrapped with `@st.cache_data` for instantaneous page-to-page navigation.
-3. **Automated Testing Suite:**
-   - Pytest suite covering data loading, column schemas, coordinate bounds, metric calculations, and validation edge cases.
-4. **Verification & Screenshot Capture:**
-   - Run the application on a local port, verify all pages render error-free, and capture full screenshots of all seven pages for submission.
-
+- **Test Suite Status:** 22/22 tests passing (`python -m pytest tests/ -v`).
+- **Live Application Run:** Verified on Streamlit daemon (`http://localhost:8501`).
+- **Visual Capture:** Full-page screenshots captured for all 8 sections under `dashboard/assets/screenshots/`.
+- **Primary Data Source:** Sourced exclusively from standardized artifacts under `artifacts/`.

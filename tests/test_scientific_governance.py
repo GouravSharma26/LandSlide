@@ -154,3 +154,4 @@ def test_v2_status_and_distribution_validation():
     # Slope KS test confirms severe flat-terrain divergence in Version 1.0
     assert v2_val["v1_distribution_divergence"]["slope_ks_pvalue"] < 1e-10
     assert v2_val["v1_distribution_divergence"]["slope_ks_statistic"] > 0.80
+

@@ -529,3 +529,166 @@ def render_missingness_chart(missing_summary_df: pd.DataFrame) -> go.Figure:
         show_legend=False,
     )
 
+
+def render_spatial_purging_sensitivity_chart(sens_df: pd.DataFrame) -> go.Figure:
+    """Renders dual-axis sensitivity chart: Purge Buffer vs Mean AUROC vs Retained Samples."""
+    if sens_df.empty:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="Spatial Purging Sensitivity Unavailable")
+
+    grouped = sens_df.groupby("purge_buffer_km").agg({
+        "rf_auroc": "mean",
+        "xgb_auroc": "mean",
+        "n_train_retained": "mean",
+        "n_train_purged": "mean"
+    }).reset_index()
+
+    fig = go.Figure()
+
+    # Retained Samples (Bar) on secondary y
+    fig.add_trace(
+        go.Bar(
+            x=grouped["purge_buffer_km"].astype(str) + " km",
+            y=grouped["n_train_retained"],
+            name="Retained Train Samples (N)",
+            marker_color="rgba(56, 189, 248, 0.25)",
+            yaxis="y2"
+        )
+    )
+
+    # RF AUROC line
+    fig.add_trace(
+        go.Scatter(
+            x=grouped["purge_buffer_km"].astype(str) + " km",
+            y=grouped["rf_auroc"],
+            name="Random Forest AUROC",
+            mode="lines+markers",
+            line=dict(color=THEME_COLORS["primary"], width=3),
+            marker=dict(size=8)
+        )
+    )
+
+    # XGBoost AUROC line
+    fig.add_trace(
+        go.Scatter(
+            x=grouped["purge_buffer_km"].astype(str) + " km",
+            y=grouped["xgb_auroc"],
+            name="XGBoost AUROC",
+            mode="lines+markers",
+            line=dict(color=THEME_COLORS["accent_purple"], width=3, dash="dot"),
+            marker=dict(size=8)
+        )
+    )
+
+    fig.update_layout(
+        title="Spatial Purging Sensitivity Sweep (0 to 437.8 km)",
+        yaxis=dict(title="Out-of-Fold AUROC", range=[0.90, 1.01]),
+        yaxis2=dict(
+            title="Retained Training Samples (N)",
+            overlaying="y",
+            side="right",
+            range=[0, 240]
+        ),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=380
+    )
+    return apply_custom_theme(fig)
+
+
+def render_fold_metrics_bar_chart(fold_df: pd.DataFrame, title: str = "Fold-Wise Evaluation Metrics") -> go.Figure:
+    """Renders fold-by-fold AUROC & PR-AUC comparison highlighting Fold 4 single-class transparency."""
+    if fold_df.empty:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="Fold Metrics Unavailable")
+
+    folds = [f"Fold {f}" for f in fold_df["fold"]]
+    rf_auc = [f if pd.notna(f) else 0.0 for f in fold_df["rf_auroc"]]
+    xgb_auc = [f if pd.notna(f) else 0.0 for f in fold_df["xgb_auroc"]]
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                name="Random Forest AUROC",
+                x=folds,
+                y=rf_auc,
+                marker_color=THEME_COLORS["primary"],
+                text=[f"{v:.3f}" if v > 0 else "Undefined (0 pos)" for v in rf_auc],
+                textposition="auto"
+            ),
+            go.Bar(
+                name="XGBoost AUROC",
+                x=folds,
+                y=xgb_auc,
+                marker_color=THEME_COLORS["accent_purple"],
+                text=[f"{v:.3f}" if v > 0 else "Undefined (0 pos)" for v in xgb_auc],
+                textposition="auto"
+            )
+        ]
+    )
+
+    fig.add_annotation(
+        x="Fold 4",
+        y=0.15,
+        text="⚠️ Single-Class Test Partition<br>(N=37 neg, 0 pos in Kashmir cluster)",
+        showarrow=True,
+        arrowhead=2,
+        arrowcolor=THEME_COLORS["warning"],
+        font=dict(color=THEME_COLORS["warning"], size=10),
+        bgcolor="rgba(30, 41, 59, 0.9)",
+        bordercolor=THEME_COLORS["warning"]
+    )
+
+    fig.update_layout(
+        barmode="group",
+        yaxis_range=[0.0, 1.08],
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=380
+    )
+    return apply_custom_theme(fig, title=title, x_title="Spatial Outer Fold", y_title="AUROC Score")
+
+
+def render_susceptibility_histogram(grid_df: pd.DataFrame) -> go.Figure:
+    """Renders histogram of 0.5 deg regional grid susceptibility scores across 765 cells."""
+    if grid_df.empty:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="Susceptibility Grid Unavailable")
+
+    prob_col = "susceptibility" if "susceptibility" in grid_df.columns else "pred_prob_rf"
+    if prob_col not in grid_df.columns:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="Susceptibility Scores Unavailable")
+
+    scores = grid_df[prob_col].dropna()
+
+    fig = go.Figure(
+        data=[
+            go.Histogram(
+                x=scores,
+                nbinsx=25,
+                marker=dict(
+                    color=THEME_COLORS["primary"],
+                    line=dict(color="#00F0FF", width=1)
+                )
+            )
+        ]
+    )
+
+    median_val = float(scores.median())
+    fig.add_vline(
+        x=median_val,
+        line_width=2,
+        line_dash="dash",
+        line_color=THEME_COLORS["warning"],
+        annotation_text=f"Median: {median_val:.3f}",
+        annotation_position="top right"
+    )
+
+    return apply_custom_theme(
+        fig,
+        title="Distribution of Susceptibility Probabilities (765 Cells, 0.5° Grid)",
+        x_title="Predicted Landslide Susceptibility Score [0.0 - 1.0]",
+        y_title="Grid Cell Count",
+        height=350
+    )
+
+

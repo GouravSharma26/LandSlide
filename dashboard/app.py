@@ -18,11 +18,12 @@ from dashboard.components.sidebar import render_sidebar
 from dashboard.pages import (
     overview,
     geographic_explorer,
-    data_explorer,
-    environmental_analysis,
-    model_performance,
-    susceptibility_analysis,
     data_quality,
+    environmental_analysis,
+    event_detection,
+    susceptibility_prediction,
+    explainability_uncertainty,
+    methodology_governance,
 )
 
 # Set page configuration
@@ -51,15 +52,16 @@ def main():
     filters = render_sidebar()
     selected_page = filters["page"]
 
-    # Router table
+    # 8-Section Router Table
     page_routers = {
         "Executive Overview": overview.render,
         "Geographic Explorer": geographic_explorer.render,
-        "Landslide Data Explorer": data_explorer.render,
+        "Data Catalog & Quality": data_quality.render,
         "Environmental Analysis": environmental_analysis.render,
-        "Machine Learning Performance": model_performance.render,
-        "Susceptibility Analysis": susceptibility_analysis.render,
-        "Data Quality & Methodology": data_quality.render,
+        "Event Detection": event_detection.render,
+        "Susceptibility Prediction": susceptibility_prediction.render,
+        "Explainability & Uncertainty": explainability_uncertainty.render,
+        "Research Methodology & Governance": methodology_governance.render,
     }
 
     render_fn = page_routers.get(selected_page)
@@ -76,4 +78,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

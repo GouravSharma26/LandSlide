@@ -1,95 +1,118 @@
-# Himalayan Landslide Intelligence Dashboard
+# Himalayan Landslide Intelligence Research System
 
-A modern, high-fidelity geospatial intelligence platform for rainfall-triggered landslide detection, spatial cross-validation evaluation, and regional susceptibility analytics across the Himalayan mountain belt.
+A reproducible geospatial machine-learning research platform for multi-source remote sensing landslide detection, spatial cross-validation evaluation, and rainfall-conditioned susceptibility prediction across the Himalayan mountain belt.
 
 ---
 
-## 🏔️ Overview
+## 🏔️ Research Scope & Objectives
 
-The **Himalayan Landslide Intelligence Dashboard** is a full-featured interactive analytics platform built with Streamlit, Plotly, PyDeck, Scikit-learn, XGBoost, and SHAP. It visualizes data from NASA's Global Landslide Catalog (COOLR), ESA Sentinel-1 SAR (IW GRD), ESA Sentinel-2 MSI surface reflectance, CHIRPS daily precipitation, and USGS SRTM 30m digital elevation derivatives across the Himalayan belt ($26.0^\circ\text{N} - 35.0^\circ\text{N}$, $74.0^\circ\text{E} - 97.0^\circ\text{E}$).
+The system supports two independent, decoupled machine-learning workflows across the Himalayan mountain belt ($26.0^\circ\text{N} - 35.5^\circ\text{N}$, $74.0^\circ\text{E} - 97.0^\circ\text{E}$, $\sim 2.2\text{M km}^2$):
+
+1. **Workflow A: Landslide Event Detection**
+   - *Status:* Experimental Point-Zone Disturbance Assessment.
+   - *Objective:* Post-hoc diagnostic classification of whether ground failure evidence exists using pre/post satellite observations.
+   - *Allowed Predictors:* Sentinel-1 IW GRD ($\text{VH}_{\text{post}}, \text{VV}_{\text{post}}, \Delta\text{VH}, \Delta\text{VV}$), event trigger rainfall ($\text{rain}_{1\text{d}}, \text{rain}_{7\text{d}}, \text{rain}_{30\text{d}}, \text{API}_{\alpha=0.90}$), and SRTM topography.
+   - *Positional Uncertainty Notice:* $57.5\%$ of NASA COOLR events ($73/127$) carry $\pm 5\text{ km}$ positional uncertainty. Single 10m pixels represent point-zone disturbance proxies, not verified scar-level delineations.
+
+2. **Workflow B: Rainfall-Conditioned Susceptibility Prediction**
+   - *Status:* Rainfall-Conditioned Susceptibility — Diagnostic Baseline.
+   - *Objective:* Pre-event spatial hazard ranking conditioned on antecedent precipitation.
+   - *Strictly Prohibited:* $\text{VH}_{\text{post}}, \text{VV}_{\text{post}}, \Delta\text{VH}, \Delta\text{VV}$, event-day rain ($\text{rain}_{1\text{d}}, \text{rain}_{7\text{d}}$), event labels, and spatial coordinates ($\text{lat}, \text{lon}$). Zero temporal leakage.
+   - *Configurations:* Cloud-Independent Core (all-weather), Optical-Enhanced (carries 31.5% monsoon cloud missingness), and Reduced Diagnostic (slope & TRI excluded).
 
 ---
 
 ## 🚀 Quickstart
 
 ### 1. Requirements & Prerequisites
-- Python 3.11+
-- Virtual environment (recommended)
-
-### 2. Installation
-Install project dependencies from `dashboard/requirements.txt`:
+- Python 3.11+ (Validated on Python 3.12.6)
+- Dependencies: `streamlit`, `scikit-learn`, `xgboost`, `shap`, `plotly`, `pydeck`, `pyproj`, `scipy`, `pandas`, `numpy`, `joblib`
 
 ```bash
 pip install -r dashboard/requirements.txt
 ```
 
-### 3. Launch Application
-Run the dashboard locally from the workspace root:
-
+### 2. Launch Research Dashboard
 ```bash
 streamlit run dashboard/app.py
 ```
-
 The application will be accessible at `http://localhost:8501`.
+
+### 3. Automated Test Suite
+```bash
+python -m pytest tests/ -v
+```
+All 22 unit, spatial separation, prohibited feature, and governance tests must pass.
 
 ---
 
-## 🧭 Dashboard Architecture & Pages
-
-The application is structured into seven modular analytical views accessible via the dark navy sidebar:
+## 🧭 Dashboard Architecture (Eight Research Sections)
 
 1. **Executive Overview (`pages/overview.py`):**
-   - High-level KPIs: Raw reports (14,750), cleaned observations (254), model AUROC (0.976), 0.5° grid cells (765), and date ranges.
-   - Annual event trends, monthly monsoon sensitivity charts, trigger distribution, and benchmark model comparison scorecards.
+   - High-level KPIs: Raw reports (14,750), cleaned paired points (254), confirmed rainfall events (127), and 0.5° regional grid cells (765).
+   - Dual-workflow architecture cards with scientific status badges.
+   - Annual event trends, monthly monsoon peak sensitivity, and trigger distributions.
 
 2. **Geographic Explorer (`pages/geographic_explorer.py`):**
    - Interactive spatial mapping using Plotly Mapbox and PyDeck 3D column layers.
-   - Landslide positive events vs. hard control negatives with hover tooltips and regional subzone filtering.
+   - Confirmed landslide locations vs. diagnostic control negatives with hover tooltips and regional subzone filtering.
+   - Overlay toggle for the 0.5° regional susceptibility macro-grid (765 cells).
 
-3. **Landslide Data Explorer (`pages/data_explorer.py`):**
-   - Interactive search and query engine over NASA COOLR reports and cleaned observations.
-   - Multi-attribute filtering (trigger, accuracy, source catalog) and CSV download capabilities.
+3. **Data Catalog & Quality (`pages/data_quality.py`):**
+   - 7-Stage Preprocessing Funnel (from 14,750 global reports to 127 verified Himalayan events).
+   - Missingness root-cause audit (documenting 31.5% optical monsoon cloud obscuration).
+   - Dataset Lineage: Version 1.0 (Baseline) vs Version 2.0 (Hillslope Protocol, $6.1^\circ-41.4^\circ$, $>2\text{ km}$ buffer exclusion).
+   - Two-sample Kolmogorov-Smirnov statistical proof of flat-terrain control bias ($p < 10^{-50}$).
 
 4. **Environmental Analysis (`pages/environmental_analysis.py`):**
    - Multisource feature distributions across 4 key earth observation domains:
-     - *Precipitation:* CHIRPS 1-day, 7-day, 30-day cumulative rainfall and Antecedent Precipitation Index (API).
+     - *Precipitation:* CHIRPS 1-day, 7-day, 30-day cumulative rainfall and API ($\alpha=0.90$).
      - *Topography:* SRTM 30m Elevation, Slope, Aspect, Curvature, TRI, and TWI.
-     - *SAR Radar:* Sentinel-1 VV/VH backscatter and pre/post differential backscatter ($\Delta\text{VV}$, $\Delta\text{VH}$).
-     - *Optical:* Sentinel-2 surface reflectance NDVI, NDWI, and Bare Soil Index (BSI).
-   - Interactive Pearson correlation heatmap and transparent missingness visualization.
+     - *SAR Backscatter:* Sentinel-1 VV/VH backscatter and pre/post differential backscatter ($\Delta\text{VV}, \Delta\text{VH}$).
+     - *Optical Indices:* Sentinel-2 surface reflectance NDVI, NDWI, and Bare Soil Index (BSI).
+   - Pearson correlation heatmap and descriptive Variance Inflation Factor (VIF) audit.
 
-5. **Machine Learning Performance (`pages/model_performance.py`):**
-   - Spatial 5-fold cross-validation benchmarking (Azimuthal Equidistant KMeans clustered folds).
-   - Out-of-fold ROC curves, Precision-Recall curves, confusion matrices with adjustable decision thresholds.
-   - Global feature importance (Random Forest MDI vs. XGBoost Gain) and TreeExplainer SHAP attribution.
+5. **Event Detection (`pages/event_detection.py`):**
+   - Workflow A: Experimental Point-Zone Disturbance Assessment.
+   - Fold-wise metric reporting with full scientific transparency (explaining Fold 4 undefined AUROC due to single-class Kashmir test partition).
+   - Interactive confusion matrix with adjustable probability threshold slider.
+   - Out-of-fold ROC curves, Precision-Recall curves, and differential radar disturbance diagnostics.
 
-6. **Susceptibility Analysis (`pages/susceptibility_analysis.py`):**
-   - Macro-scale $0.5^\circ \times 0.5^\circ$ (~55 km) regional susceptibility grid.
-   - Dual model outputs (RF and XGBoost) and ensemble susceptibility score.
-   - Spatial uncertainty diagnostics: RF tree standard deviation and inter-model disagreement ($|\text{RF} - \text{XGB}|$).
-   - Susceptibility zonation classification (Very Low to Very High).
+6. **Susceptibility Prediction (`pages/susceptibility_prediction.py`):**
+   - Workflow B: Rainfall-Conditioned Susceptibility — Diagnostic Baseline.
+   - Multi-configuration selector: Cloud-Independent Core (Recommended) vs Optical-Enhanced vs Reduced Diagnostic.
+   - 0.5° Regional Susceptibility Lattice Explorer (765 cells, September 2026 synoptic late-monsoon reference period).
+   - Inter-model disagreement diagnostics ($|\text{RF} - \text{XGB}|$).
 
-7. **Data Quality & Methodology (`pages/data_quality.py`):**
-   - Transparent missingness audit (documenting 31.5% optical monsoon cloud obscuration).
-   - Step-by-step cleaning funnel from 14,750 raw records down to 127 positive events.
-   - Honest documentation of the negative-sampling terrain confound and sample size limitations.
-   - Operational safety disclaimer (not a real-time warning system).
+7. **Explainability & Uncertainty (`pages/explainability_uncertainty.py`):**
+   - Global TreeSHAP feature attributions for Random Forest and XGBoost.
+   - Explanation of why radar deltas ($\Delta\text{VH}$) show modest attribution due to catalog coordinate uncertainty.
+   - Spatial Purging Sensitivity Analysis ($0, 50, 100, 200, 437.8\text{ km}$) showing trade-offs between geographic separation and sample loss.
 
----
-
-## 🧪 Automated Testing
-
-Execute the test suite to verify data loading, bounding box constraints, schema validation, and metric consistency:
-
-```bash
-pytest tests/ -v
-```
+8. **Research Methodology & Governance (`pages/methodology_governance.py`):**
+   - Mathematical formulations of Workflow A and Workflow B.
+   - Strict Prohibited Feature Contracts (banning post-event data and coordinates).
+   - Spatial 5-Fold Cluster Cross-Validation architecture diagram.
+   - Comprehensive limitation disclosures and one-click download for full `experiment_metadata.json`.
 
 ---
 
-## 🛡️ Scientific Integrity & Provenance
+## 🛡️ Scientific Integrity & Provenance Status
 
-- **Terrain Confound:** In Phase 2, negative samples were constrained to slope $< 5^\circ$. Consequently, models easily differentiate steep terrain from flat terrain. The *Reduced Feature Set* (excluding slope and TRI) is presented as the primary benchmark.
-- **Resolution Honesty:** The regional susceptibility grid is evaluated at $0.5^\circ$ (~55 km resolution) across 765 valid cells, suitable for macro-basin prioritization, not 30m slope-scale site hazard mapping.
-- **Zero Fabrication:** All metrics, coordinates, predictions, and feature distributions are computed directly from the project's source datasets. Missing data is never silently filled with synthetic values.
+| Artifact / Workflow | Status Designation | Description & Caveat |
+| :--- | :--- | :--- |
+| **Version 1.0 Dataset** | **Historical Diagnostic Baseline** | $N=254$ historical points with flat-terrain negative controls (mean slope $1.43^\circ$). Used as diagnostic baseline. |
+| **Version 2.0 Dataset** | **EXTRACTION_PENDING_COLAB_GEE** | Empirically validated hillslope protocol ($6.1^\circ \le \text{slope} \le 41.4^\circ$, $>2\text{ km}$ exclusion). GEE extraction prepared in Colab. |
+| **Workflow A** | **Experimental Point-Zone Disturbance** | Post-hoc classification under $\pm 5\text{ km}$ catalog uncertainty. Point pixels capture point-zone proxies, not verified scars. |
+| **Workflow B** | **Rainfall-Conditioned Susceptibility** | Pre-event hazard ranking conditioned on antecedent CHIRPS rainfall. Evaluated on Version 1.0 diagnostic controls. |
+| **Regional Grid** | **Illustrative Macro-Regional Layer** | $0.5^\circ \times 0.5^\circ$ macro-lattice (765 cells) under September 2026 synoptic reference period. Not for civil site engineering. |
 
+---
+
+## 🧪 Automated Testing Suite
+
+The repository contains 22 automated tests under `tests/`:
+- `tests/test_scientific_governance.py`: Prohibited features enforcement, temporal leakage absence, spatial purge distance verification, fold class balance, artifact schema consistency, model deserialization, and V2 status.
+- `tests/test_data_loader.py`: Cached loading of raw, cleaned, feature tables, metrics, and models.
+- `tests/test_metrics.py`: ROC, PR, confusion matrix, and susceptibility distribution statistics.
+- `tests/test_validation.py`: Coordinate bounds validation, schema checks, and label balance.

@@ -1,47 +1,293 @@
-"""Data loading module for Himalayan Landslide Intelligence Dashboard.
+"""Data loading module for Himalayan Landslide Intelligence Research Dashboard.
 
-Provides cached readers for project CSV datasets, models, and SHAP explainers
-with fallback handlers for version mismatches and missing files.
+Provides cached readers for standardized research artifacts, models, SHAP explainers,
+and legacy diagnostic datasets with full error handling.
 """
 
+import json
 import logging
-from typing import Dict, Any, Optional, Tuple
+from pathlib import Path
+from typing import Dict, Any, Optional
 import pandas as pd
 import numpy as np
 import streamlit as st
 import joblib
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline
-import xgboost as xgb
-import shap
 
 from dashboard.config import (
+    COMMON_DIR,
+    DETECTION_DIR,
+    SUSCEPTIBILITY_DIR,
+    METADATA_DIR,
+    DATASET_SUMMARY_PATH,
+    PREPROCESSING_FUNNEL_PATH,
+    FEATURE_MISSINGNESS_PATH,
+    FEATURE_CORRELATION_PATH,
+    VIF_REPORT_PATH,
+    DETECTION_FEATURE_TABLE_PATH,
+    DETECTION_METRICS_PATH,
+    DETECTION_FOLD_METRICS_PATH,
+    DETECTION_PREDICTIONS_PATH,
+    DETECTION_CONFUSION_MATRIX_PATH,
+    DETECTION_FEATURE_IMPORTANCE_PATH,
+    DETECTION_SHAP_SUMMARY_PATH,
+    DETECTION_MODELS_PATH,
+    SUSCEPTIBILITY_FEATURE_TABLE_PATH,
+    SUSCEPTIBILITY_METRICS_PATH,
+    SUSCEPTIBILITY_FOLD_METRICS_PATH,
+    SUSCEPTIBILITY_PREDICTIONS_PATH,
+    SUSCEPTIBILITY_FEATURE_IMPORTANCE_PATH,
+    SUSCEPTIBILITY_SHAP_SUMMARY_PATH,
+    SUSCEPTIBILITY_GRID_PATH,
+    SUSCEPTIBILITY_MODELS_PATH,
+    FEATURE_SCHEMA_PATH,
+    EXPERIMENT_METADATA_PATH,
+    SPATIAL_DISTANCE_REPORT_PATH,
+    SPATIAL_SENSITIVITY_PATH,
+    V2_DISTRIBUTION_VAL_PATH,
     RAW_LANDSLIDES_PATH,
     PHASE2_CLEANED_PATH,
     PHASE3_FEATURES_PATH,
     PHASE4_METRICS_PATH,
     PHASE4_OOF_PATH,
     PHASE4_MODELS_PATH,
-    PHASE5_CHECKPOINT_PATH,
     PHASE5_GRID_PATH,
-    FULL_FEATURE_COLS,
-    REDUCED_FEATURE_COLS,
 )
 
 logger = logging.getLogger(__name__)
 
 
+# -----------------------------------------------------------------------------
+# Common Artifact Loaders
+# -----------------------------------------------------------------------------
+
+@st.cache_data(show_spinner=False)
+def load_dataset_summary() -> Dict[str, Any]:
+    """Loads dataset summary metadata JSON."""
+    if not DATASET_SUMMARY_PATH.exists():
+        return {}
+    with open(DATASET_SUMMARY_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+@st.cache_data(show_spinner=False)
+def load_preprocessing_funnel() -> pd.DataFrame:
+    """Loads the 7-stage preprocessing funnel CSV."""
+    if not PREPROCESSING_FUNNEL_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(PREPROCESSING_FUNNEL_PATH)
+
+
+@st.cache_data(show_spinner=False)
+def load_feature_missingness() -> pd.DataFrame:
+    """Loads the feature missingness summary CSV."""
+    if not FEATURE_MISSINGNESS_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(FEATURE_MISSINGNESS_PATH)
+
+
+@st.cache_data(show_spinner=False)
+def load_feature_correlation() -> pd.DataFrame:
+    """Loads the numerical feature correlation matrix CSV."""
+    if not FEATURE_CORRELATION_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(FEATURE_CORRELATION_PATH, index_col=0)
+
+
+@st.cache_data(show_spinner=False)
+def load_vif_report() -> pd.DataFrame:
+    """Loads descriptive Variance Inflation Factor report CSV."""
+    if not VIF_REPORT_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(VIF_REPORT_PATH)
+
+
+# -----------------------------------------------------------------------------
+# Workflow A: Event Detection Loaders
+# -----------------------------------------------------------------------------
+
+@st.cache_data(show_spinner=False)
+def load_detection_feature_table() -> pd.DataFrame:
+    """Loads the clean detection feature table (13 features + label + coords)."""
+    if not DETECTION_FEATURE_TABLE_PATH.exists():
+        return pd.DataFrame()
+    df = pd.read_csv(DETECTION_FEATURE_TABLE_PATH)
+    df["event_date"] = pd.to_datetime(df["event_date"], errors="coerce")
+    return df
+
+
+@st.cache_data(show_spinner=False)
+def load_detection_metrics() -> pd.DataFrame:
+    """Loads pooled out-of-fold metrics for Workflow A."""
+    if not DETECTION_METRICS_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(DETECTION_METRICS_PATH)
+
+
+@st.cache_data(show_spinner=False)
+def load_detection_fold_metrics() -> pd.DataFrame:
+    """Loads fold-wise evaluation metrics for Workflow A."""
+    if not DETECTION_FOLD_METRICS_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(DETECTION_FOLD_METRICS_PATH)
+
+
+@st.cache_data(show_spinner=False)
+def load_detection_predictions() -> pd.DataFrame:
+    """Loads out-of-fold prediction probabilities and class decisions for Detection."""
+    if not DETECTION_PREDICTIONS_PATH.exists():
+        return pd.DataFrame()
+    df = pd.read_csv(DETECTION_PREDICTIONS_PATH)
+    df["event_date"] = pd.to_datetime(df["event_date"], errors="coerce")
+    return df
+
+
+@st.cache_data(show_spinner=False)
+def load_detection_confusion_matrix() -> pd.DataFrame:
+    """Loads detection confusion matrix counts."""
+    if not DETECTION_CONFUSION_MATRIX_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(DETECTION_CONFUSION_MATRIX_PATH)
+
+
+@st.cache_data(show_spinner=False)
+def load_detection_shap_summary() -> pd.DataFrame:
+    """Loads mean absolute TreeSHAP values for Detection."""
+    if not DETECTION_SHAP_SUMMARY_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(DETECTION_SHAP_SUMMARY_PATH)
+
+
+@st.cache_resource(show_spinner=False)
+def load_detection_models() -> Dict[str, Any]:
+    """Loads serialized Random Forest and XGBoost detection models."""
+    if not DETECTION_MODELS_PATH.exists():
+        return {}
+    return joblib.load(DETECTION_MODELS_PATH)
+
+
+# -----------------------------------------------------------------------------
+# Workflow B: Susceptibility Loaders
+# -----------------------------------------------------------------------------
+
+@st.cache_data(show_spinner=False)
+def load_susceptibility_feature_table() -> pd.DataFrame:
+    """Loads the strictly pre-event susceptibility feature table."""
+    if not SUSCEPTIBILITY_FEATURE_TABLE_PATH.exists():
+        return pd.DataFrame()
+    df = pd.read_csv(SUSCEPTIBILITY_FEATURE_TABLE_PATH)
+    df["event_date"] = pd.to_datetime(df["event_date"], errors="coerce")
+    return df
+
+
+@st.cache_data(show_spinner=False)
+def load_susceptibility_metrics() -> pd.DataFrame:
+    """Loads pooled out-of-fold metrics across Core, Optical, and Reduced susceptibility configurations."""
+    if not SUSCEPTIBILITY_METRICS_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(SUSCEPTIBILITY_METRICS_PATH)
+
+
+@st.cache_data(show_spinner=False)
+def load_susceptibility_fold_metrics() -> pd.DataFrame:
+    """Loads fold-wise evaluation metrics for Susceptibility."""
+    if not SUSCEPTIBILITY_FOLD_METRICS_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(SUSCEPTIBILITY_FOLD_METRICS_PATH)
+
+
+@st.cache_data(show_spinner=False)
+def load_susceptibility_predictions() -> pd.DataFrame:
+    """Loads out-of-fold prediction probabilities for Susceptibility configurations."""
+    if not SUSCEPTIBILITY_PREDICTIONS_PATH.exists():
+        return pd.DataFrame()
+    df = pd.read_csv(SUSCEPTIBILITY_PREDICTIONS_PATH)
+    df["event_date"] = pd.to_datetime(df["event_date"], errors="coerce")
+    return df
+
+
+@st.cache_data(show_spinner=False)
+def load_susceptibility_shap_summary() -> pd.DataFrame:
+    """Loads mean absolute TreeSHAP values for Susceptibility."""
+    if not SUSCEPTIBILITY_SHAP_SUMMARY_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(SUSCEPTIBILITY_SHAP_SUMMARY_PATH)
+
+
+@st.cache_data(show_spinner=False)
+def load_susceptibility_grid() -> pd.DataFrame:
+    """Loads the 0.5 deg macro-regional susceptibility grid (765 valid cells)."""
+    if not SUSCEPTIBILITY_GRID_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(SUSCEPTIBILITY_GRID_PATH)
+
+
+@st.cache_resource(show_spinner=False)
+def load_susceptibility_models() -> Dict[str, Any]:
+    """Loads serialized Core, Optical, and Reduced susceptibility models."""
+    if not SUSCEPTIBILITY_MODELS_PATH.exists():
+        return {}
+    return joblib.load(SUSCEPTIBILITY_MODELS_PATH)
+
+
+# -----------------------------------------------------------------------------
+# Metadata Loaders
+# -----------------------------------------------------------------------------
+
+@st.cache_data(show_spinner=False)
+def load_feature_schema() -> Dict[str, Any]:
+    """Loads declarative feature schema and prohibited variable lists."""
+    if not FEATURE_SCHEMA_PATH.exists():
+        return {}
+    with open(FEATURE_SCHEMA_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+@st.cache_data(show_spinner=False)
+def load_experiment_metadata() -> Dict[str, Any]:
+    """Loads comprehensive experiment metadata JSON."""
+    if not EXPERIMENT_METADATA_PATH.exists():
+        return {}
+    with open(EXPERIMENT_METADATA_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+@st.cache_data(show_spinner=False)
+def load_spatial_sensitivity() -> pd.DataFrame:
+    """Loads spatial purging sensitivity sweep CSV (0 to 437.8 km)."""
+    if not SPATIAL_SENSITIVITY_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(SPATIAL_SENSITIVITY_PATH)
+
+
+@st.cache_data(show_spinner=False)
+def load_spatial_distance_report() -> Dict[str, Any]:
+    """Loads pairwise geographic distance and fold purging report."""
+    if not SPATIAL_DISTANCE_REPORT_PATH.exists():
+        return {}
+    with open(SPATIAL_DISTANCE_REPORT_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+@st.cache_data(show_spinner=False)
+def load_v2_distribution_validation() -> Dict[str, Any]:
+    """Loads Version 2.0 candidate distribution validation JSON."""
+    if not V2_DISTRIBUTION_VAL_PATH.exists():
+        return {}
+    with open(V2_DISTRIBUTION_VAL_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+# -----------------------------------------------------------------------------
+# Legacy / Diagnostic Loaders (Preserved for backwards compatibility & tests)
+# -----------------------------------------------------------------------------
+
 @st.cache_data(show_spinner=False)
 def load_raw_landslides() -> pd.DataFrame:
-    """Loads and standardizes the raw NASA COOLR Landslide Reports CSV."""
+    """Loads and standardizes raw NASA COOLR Landslide Reports CSV."""
     if not RAW_LANDSLIDES_PATH.exists():
-        logger.warning(f"File not found: {RAW_LANDSLIDES_PATH}")
         return pd.DataFrame()
-
     try:
         df = pd.read_csv(RAW_LANDSLIDES_PATH, low_memory=False)
-        # Parse dates safely
         if "Event Date" in df.columns:
             df["event_date_parsed"] = pd.to_datetime(
                 df["Event Date"], format="%d/%m/%Y, %H:%M", errors="coerce"
@@ -57,11 +303,9 @@ def load_raw_landslides() -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False)
 def load_phase2_cleaned() -> pd.DataFrame:
-    """Loads the Phase 2 cleaned dataset (positives and hard negatives)."""
+    """Loads Phase 2 cleaned dataset."""
     if not PHASE2_CLEANED_PATH.exists():
-        logger.warning(f"File not found: {PHASE2_CLEANED_PATH}")
         return pd.DataFrame()
-
     try:
         df = pd.read_csv(PHASE2_CLEANED_PATH)
         df["event_date"] = pd.to_datetime(df["event_date"], errors="coerce")
@@ -75,11 +319,9 @@ def load_phase2_cleaned() -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False)
 def load_phase3_features() -> pd.DataFrame:
-    """Loads the Phase 3 feature table (static and dynamic features)."""
+    """Loads Phase 3 feature table."""
     if not PHASE3_FEATURES_PATH.exists():
-        logger.warning(f"File not found: {PHASE3_FEATURES_PATH}")
         return pd.DataFrame()
-
     try:
         df = pd.read_csv(PHASE3_FEATURES_PATH)
         df["event_date"] = pd.to_datetime(df["event_date"], errors="coerce")
@@ -91,173 +333,43 @@ def load_phase3_features() -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False)
 def load_phase4_metrics() -> pd.DataFrame:
-    """Loads the Phase 4 model evaluation comparison table."""
+    """Loads Phase 4 legacy metrics table."""
     if not PHASE4_METRICS_PATH.exists():
-        logger.warning(f"File not found: {PHASE4_METRICS_PATH}")
         return pd.DataFrame()
-
-    try:
-        return pd.read_csv(PHASE4_METRICS_PATH)
-    except Exception as e:
-        logger.error(f"Error loading Phase 4 metrics comparison: {e}")
-        return pd.DataFrame()
+    return pd.read_csv(PHASE4_METRICS_PATH)
 
 
 @st.cache_data(show_spinner=False)
 def load_phase4_oof() -> pd.DataFrame:
-    """Loads the Phase 4 spatial out-of-fold predictions."""
+    """Loads Phase 4 legacy out-of-fold predictions."""
     if not PHASE4_OOF_PATH.exists():
-        logger.warning(f"File not found: {PHASE4_OOF_PATH}")
         return pd.DataFrame()
-
-    try:
-        return pd.read_csv(PHASE4_OOF_PATH)
-    except Exception as e:
-        logger.error(f"Error loading Phase 4 OOF predictions: {e}")
-        return pd.DataFrame()
-
-
-@st.cache_data(show_spinner=False)
-def load_phase5_checkpoint() -> pd.DataFrame:
-    """Loads the Phase 5 intermediate grid checkpoint."""
-    if not PHASE5_CHECKPOINT_PATH.exists():
-        logger.warning(f"File not found: {PHASE5_CHECKPOINT_PATH}")
-        return pd.DataFrame()
-
-    try:
-        return pd.read_csv(PHASE5_CHECKPOINT_PATH)
-    except Exception as e:
-        logger.error(f"Error loading Phase 5 checkpoint: {e}")
-        return pd.DataFrame()
+    return pd.read_csv(PHASE4_OOF_PATH)
 
 
 @st.cache_data(show_spinner=False)
 def load_phase5_grid() -> pd.DataFrame:
-    """Loads the final Phase 5 0.5-degree susceptibility grid."""
+    """Loads Phase 5 legacy regional grid."""
     if not PHASE5_GRID_PATH.exists():
-        logger.warning(f"File not found: {PHASE5_GRID_PATH}")
         return pd.DataFrame()
-
-    try:
-        df = pd.read_csv(PHASE5_GRID_PATH)
-        # Classify into susceptibility tiers
-        bins = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
-        labels = ["Very Low", "Low", "Moderate", "High", "Very High"]
-        df["susceptibility_tier"] = pd.cut(
-            df["susceptibility"], bins=bins, labels=labels, include_lowest=True
-        )
-        return df
-    except Exception as e:
-        logger.error(f"Error loading Phase 5 susceptibility grid: {e}")
-        return pd.DataFrame()
+    return pd.read_csv(PHASE5_GRID_PATH)
 
 
 @st.cache_resource(show_spinner=False)
 def load_or_train_models() -> Dict[str, Any]:
-    """Loads the serialized model pipelines or deterministically fits them.
-
-    XGBoost format changes between major versions (e.g. 2.x to 3.x) can cause
-    joblib unpickling failures. If unpickling encounters an issue, this function
-    re-fits the exact Phase 5 cell 2 models on phase3_feature_table.csv with
-    random_state=42 (<1.5s runtime).
-    """
-    df = load_phase3_features()
-    if df.empty:
-        return {}
-
-    # Attempt loading from joblib first
-    if PHASE4_MODELS_PATH.exists():
-        try:
-            models_dict = joblib.load(PHASE4_MODELS_PATH)
-            # Verify models can predict
-            X_test = df[REDUCED_FEATURE_COLS].iloc[:2]
-            _ = models_dict["reduced"]["rf"].predict_proba(X_test)
-            _ = models_dict["reduced"]["xgb"].predict_proba(X_test)
-            return models_dict
-        except Exception as e:
-            logger.info(f"Joblib load failed ({e}); falling back to deterministic fit.")
-
-    # Re-fit identical estimators as specified in Phase 4 / Phase 5
-    y = df["label"].copy()
-    models = {}
-
-    for label, cols in [("full", FULL_FEATURE_COLS), ("reduced", REDUCED_FEATURE_COLS)]:
-        X = df[cols].copy()
-
-        # Random Forest Pipeline
-        rf_pipe = Pipeline([
-            ("impute", SimpleImputer(strategy="median")),
-            (
-                "clf",
-                RandomForestClassifier(
-                    n_estimators=500, class_weight="balanced", random_state=42
-                ),
-            ),
-        ])
-        rf_pipe.fit(X, y)
-
-        # XGBoost Classifier
-        scale_pos_weight = (y == 0).sum() / max((y == 1).sum(), 1)
-        xgb_clf = xgb.XGBClassifier(
-            eval_metric="logloss",
-            scale_pos_weight=scale_pos_weight,
-            random_state=42,
-            tree_method="hist",
-            n_estimators=500,
-            max_depth=5,
-            learning_rate=0.05,
-        )
-        xgb_clf.fit(X, y)
-
-        models[label] = {
-            "rf": rf_pipe,
-            "xgb": xgb_clf,
-            "feature_cols": cols,
+    """Loads or provides trained models for legacy compatibility."""
+    if SUSCEPTIBILITY_MODELS_PATH.exists() and DETECTION_MODELS_PATH.exists():
+        s_m = joblib.load(SUSCEPTIBILITY_MODELS_PATH)
+        d_m = joblib.load(DETECTION_MODELS_PATH)
+        return {
+            "reduced": {"rf": s_m["reduced"]["rf"], "xgb": s_m["reduced"]["xgb"]},
+            "core": {"rf": s_m["core"]["rf"], "xgb": s_m["core"]["xgb"]},
+            "full": {"rf": d_m["rf"], "xgb": d_m["xgb"]},
+            "detection": {"rf": d_m["rf"], "xgb": d_m["xgb"]}
         }
-
-    return models
-
-
-@st.cache_resource(show_spinner=False)
-def compute_shap_explanations(feature_set: str = "reduced") -> Tuple[Any, Any, pd.DataFrame, Any, Any]:
-    """Computes TreeExplainer SHAP values for both RF and XGBoost.
-
-    Returns:
-        (shap_values_rf, shap_values_xgb, X, rf_model, xgb_model)
-    """
-    df = load_phase3_features()
-    if df.empty:
-        return None, None, pd.DataFrame(), None, None
-
-    models = load_or_train_models()
-    if not models or feature_set not in models:
-        return None, None, pd.DataFrame(), None, None
-
-    cols = models[feature_set]["feature_cols"]
-    X = df[cols].copy()
-
-    rf_pipe = models[feature_set]["rf"]
-    xgb_clf = models[feature_set]["xgb"]
-
-    # Impute X for RF SHAP (sklearn RF requires imputed array)
-    imputer = rf_pipe.named_steps["impute"]
-    X_imputed = pd.DataFrame(imputer.transform(X), columns=cols)
-
-    rf_clf = rf_pipe.named_steps["clf"]
-    explainer_rf = shap.TreeExplainer(rf_clf)
-    shap_vals_rf = explainer_rf.shap_values(X_imputed)
-
-    # If RF returns [n_samples, n_features, 2], select positive class (index 1)
-    if isinstance(shap_vals_rf, list):
-        shap_vals_rf_pos = shap_vals_rf[1]
-    elif hasattr(shap_vals_rf, "ndim") and shap_vals_rf.ndim == 3:
-        shap_vals_rf_pos = shap_vals_rf[:, :, 1]
-    else:
-        shap_vals_rf_pos = shap_vals_rf
-
-    # XGBoost SHAP
-    explainer_xgb = shap.TreeExplainer(xgb_clf)
-    shap_vals_xgb = explainer_xgb.shap_values(X)
-
-    return shap_vals_rf_pos, shap_vals_xgb, X, rf_clf, xgb_clf
-
+    elif PHASE4_MODELS_PATH.exists():
+        try:
+            return joblib.load(PHASE4_MODELS_PATH)
+        except Exception:
+            pass
+    return {}
