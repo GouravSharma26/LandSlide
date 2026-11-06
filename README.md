@@ -59,7 +59,7 @@ All 50 unit, spatial separation, prohibited feature, geomorphometric, and govern
    - Overlay toggle for the 0.5° regional susceptibility macro-grid (765 cells).
 
 3. **Data Catalog & Quality (`pages/data_quality.py`):**
-   - 7-Stage Preprocessing Funnel (from 14,750 global reports to 127 verified Himalayan events).
+   - 7-Stage Preprocessing Funnel (from 14,750 global reports to 127 catalogued Himalayan events meeting the stated filtering criteria).
    - Missingness root-cause audit (documenting 31.5% optical monsoon cloud obscuration).
    - Dataset Lineage: Version 1.0 (Baseline) vs Version 2.0 (Hillslope Protocol, $6.1^\circ-41.4^\circ$, $>2\text{ km}$ buffer exclusion).
    - Two-sample Kolmogorov-Smirnov statistical proof of flat-terrain control bias ($p < 10^{-50}$).
@@ -97,15 +97,41 @@ All 50 unit, spatial separation, prohibited feature, geomorphometric, and govern
 
 ---
 
+## 📊 Authoritative Model Performance & Benchmark Results
+
+The following metrics reflect the authoritative artifact build (`artifacts/metadata/experiment_metadata.json`, `artifacts/detection/detection_metrics.csv`, `artifacts/susceptibility/susceptibility_metrics.csv`), evaluated across 5-fold spatial cluster cross-validation with a strict 100 km spatial purge:
+
+### Workflow A: Landslide Event Detection (Experimental Point-Zone Disturbance Assessment)
+| Classifier | Outer Validation Strategy | AUROC | PR-AUC | F1-Score (th=0.50) | Accuracy (th=0.50) |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **Random Forest (500 Trees)** | 100 km Spatial Purge | **0.984** | **0.989** | **0.972** | **97.2%** |
+| **XGBoost (Hist Gradient)** | 100 km Spatial Purge | **0.968** | **0.980** | **0.956** | **95.7%** |
+| Random Forest (Unpurged Baseline) | Unpurged Spatial Split (min 38.7 km) | 0.986 | 0.990 | 0.976 | 97.6% |
+| XGBoost (Unpurged Baseline) | Unpurged Spatial Split (min 38.7 km) | 0.970 | 0.981 | 0.956 | 95.7% |
+
+*Fold 4 Disclosure:* Fold 4 corresponds to the northwestern Kashmir/Ladakh cluster and contains $N=37$ negative points and $0$ positive events in its test partition. Fold-level AUROC and PR-AUC are mathematically undefined ($NaN$) for Fold 4; pooled out-of-fold metrics evaluate all 254 test predictions globally.
+
+### Workflow B: Rainfall-Conditioned Susceptibility Prediction (Historical Diagnostic Baseline)
+| Model Configuration | Feature Set | Model | AUROC | PR-AUC | F1-Score (th=0.50) | Accuracy (th=0.50) |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
+| **Cloud-Independent Core** (Recommended) | Pre-event Topo + SAR pre + Rain 30d + API (10 feats) | Random Forest | **0.973** | **0.981** | **0.938** | **94.1%** |
+| **Cloud-Independent Core** (Recommended) | Pre-event Topo + SAR pre + Rain 30d + API (10 feats) | XGBoost | **0.965** | **0.978** | **0.944** | **94.5%** |
+| **Optical-Enhanced** | Core + Pre-event NDVI, NDWI, BSI (13 feats, 31.5% nulls) | Random Forest | 0.977 | 0.983 | 0.930 | 93.3% |
+| **Optical-Enhanced** | Core + Pre-event NDVI, NDWI, BSI (13 feats, 31.5% nulls) | XGBoost | 0.965 | 0.978 | 0.948 | 94.9% |
+| **Reduced Diagnostic** | Core excluding Slope & TRI (8 feats; terrain check) | Random Forest | 0.955 | 0.958 | 0.878 | 87.4% |
+| **Reduced Diagnostic** | Core excluding Slope & TRI (8 feats; terrain check) | XGBoost | 0.959 | 0.961 | 0.889 | 89.0% |
+
+---
+
 ## 🛡️ Scientific Integrity & Provenance Status
 
 | Artifact / Workflow | Status Designation | Description & Caveat |
 | :--- | :--- | :--- |
-| **Version 1.0 Dataset** | **Historical Diagnostic Baseline** | $N=254$ historical points with flat-terrain negative controls (mean slope $1.43^\circ$). Used as diagnostic baseline. |
-| **Version 2.0 Dataset** | **EXTRACTION_PENDING_COLAB_GEE** | Empirically validated hillslope protocol ($6.1^\circ \le \text{slope} \le 41.4^\circ$, $>2\text{ km}$ exclusion). GEE extraction prepared in Colab. |
-| **Workflow A** | **Experimental Point-Zone Disturbance** | Post-hoc classification under $\pm 5\text{ km}$ catalog uncertainty. Point pixels capture point-zone proxies, not verified scars. |
+| **Version 1.0 Dataset** | **Historical Diagnostic Baseline** | $N=254$ historical points with flat-terrain negative controls (mean slope $1.43^\circ \pm 4.34^\circ$). Evaluated as diagnostic baseline; **not validated susceptibility**. |
+| **Version 2.0 Dataset** | **EXTRACTION_PENDING_COLAB_GEE** | Empirically validated hillslope protocol ($6.1^\circ \le \text{slope} \le 41.4^\circ$, $>2\text{ km}$ exclusion). Extraction pending authenticated Google Earth Engine execution in Colab. |
+| **Workflow A** | **Experimental Point-Zone Disturbance** | Post-hoc classification under $\pm 5\text{ km}$ catalog uncertainty. Point pixels capture point-zone disturbance proxies, not verified scars. |
 | **Workflow B** | **Rainfall-Conditioned Susceptibility** | Pre-event hazard ranking conditioned on antecedent CHIRPS rainfall. Evaluated on Version 1.0 diagnostic controls. |
-| **Regional Grid** | **Illustrative Macro-Regional Layer** | $0.5^\circ \times 0.5^\circ$ macro-lattice (765 cells) under September 2026 synoptic reference period. Not for civil site engineering. |
+| **Regional Grid** | **Macro-Regional Illustration** | $0.5^\circ \times 0.5^\circ$ macro-lattice (765 cells) under September 2026 synoptic reference period. Macro-regional illustration, **not a local operational hazard map**. |
 
 ---
 

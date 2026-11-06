@@ -62,7 +62,7 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown(
         """
         The raw NASA Global Landslide Catalog (COOLR) contains 14,750 global reports.
-        Through 7 systematic filtering stages, we isolated 127 verified rainfall-triggered landslides across the Himalayan mountain belt:
+        Through 7 systematic filtering stages, we isolated 127 catalogued rainfall-triggered landslide events meeting the stated filtering criteria across the Himalayan mountain belt:
         """
     )
 
@@ -119,7 +119,7 @@ def render(filters: Dict[str, Any]) -> None:
     )
 
     v1_v2_table = [
-        {"Parameter / Attribute": "Status", "Version 1.0 (Baseline)": "Verified Diagnostic Baseline", "Version 2.0 (Hillslope Protocol)": "EXTRACTION_PENDING_COLAB_GEE"},
+        {"Parameter / Attribute": "Status", "Version 1.0 (Baseline)": "Historical Diagnostic Baseline (Flat-Terrain Controls; Not Validated Susceptibility)", "Version 2.0 (Hillslope Protocol)": "EXTRACTION_PENDING_COLAB_GEE (Extraction Pending)"},
         {"Parameter / Attribute": "Sample Size", "Version 1.0 (Baseline)": "N=254 (127 pos, 127 neg)", "Version 2.0 (Hillslope Protocol)": "N=254 target (127 pos, 127 neg)"},
         {"Parameter / Attribute": "Negative Control Slope", "Version 1.0 (Baseline)": "Mean 1.43° ± 4.34° (90% flat plains < 5°)", "Version 2.0 (Hillslope Protocol)": "Empirical envelope: 6.1° to 41.4° (unfailed hillslopes)"},
         {"Parameter / Attribute": "Elevation Range", "Version 1.0 (Baseline)": "14 m to 2,398 m", "Version 2.0 (Hillslope Protocol)": "266 m to 3,027 m (P10 to P95 of positive events)"},

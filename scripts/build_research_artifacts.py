@@ -961,10 +961,10 @@ def execute_build():
         },
         "random_seed": 42,
         "dataset_lineage": {
-            "version_1_0": "Verified Diagnostic Baseline (N=254, 127 positive, 127 unstratified negative controls)",
-            "version_2_0": "EXTRACTION_PENDING_COLAB_GEE (Prepared protocol & Colab notebook; genuine extraction pending)",
+            "version_1_0": "Historical Diagnostic Baseline with flat-terrain controls (N=254, 127 positive, 127 unstratified negative controls; not validated susceptibility)",
+            "version_2_0": "EXTRACTION_PENDING_COLAB_GEE (Prepared protocol & Colab notebook; genuine GEE extraction pending)",
             "regional_grid_reference_period": "September 2026 synoptic late-monsoon window (30-day antecedent CHIRPS, alpha=0.90)",
-            "regional_grid_resolution": "0.5 deg macro-regional synoptic lattice (~55 km cell width, 765 valid cells)"
+            "regional_grid_resolution": "0.5 deg macro-regional September 2026 rainfall-conditioned illustration (~55 km cell width, 765 valid cells; not a local operational hazard map)"
         },
         "programmatic_schema_verification": schema_verification,
         "spatial_cross_validation": {
