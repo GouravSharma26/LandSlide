@@ -42,7 +42,7 @@ The application will be accessible at `http://localhost:8501`.
 ```bash
 python -m pytest tests/ -v
 ```
-All 22 unit, spatial separation, prohibited feature, and governance tests must pass.
+All 50 unit, spatial separation, prohibited feature, geomorphometric, and governance tests must pass.
 
 ---
 
@@ -111,8 +111,9 @@ All 22 unit, spatial separation, prohibited feature, and governance tests must p
 
 ## 🧪 Automated Testing Suite
 
-The repository contains 22 automated tests under `tests/`:
-- `tests/test_scientific_governance.py`: Prohibited features enforcement, temporal leakage absence, spatial purge distance verification, fold class balance, artifact schema consistency, model deserialization, and V2 status.
-- `tests/test_data_loader.py`: Cached loading of raw, cleaned, feature tables, metrics, and models.
-- `tests/test_metrics.py`: ROC, PR, confusion matrix, and susceptibility distribution statistics.
-- `tests/test_validation.py`: Coordinate bounds validation, schema checks, and label balance.
+The repository contains 50 automated tests across 5 test suites under `tests/`:
+- `tests/test_scientific_governance.py` (7 tests): Prohibited features enforcement, temporal leakage absence, spatial purge distance verification, fold class balance, artifact schema consistency, model deserialization, and V2 status.
+- `tests/test_v2_sampling_and_features.py` (28 tests): MERIT Hydro 90m TWI, SRTM slope aggregation, strict positive event terrain validation (zero fallback), multi-batch candidate optimization, coordinate deduplication, 13-category rejection audit counters, and notebook structural integrity.
+- `tests/test_data_loader.py` (7 tests): Cached loading of raw reports, cleaned datasets, feature tables, metrics, out-of-fold predictions, 765-cell regional grid, and serialized models.
+- `tests/test_metrics.py` (4 tests): ROC curves, Precision-Recall curves, confusion matrices across probability thresholds, and susceptibility distribution statistics.
+- `tests/test_validation.py` (4 tests): Geographic bounds validation ($26.0^\circ-35.5^\circ\text{N}, 74.0^\circ-97.0^\circ\text{E}$), schema compliance, missingness summary calculation, and label balance.
