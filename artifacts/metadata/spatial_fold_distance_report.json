@@ -1,28 +1,39 @@
 {
-  "projection": "+proj=aeqd +lat_0=30.463 +lon_0=83.505 +datum=WGS84 +units=m",
+  "projection": "+proj=aeqd on centroid (WGS84)",
   "n_outer_folds": 5,
+  "sensitivity_evaluated_buffers_km": [
+    0.0,
+    50.0,
+    100.0,
+    200.0,
+    437.8
+  ],
+  "primary_operational_buffer_km": 100.0,
   "folds": {
     "fold_0": {
       "n_test_samples": 53,
-      "n_train_samples": 201,
-      "min_distance_to_train_km": 38.69,
-      "p10_distance_to_train_km": 424.79,
-      "mean_distance_to_train_km": 958.76,
-      "max_distance_to_train_km": 2308.0,
-      "pairs_under_50km": 1,
-      "pairs_under_100km": 6,
+      "n_train_samples_raw": 201,
+      "min_distance_unpurged_km": 38.69,
+      "p10_distance_km": 424.79,
+      "mean_distance_km": 958.76,
+      "max_distance_km": 2308.0,
       "spatial_purging_analysis": {
-        "buffer_50km": {
+        "buffer_0.0km": {
+          "purged_training_samples": 0,
+          "purged_training_pct": 0.0,
+          "remaining_training_samples": 201
+        },
+        "buffer_50.0km": {
           "purged_training_samples": 1,
           "purged_training_pct": 0.5,
           "remaining_training_samples": 200
         },
-        "buffer_100km": {
+        "buffer_100.0km": {
           "purged_training_samples": 3,
           "purged_training_pct": 1.49,
           "remaining_training_samples": 198
         },
-        "buffer_200km": {
+        "buffer_200.0km": {
           "purged_training_samples": 22,
           "purged_training_pct": 10.95,
           "remaining_training_samples": 179
@@ -36,25 +47,28 @@
     },
     "fold_1": {
       "n_test_samples": 52,
-      "n_train_samples": 202,
-      "min_distance_to_train_km": 101.8,
-      "p10_distance_to_train_km": 711.0,
-      "mean_distance_to_train_km": 1249.88,
-      "max_distance_to_train_km": 2177.62,
-      "pairs_under_50km": 0,
-      "pairs_under_100km": 0,
+      "n_train_samples_raw": 202,
+      "min_distance_unpurged_km": 101.8,
+      "p10_distance_km": 711.0,
+      "mean_distance_km": 1249.88,
+      "max_distance_km": 2177.62,
       "spatial_purging_analysis": {
-        "buffer_50km": {
+        "buffer_0.0km": {
           "purged_training_samples": 0,
           "purged_training_pct": 0.0,
           "remaining_training_samples": 202
         },
-        "buffer_100km": {
+        "buffer_50.0km": {
           "purged_training_samples": 0,
           "purged_training_pct": 0.0,
           "remaining_training_samples": 202
         },
-        "buffer_200km": {
+        "buffer_100.0km": {
+          "purged_training_samples": 0,
+          "purged_training_pct": 0.0,
+          "remaining_training_samples": 202
+        },
+        "buffer_200.0km": {
           "purged_training_samples": 4,
           "purged_training_pct": 1.98,
           "remaining_training_samples": 198
@@ -68,25 +82,28 @@
     },
     "fold_2": {
       "n_test_samples": 50,
-      "n_train_samples": 204,
-      "min_distance_to_train_km": 38.69,
-      "p10_distance_to_train_km": 451.33,
-      "mean_distance_to_train_km": 809.74,
-      "max_distance_to_train_km": 1579.77,
-      "pairs_under_50km": 1,
-      "pairs_under_100km": 3,
+      "n_train_samples_raw": 204,
+      "min_distance_unpurged_km": 38.69,
+      "p10_distance_km": 451.33,
+      "mean_distance_km": 809.74,
+      "max_distance_km": 1579.77,
       "spatial_purging_analysis": {
-        "buffer_50km": {
+        "buffer_0.0km": {
+          "purged_training_samples": 0,
+          "purged_training_pct": 0.0,
+          "remaining_training_samples": 204
+        },
+        "buffer_50.0km": {
           "purged_training_samples": 1,
           "purged_training_pct": 0.49,
           "remaining_training_samples": 203
         },
-        "buffer_100km": {
+        "buffer_100.0km": {
           "purged_training_samples": 2,
           "purged_training_pct": 0.98,
           "remaining_training_samples": 202
         },
-        "buffer_200km": {
+        "buffer_200.0km": {
           "purged_training_samples": 35,
           "purged_training_pct": 17.16,
           "remaining_training_samples": 169
@@ -100,25 +117,28 @@
     },
     "fold_3": {
       "n_test_samples": 62,
-      "n_train_samples": 192,
-      "min_distance_to_train_km": 87.41,
-      "p10_distance_to_train_km": 462.74,
-      "mean_distance_to_train_km": 1083.31,
-      "max_distance_to_train_km": 2177.62,
-      "pairs_under_50km": 0,
-      "pairs_under_100km": 3,
+      "n_train_samples_raw": 192,
+      "min_distance_unpurged_km": 87.41,
+      "p10_distance_km": 462.74,
+      "mean_distance_km": 1083.31,
+      "max_distance_km": 2177.62,
       "spatial_purging_analysis": {
-        "buffer_50km": {
+        "buffer_0.0km": {
           "purged_training_samples": 0,
           "purged_training_pct": 0.0,
           "remaining_training_samples": 192
         },
-        "buffer_100km": {
+        "buffer_50.0km": {
+          "purged_training_samples": 0,
+          "purged_training_pct": 0.0,
+          "remaining_training_samples": 192
+        },
+        "buffer_100.0km": {
           "purged_training_samples": 3,
           "purged_training_pct": 1.56,
           "remaining_training_samples": 189
         },
-        "buffer_200km": {
+        "buffer_200.0km": {
           "purged_training_samples": 17,
           "purged_training_pct": 8.85,
           "remaining_training_samples": 175
@@ -132,25 +152,28 @@
     },
     "fold_4": {
       "n_test_samples": 37,
-      "n_train_samples": 217,
-      "min_distance_to_train_km": 144.07,
-      "p10_distance_to_train_km": 615.17,
-      "mean_distance_to_train_km": 1102.92,
-      "max_distance_to_train_km": 2308.0,
-      "pairs_under_50km": 0,
-      "pairs_under_100km": 0,
+      "n_train_samples_raw": 217,
+      "min_distance_unpurged_km": 144.07,
+      "p10_distance_km": 615.17,
+      "mean_distance_km": 1102.92,
+      "max_distance_km": 2308.0,
       "spatial_purging_analysis": {
-        "buffer_50km": {
+        "buffer_0.0km": {
           "purged_training_samples": 0,
           "purged_training_pct": 0.0,
           "remaining_training_samples": 217
         },
-        "buffer_100km": {
+        "buffer_50.0km": {
           "purged_training_samples": 0,
           "purged_training_pct": 0.0,
           "remaining_training_samples": 217
         },
-        "buffer_200km": {
+        "buffer_100.0km": {
+          "purged_training_samples": 0,
+          "purged_training_pct": 0.0,
+          "remaining_training_samples": 217
+        },
+        "buffer_200.0km": {
           "purged_training_samples": 7,
           "purged_training_pct": 3.23,
           "remaining_training_samples": 210

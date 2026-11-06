@@ -1,23 +1,23 @@
-feature,vif
-VV_post,90.66
-VV_pre,83.33
-VH_post,81.55
-VH_pre,77.76
-API,54.74
-dVV,28.03
-NDVI,25.11
-dVH,23.3
-rain_30d,19.7
-NDWI,19.45
-slope,15.03
-tri,14.45
-rain_7d,11.23
-elevation,4.04
-rain_1d,3.31
-BSI,3.17
-latitude,2.86
-longitude,1.98
-twi,1.66
-spectral_window_days,1.17
-curvature,1.14
-aspect,1.11
+feature,vif,exploratory_interpretation
+VV_post,90.66,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+VV_pre,83.33,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+VH_post,81.55,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+VH_pre,77.76,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+API,54.74,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+dVV,28.03,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+NDVI,25.11,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+dVH,23.3,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+rain_30d,19.7,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+NDWI,19.45,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+slope,15.03,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+tri,14.45,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+rain_7d,11.23,Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)
+elevation,4.04,Low collinearity
+rain_1d,3.31,Low collinearity
+BSI,3.17,Low collinearity
+latitude,2.86,Low collinearity
+longitude,1.98,Low collinearity
+twi,1.66,Low collinearity
+spectral_window_days,1.17,Low collinearity
+curvature,1.14,Low collinearity
+aspect,1.11,Low collinearity

@@ -1,0 +1,61 @@
+{
+  "slope": {
+    "p05": 3.5535171985626217,
+    "p10": 6.148203849792482,
+    "p25": 13.177201271057127,
+    "median": 21.000547409057617,
+    "mean": 21.829074983922844,
+    "p75": 29.506576538085938,
+    "p90": 39.45148468017578,
+    "p95": 41.3844612121582,
+    "min": 1.0749775171279907,
+    "max": 52.80166244506836
+  },
+  "elevation": {
+    "p05": 265.6,
+    "p10": 327.0,
+    "median": 1168.0,
+    "mean": 1285.2991452991453,
+    "p90": 2246.8,
+    "p95": 3026.9999999999995,
+    "min": 87.0,
+    "max": 4324.0
+  },
+  "tri": {
+    "p10": 9.766862278361598,
+    "median": 26.902200561697075,
+    "p90": 52.20283328009231
+  },
+  "twi": {
+    "p10": 9.666833105259254,
+    "median": 10.82921593162895,
+    "p90": 13.004326537624618
+  },
+  "n_positives": 127,
+  "v2_control_envelope": {
+    "slope_min_deg": 6.1,
+    "slope_max_deg": 41.4,
+    "elevation_min_m": 266.0,
+    "elevation_max_m": 3027.0,
+    "min_dist_to_positive_m": 2000,
+    "max_buffer_search_km": 40,
+    "jrc_max_water_pct": 10,
+    "sar_max_std_db": 1.5
+  },
+  "v1_distribution_divergence": {
+    "note": "Version 1.0 controls show extreme statistical divergence from landslide terrain (p-value < 1e-15), proving flat-terrain bias.",
+    "slope_ks_statistic": 0.9230769230769231,
+    "slope_ks_pvalue": 1.2373098269911822e-56,
+    "tri_ks_statistic": 0.906655898781883,
+    "tri_ks_pvalue": 6.17720175351396e-54,
+    "elevation_ks_statistic": 0.5898781883033851,
+    "elevation_ks_pvalue": 3.07148801040273e-20
+  },
+  "candidate_validation_status": {
+    "status": "EXTRACTION_PENDING_COLAB_GEE",
+    "description": "Candidate sampling envelopes are empirically validated against positive events. Feature extraction requires authenticated Earth Engine execution in Colab.",
+    "colab_notebook": "notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb",
+    "gee_project": "landslidedetection-506008",
+    "provenance_policy": "No synthetic feature generation permitted. Version 1.0 remains baseline until GEE extraction is completed."
+  }
+}

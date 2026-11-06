@@ -1,7 +1,7 @@
 {
   "workflow_a_detection": {
-    "name": "Landslide Event Detection Feature Set",
-    "objective": "Classify post-hoc occurrence of ground failure using pre/post satellite change",
+    "name": "Landslide Event Detection Feature Set (Experimental Point-Zone Disturbance Assessment)",
+    "objective": "Classify post-hoc occurrence of ground disturbance using pre/post satellite change",
     "feature_count": 13,
     "features": [
       "elevation",
@@ -23,7 +23,8 @@
       "VV_pre",
       "latitude",
       "longitude"
-    ]
+    ],
+    "spatial_uncertainty_caveat": "NASA catalog coordinates carry +/- 5km uncertainty. Evaluates point-zone disturbance proxy, not validated scar-level detection."
   },
   "workflow_b_susceptibility_core": {
     "name": "Cloud-Independent Core Susceptibility Set",
@@ -50,7 +51,8 @@
       "rain_7d",
       "latitude",
       "longitude"
-    ]
+    ],
+    "rainfall_conditioning": "Conditioned on 30-day antecedent rainfall and API (alpha=0.90)"
   },
   "workflow_b_susceptibility_optical": {
     "name": "Optical-Enhanced Susceptibility Set",
@@ -80,7 +82,8 @@
       "rain_7d",
       "latitude",
       "longitude"
-    ]
+    ],
+    "missingness_note": "Carries 31.5% missing data due to Himalayan monsoon clouds"
   },
   "workflow_b_susceptibility_reduced": {
     "name": "Reduced Susceptibility Set (Terrain Bias Diagnostic)",
@@ -97,8 +100,6 @@
       "API"
     ],
     "prohibited_features": [
-      "slope",
-      "tri",
       "VH_post",
       "VV_post",
       "dVH",
@@ -106,7 +107,9 @@
       "rain_1d",
       "rain_7d",
       "latitude",
-      "longitude"
+      "longitude",
+      "slope",
+      "tri"
     ]
   }
 }

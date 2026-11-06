@@ -28,8 +28,8 @@
   "api_decay_factor": 0.9,
   "semivariogram_detrended_range_km": 437.8,
   "results_provenance": {
-    "version_1_0_historical": "Verified Experimental Baseline (N=254, slope < 5 deg controls)",
-    "version_2_0_hillslope": "Validated Specification (Colab extraction ready)",
-    "regional_grid_0_5deg": "Verified Macro-Synoptic Layer (765 cells, ~55 km resolution)"
+    "version_1_0_historical": "Verified Diagnostic Baseline (N=254, slope < 5 deg controls)",
+    "version_2_0_hillslope": "EXTRACTION_PENDING_COLAB_GEE (Validated envelope, extraction prepared in Colab)",
+    "regional_grid_0_5deg": "Illustrative Macro-Regional Layer (765 cells, ~55 km resolution, Sept 2026 synoptic reference)"
   }
 }

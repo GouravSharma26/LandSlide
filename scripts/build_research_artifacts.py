@@ -1,18 +1,23 @@
 """Production Research Artifact Builder for Himalayan Landslide Intelligence.
 
 Implements:
-1. Version 1.0 (Historical N=254) and Version 2.0 (Hillslope Control Specification).
-2. Workflow A: Landslide Event Detection Pipeline (Random Forest + XGBoost, spatial 5-fold CV).
-3. Workflow B: Landslide Susceptibility Pipeline (Cloud-Independent Core & Optical-Enhanced).
-4. Spatial Distance Auditing: Minimum distance matrix and spatial purging analysis.
-5. Leakage-Proof Evaluation: Imputation, scaling, tuning strictly within training folds.
-6. SHAP attributions and uncertainty metrics.
-7. Generation of standardized artifacts under `artifacts/`.
+1. Version 1.0 (Historical N=254) as an immutable diagnostic baseline.
+2. Version 2.0 (Hillslope Control Specification) explicitly designated as EXTRACTION_PENDING_COLAB_GEE.
+3. Workflow A: Landslide Event Detection Pipeline (Experimental Point-Zone Disturbance Assessment).
+4. Workflow B: Rainfall-Conditioned Landslide Susceptibility Pipeline (Core, Optical-Enhanced, Reduced).
+5. Configurable Spatial Purging Outer CV with systematic sensitivity evaluation at 0, 50, 100, 200, 437.8 km.
+6. Robust Spatially Grouped Inner CV (StratifiedGroupKFold on spatial clusters with documented fallback).
+7. Full Fold-Wise and Pooled Out-of-Fold Metrics reporting.
+8. TreeSHAP attribution and uncertainty quantification.
+9. Programmatic feature schema and prohibited-variable verification.
+10. Comprehensive `experiment_metadata.json` capturing complete research provenance.
 """
 
+import datetime
 import json
 import logging
 import os
+import platform
 import sys
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
@@ -24,6 +29,8 @@ import numpy as np
 import pandas as pd
 from pyproj import Transformer
 from scipy.spatial.distance import cdist
+import scipy
+import sklearn
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -38,7 +45,7 @@ from sklearn.metrics import (
     roc_curve,
     precision_recall_curve,
 )
-from sklearn.model_selection import StratifiedKFold, RandomizedSearchCV
+from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold, RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 import xgboost as xgb
 import shap
@@ -60,28 +67,37 @@ METADATA_DIR = ARTIFACTS_DIR / "metadata"
 for d in [COMMON_DIR, DETECTION_DIR, SUSCEPTIBILITY_DIR, METADATA_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
-# Feature Definitions
+# Declarative Feature Schemas
 DETECTION_FEATURES = [
     "elevation", "slope", "aspect", "curvature", "twi",
     "VH_post", "VV_post", "dVH", "dVV",
     "rain_1d", "rain_7d", "rain_30d", "API"
 ]
+DETECTION_PROHIBITED = ["VH_pre", "VV_pre", "latitude", "longitude"]
 
 SUSCEPTIBILITY_CORE_FEATURES = [
     "elevation", "slope", "aspect", "curvature", "tri", "twi",
     "VH_pre", "VV_pre",
     "rain_30d", "API"
 ]
+SUSCEPTIBILITY_CORE_PROHIBITED = [
+    "VH_post", "VV_post", "dVH", "dVV", "rain_1d", "rain_7d", "latitude", "longitude"
+]
 
 SUSCEPTIBILITY_OPTICAL_FEATURES = SUSCEPTIBILITY_CORE_FEATURES + [
     "NDVI", "NDWI", "BSI"
 ]
+SUSCEPTIBILITY_OPTICAL_PROHIBITED = SUSCEPTIBILITY_CORE_PROHIBITED
 
 SUSCEPTIBILITY_REDUCED_FEATURES = [
     "elevation", "aspect", "curvature", "twi",
     "VH_pre", "VV_pre",
     "rain_30d", "API"
 ]
+SUSCEPTIBILITY_REDUCED_PROHIBITED = SUSCEPTIBILITY_CORE_PROHIBITED + ["slope", "tri"]
+
+PURGE_DISTANCES_KM = [0.0, 50.0, 100.0, 200.0, 437.8]
+DEFAULT_PRIMARY_PURGE_KM = 100.0  # Balances strong geographic isolation (>100 km) with minimal sample depletion (1.5%)
 
 
 def load_verified_feature_table() -> pd.DataFrame:
@@ -92,6 +108,57 @@ def load_verified_feature_table() -> pd.DataFrame:
     df = pd.read_csv(path)
     logger.info(f"Loaded verified feature table: {df.shape[0]} rows, {df.shape[1]} columns.")
     return df
+
+
+def verify_feature_schemas(df: pd.DataFrame) -> Dict[str, Any]:
+    """Programmatically derives feature schemas and verifies prohibited feature absence."""
+    checks = {}
+    
+    # 1. Detection
+    det_present_prohibited = [f for f in DETECTION_PROHIBITED if f in DETECTION_FEATURES]
+    checks["detection"] = {
+        "features": DETECTION_FEATURES,
+        "feature_count": len(DETECTION_FEATURES),
+        "prohibited_features": DETECTION_PROHIBITED,
+        "prohibited_detected": det_present_prohibited,
+        "is_valid": len(det_present_prohibited) == 0 and all(f in df.columns for f in DETECTION_FEATURES)
+    }
+    
+    # 2. Susceptibility Core
+    core_present_prohibited = [f for f in SUSCEPTIBILITY_CORE_PROHIBITED if f in SUSCEPTIBILITY_CORE_FEATURES]
+    checks["susceptibility_core"] = {
+        "features": SUSCEPTIBILITY_CORE_FEATURES,
+        "feature_count": len(SUSCEPTIBILITY_CORE_FEATURES),
+        "prohibited_features": SUSCEPTIBILITY_CORE_PROHIBITED,
+        "prohibited_detected": core_present_prohibited,
+        "is_valid": len(core_present_prohibited) == 0 and all(f in df.columns for f in SUSCEPTIBILITY_CORE_FEATURES)
+    }
+
+    # 3. Susceptibility Optical
+    opt_present_prohibited = [f for f in SUSCEPTIBILITY_OPTICAL_PROHIBITED if f in SUSCEPTIBILITY_OPTICAL_FEATURES]
+    checks["susceptibility_optical"] = {
+        "features": SUSCEPTIBILITY_OPTICAL_FEATURES,
+        "feature_count": len(SUSCEPTIBILITY_OPTICAL_FEATURES),
+        "prohibited_features": SUSCEPTIBILITY_OPTICAL_PROHIBITED,
+        "prohibited_detected": opt_present_prohibited,
+        "is_valid": len(opt_present_prohibited) == 0 and all(f in df.columns for f in SUSCEPTIBILITY_OPTICAL_FEATURES)
+    }
+
+    # 4. Susceptibility Reduced
+    red_present_prohibited = [f for f in SUSCEPTIBILITY_REDUCED_PROHIBITED if f in SUSCEPTIBILITY_REDUCED_FEATURES]
+    checks["susceptibility_reduced"] = {
+        "features": SUSCEPTIBILITY_REDUCED_FEATURES,
+        "feature_count": len(SUSCEPTIBILITY_REDUCED_FEATURES),
+        "prohibited_features": SUSCEPTIBILITY_REDUCED_PROHIBITED,
+        "prohibited_detected": red_present_prohibited,
+        "is_valid": len(red_present_prohibited) == 0 and all(f in df.columns for f in SUSCEPTIBILITY_REDUCED_FEATURES)
+    }
+
+    for name, c in checks.items():
+        if not c["is_valid"]:
+            raise ValueError(f"Schema verification failed for {name}: {c}")
+    logger.info("Programmatic feature schema and prohibited-variable checks passed for all workflows.")
+    return checks
 
 
 def build_common_artifacts(df: pd.DataFrame):
@@ -131,9 +198,9 @@ def build_common_artifacts(df: pd.DataFrame):
         "api_decay_factor": 0.90,
         "semivariogram_detrended_range_km": 437.8,
         "results_provenance": {
-            "version_1_0_historical": "Verified Experimental Baseline (N=254, slope < 5 deg controls)",
-            "version_2_0_hillslope": "Validated Specification (Colab extraction ready)",
-            "regional_grid_0_5deg": "Verified Macro-Synoptic Layer (765 cells, ~55 km resolution)"
+            "version_1_0_historical": "Verified Diagnostic Baseline (N=254, slope < 5 deg controls)",
+            "version_2_0_hillslope": "EXTRACTION_PENDING_COLAB_GEE (Validated envelope, extraction prepared in Colab)",
+            "regional_grid_0_5deg": "Illustrative Macro-Regional Layer (765 cells, ~55 km resolution, Sept 2026 synoptic reference)"
         }
     }
     with open(COMMON_DIR / "dataset_summary.json", "w", encoding="utf-8") as f:
@@ -176,7 +243,8 @@ def build_common_artifacts(df: pd.DataFrame):
     corr_df = df[num_cols].corr()
     corr_df.to_csv(COMMON_DIR / "feature_correlation.csv")
 
-    # 5. VIF Report
+    # 5. Descriptive Full-Dataset VIF Report
+    # Clearly separated as an exploratory assessment; tree models do not drop features based on VIF.
     from statsmodels.stats.outliers_influence import variance_inflation_factor
     X_imputed = pd.DataFrame(
         SimpleImputer(strategy="median").fit_transform(df[num_cols]),
@@ -188,13 +256,21 @@ def build_common_artifacts(df: pd.DataFrame):
             val = float(variance_inflation_factor(X_imputed.values, i))
         except Exception:
             val = np.nan
-        vifs.append({"feature": col, "vif": round(val, 2)})
+        vifs.append({
+            "feature": col,
+            "vif": round(val, 2),
+            "exploratory_interpretation": (
+                "Extreme collinearity (expected for SAR polarizations/deltas; safely handled by tree ensembles)" if val > 10
+                else "Moderate collinearity" if val > 5
+                else "Low collinearity"
+            )
+        })
     pd.DataFrame(vifs).sort_values(by="vif", ascending=False).to_csv(COMMON_DIR / "vif_report.csv", index=False)
     logger.info("Common artifacts generated successfully.")
 
 
-def compute_spatial_folds_and_distances(df: pd.DataFrame, n_clusters: int = 5) -> Tuple[np.ndarray, Dict[str, Any], np.ndarray]:
-    """Assigns Spatial Cluster K-Fold via projected coordinates and computes minimum distances."""
+def compute_spatial_folds_and_coords(df: pd.DataFrame, n_clusters: int = 5) -> Tuple[np.ndarray, np.ndarray]:
+    """Computes Azimuthal Equidistant metric coordinates and assigns outer Spatial KMeans clusters."""
     lat0, lon0 = df["latitude"].mean(), df["longitude"].mean()
     transformer = Transformer.from_crs(
         "EPSG:4326",
@@ -206,56 +282,48 @@ def compute_spatial_folds_and_distances(df: pd.DataFrame, n_clusters: int = 5) -
 
     kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     fold_ids = kmeans.fit_predict(coords_m)
-
-    distance_report = {
-        "projection": f"+proj=aeqd +lat_0={lat0:.3f} +lon_0={lon0:.3f} +datum=WGS84 +units=m",
-        "n_outer_folds": n_clusters,
-        "folds": {}
-    }
-
-    for f in range(n_clusters):
-        test_idx = np.where(fold_ids == f)[0]
-        train_idx = np.where(fold_ids != f)[0]
-        dists_km = cdist(coords_m[test_idx], coords_m[train_idx]) / 1000.0
-
-        min_dist = float(dists_km.min())
-        p10_dist = float(np.percentile(dists_km, 10))
-        mean_dist = float(dists_km.mean())
-        max_dist = float(dists_km.max())
-
-        # Buffer Purging Analysis
-        purging = {}
-        for buf_km in [50, 100, 200, 437.8]:
-            purged_count = int(np.sum(dists_km.min(axis=0) < buf_km))
-            purged_pct = round((purged_count / len(train_idx)) * 100.0, 2)
-            purging[f"buffer_{buf_km}km"] = {
-                "purged_training_samples": purged_count,
-                "purged_training_pct": purged_pct,
-                "remaining_training_samples": len(train_idx) - purged_count
-            }
-
-        distance_report["folds"][f"fold_{f}"] = {
-            "n_test_samples": len(test_idx),
-            "n_train_samples": len(train_idx),
-            "min_distance_to_train_km": round(min_dist, 2),
-            "p10_distance_to_train_km": round(p10_dist, 2),
-            "mean_distance_to_train_km": round(mean_dist, 2),
-            "max_distance_to_train_km": round(max_dist, 2),
-            "pairs_under_50km": int(np.sum(dists_km < 50)),
-            "pairs_under_100km": int(np.sum(dists_km < 100)),
-            "spatial_purging_analysis": purging
-        }
-
-    return fold_ids, distance_report, coords_m
+    return fold_ids, coords_m
 
 
-def run_leakage_safe_spatial_cv(
+def get_inner_cv(
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    coords_train: np.ndarray,
+    fold_id: int
+) -> Tuple[List[Tuple[np.ndarray, np.ndarray]], str]:
+    """Provides spatially grouped inner validation where feasible; falls back gracefully to stratified splitting."""
+    n_samples = len(X_train)
+    n_groups = min(6, max(3, n_samples // 20))
+    if n_groups >= 3:
+        km = KMeans(n_clusters=n_groups, random_state=42 + fold_id, n_init=5)
+        groups = km.fit_predict(coords_train)
+        sgkf = StratifiedGroupKFold(n_splits=3)
+        valid = True
+        splits = []
+        try:
+            for tr, val in sgkf.split(X_train, y_train, groups):
+                if len(np.unique(y_train.iloc[val])) < 2:
+                    valid = False
+                    break
+                splits.append((tr, val))
+            if valid and len(splits) == 3:
+                return splits, "Spatially-Grouped Stratified (KMeans clusters)"
+        except Exception:
+            pass
+
+    # Graceful fallback when spatial clustering on depleted subsets produces mono-class folds
+    skf = StratifiedKFold(n_splits=3, shuffle=True, random_state=42 + fold_id)
+    return list(skf.split(X_train, y_train)), "StratifiedKFold (Fallback: spatial grouping caused mono-class inner fold)"
+
+
+def run_purged_spatial_cv(
     df: pd.DataFrame,
     feature_cols: List[str],
     fold_ids: np.ndarray,
-    coords_m: np.ndarray
+    coords_m: np.ndarray,
+    purge_distance_km: float = 0.0
 ) -> Dict[str, Any]:
-    """Runs Spatial Cluster K-Fold with strict isolation of imputation and tuning."""
+    """Executes Spatial Cluster Cross-Validation with actual buffer purging of training samples."""
     X = df[feature_cols].copy()
     y = df["label"].copy()
     n_samples = len(df)
@@ -266,6 +334,7 @@ def run_leakage_safe_spatial_cv(
 
     fold_metrics = []
     models_per_fold = {}
+    purging_info = []
 
     RF_PARAMS = {
         "clf__n_estimators": [300, 500],
@@ -284,26 +353,51 @@ def run_leakage_safe_spatial_cv(
 
     for fold in range(n_folds):
         test_mask = fold_ids == fold
-        train_mask = ~test_mask
+        initial_train_mask = ~test_mask
 
-        X_train, X_test = X[train_mask], X[test_mask]
-        y_train, y_test = y[train_mask], y[test_mask]
+        test_idx = np.where(test_mask)[0]
+        initial_train_idx = np.where(initial_train_mask)[0]
 
-        # Inner Stratified K-Fold strictly on training partition
-        inner_cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42 + fold)
+        # Calculate distances from every candidate training point to all test points in this fold
+        dists_km = cdist(coords_m[test_idx], coords_m[initial_train_idx]) / 1000.0
+        min_dist_to_test = dists_km.min(axis=0)
 
-        # 1. Random Forest Pipeline (Strict fold-isolated Median Imputation)
+        # Enforce actual spatial purging
+        if purge_distance_km > 0:
+            retained_relative_idx = np.where(min_dist_to_test >= purge_distance_km)[0]
+            retained_train_idx = initial_train_idx[retained_relative_idx]
+        else:
+            retained_train_idx = initial_train_idx
+
+        actual_min_dist = float(min_dist_to_test.min()) if purge_distance_km == 0 else float(
+            (cdist(coords_m[test_idx], coords_m[retained_train_idx]) / 1000.0).min()
+        )
+
+        n_purged = len(initial_train_idx) - len(retained_train_idx)
+        n_retained = len(retained_train_idx)
+
+        X_train = X.iloc[retained_train_idx].copy()
+        y_train = y.iloc[retained_train_idx].copy()
+        coords_train = coords_m[retained_train_idx]
+
+        X_test = X.iloc[test_idx].copy()
+        y_test = y.iloc[test_idx].copy()
+
+        # Inner CV on retained training partition
+        inner_splits, inner_method = get_inner_cv(X_train, y_train, coords_train, fold)
+
+        # 1. Random Forest (Strict fold-isolated SimpleImputer)
         rf_pipe = Pipeline([
             ("impute", SimpleImputer(strategy="median")),
             ("clf", RandomForestClassifier(class_weight="balanced", random_state=42 + fold, n_jobs=1))
         ])
         rf_search = RandomizedSearchCV(
-            rf_pipe, RF_PARAMS, n_iter=4, cv=inner_cv, scoring="roc_auc", random_state=42 + fold, n_jobs=1
+            rf_pipe, RF_PARAMS, n_iter=4, cv=inner_splits, scoring="roc_auc", random_state=42 + fold, n_jobs=1
         ).fit(X_train, y_train)
         best_rf = rf_search.best_estimator_
-        oof_rf[test_mask] = best_rf.predict_proba(X_test)[:, 1]
+        oof_rf[test_idx] = best_rf.predict_proba(X_test)[:, 1]
 
-        # 2. XGBoost (Native Missing Routing)
+        # 2. XGBoost (Native Directional Split Routing for missing values)
         scale_pos_weight = (y_train == 0).sum() / max((y_train == 1).sum(), 1)
         xgb_clf = xgb.XGBClassifier(
             eval_metric="logloss",
@@ -313,27 +407,54 @@ def run_leakage_safe_spatial_cv(
             n_jobs=1
         )
         xgb_search = RandomizedSearchCV(
-            xgb_clf, XGB_PARAMS, n_iter=4, cv=inner_cv, scoring="roc_auc", random_state=42 + fold, n_jobs=1
+            xgb_clf, XGB_PARAMS, n_iter=4, cv=inner_splits, scoring="roc_auc", random_state=42 + fold, n_jobs=1
         ).fit(X_train, y_train)
         best_xgb = xgb_search.best_estimator_
-        oof_xgb[test_mask] = best_xgb.predict_proba(X_test)[:, 1]
+        oof_xgb[test_idx] = best_xgb.predict_proba(X_test)[:, 1]
 
         models_per_fold[fold] = {"rf": best_rf, "xgb": best_xgb}
 
-        # Fold Level Metrics
-        fold_metrics.append({
+        # Fold-level evaluation metrics
+        y_pred_rf = (oof_rf[test_idx] >= 0.5).astype(int)
+        y_pred_xgb = (oof_xgb[test_idx] >= 0.5).astype(int)
+
+        rf_auc = float(roc_auc_score(y_test, oof_rf[test_idx])) if y_test.nunique() > 1 else np.nan
+        xgb_auc = float(roc_auc_score(y_test, oof_xgb[test_idx])) if y_test.nunique() > 1 else np.nan
+        rf_pr = float(average_precision_score(y_test, oof_rf[test_idx])) if y_test.nunique() > 1 else np.nan
+        xgb_pr = float(average_precision_score(y_test, oof_xgb[test_idx])) if y_test.nunique() > 1 else np.nan
+
+        fold_record = {
             "fold": fold,
-            "n_test": int(test_mask.sum()),
-            "rf_auroc": float(roc_auc_score(y_test, oof_rf[test_mask])) if y_test.nunique() > 1 else np.nan,
-            "xgb_auroc": float(roc_auc_score(y_test, oof_xgb[test_mask])) if y_test.nunique() > 1 else np.nan,
-            "rf_prauc": float(average_precision_score(y_test, oof_rf[test_mask])) if y_test.nunique() > 1 else np.nan,
-            "xgb_prauc": float(average_precision_score(y_test, oof_xgb[test_mask])) if y_test.nunique() > 1 else np.nan,
+            "purge_distance_km": purge_distance_km,
+            "n_test": len(test_idx),
+            "n_train_before_purge": len(initial_train_idx),
+            "n_train_purged": n_purged,
+            "n_train_retained": n_retained,
+            "retained_positives": int((y_train == 1).sum()),
+            "retained_negatives": int((y_train == 0).sum()),
+            "actual_min_distance_to_test_km": round(actual_min_dist, 2),
+            "inner_cv_method": inner_method,
+            "rf_auroc": rf_auc,
+            "xgb_auroc": xgb_auc,
+            "rf_prauc": rf_pr,
+            "xgb_prauc": xgb_pr,
+            "rf_f1_0.5": float(f1_score(y_test, y_pred_rf)),
+            "xgb_f1_0.5": float(f1_score(y_test, y_pred_xgb)),
+            "rf_accuracy_0.5": float(accuracy_score(y_test, y_pred_rf)),
+            "xgb_accuracy_0.5": float(accuracy_score(y_test, y_pred_xgb)),
+            "rf_recall_0.5": float(recall_score(y_test, y_pred_rf, zero_division=0)),
+            "xgb_recall_0.5": float(recall_score(y_test, y_pred_xgb, zero_division=0)),
+        }
+        fold_metrics.append(fold_record)
+        purging_info.append({
+            "fold": fold,
+            "n_test": len(test_idx),
+            "n_train_retained": n_retained,
+            "n_train_purged": n_purged,
+            "min_distance_km": round(actual_min_dist, 2)
         })
 
-    # Overall Metrics
-    def calc_metrics(y_true, y_prob):
-        fpr, tpr, _ = roc_curve(y_true, y_prob)
-        prec, rec, _ = precision_recall_curve(y_true, y_prob)
+    def calc_pooled_metrics(y_true, y_prob):
         y_pred = (y_prob >= 0.5).astype(int)
         cm = confusion_matrix(y_true, y_pred)
         return {
@@ -353,15 +474,17 @@ def run_leakage_safe_spatial_cv(
         "oof_rf": oof_rf,
         "oof_xgb": oof_xgb,
         "fold_metrics": fold_metrics,
-        "overall_rf": calc_metrics(y, oof_rf),
-        "overall_xgb": calc_metrics(y, oof_xgb),
+        "purging_info": purging_info,
+        "overall_rf": calc_pooled_metrics(y, oof_rf),
+        "overall_xgb": calc_pooled_metrics(y, oof_xgb),
         "models_per_fold": models_per_fold,
+        "purge_distance_km": purge_distance_km,
         "feature_cols": feature_cols
     }
 
 
 def fit_production_models_and_shap(df: pd.DataFrame, feature_cols: List[str]):
-    """Fits final production models on all 254 points and computes SHAP TreeExplainer values."""
+    """Fits full-dataset models and computes global TreeSHAP values."""
     X = df[feature_cols].copy()
     y = df["label"].copy()
 
@@ -387,7 +510,6 @@ def fit_production_models_and_shap(df: pd.DataFrame, feature_cols: List[str]):
     xgb_final.fit(X, y)
 
     # SHAP Explanations
-    # RF
     imputer = rf_pipe.named_steps["impute"]
     X_imputed = pd.DataFrame(imputer.transform(X), columns=feature_cols)
     explainer_rf = shap.TreeExplainer(rf_pipe.named_steps["clf"])
@@ -399,11 +521,9 @@ def fit_production_models_and_shap(df: pd.DataFrame, feature_cols: List[str]):
     else:
         shap_rf_pos = shap_vals_rf
 
-    # XGBoost
     explainer_xgb = shap.TreeExplainer(xgb_final)
     shap_vals_xgb = explainer_xgb.shap_values(X)
 
-    # Mean |SHAP| DataFrame
     shap_summary_df = pd.DataFrame({
         "feature": feature_cols,
         "rf_mean_abs_shap": np.nanmean(np.abs(shap_rf_pos), axis=0),
@@ -424,34 +544,101 @@ def fit_production_models_and_shap(df: pd.DataFrame, feature_cols: List[str]):
 
 def execute_build():
     """Executes the complete research artifact generation pipeline."""
-    logger.info("=== STARTING HIMALAYAN LANDSLIDE RESEARCH ARTIFACT BUILD ===")
+    execution_start_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    logger.info("=== STARTING RIGOROUS RESEARCH ARTIFACT BUILD ===")
     df = load_verified_feature_table()
 
-    # 1. Build Common Artifacts
+    # 1. Programmatic Feature Schema Derivation & Prohibited Checks
+    schema_verification = verify_feature_schemas(df)
+
+    # 2. Build Common Artifacts
     build_common_artifacts(df)
 
-    # 2. Compute Spatial Folds and Distance Report
-    fold_ids, distance_report, coords_m = compute_spatial_folds_and_distances(df, n_clusters=5)
-    with open(METADATA_DIR / "spatial_fold_distance_report.json", "w", encoding="utf-8") as f:
-        json.dump(distance_report, f, indent=2)
-
-    # Save fold assignments into df
+    # 3. Spatial Coordinate Projection & Clustering
+    fold_ids, coords_m = compute_spatial_folds_and_coords(df, n_clusters=5)
     df["spatial_fold"] = fold_ids
 
-    # -------------------------------------------------------------
-    # 3. WORKFLOW A: LANDSLIDE EVENT DETECTION PIPELINE
-    # -------------------------------------------------------------
-    logger.info("Running Workflow A: Landslide Event Detection Pipeline...")
-    det_results = run_leakage_safe_spatial_cv(
-        df, DETECTION_FEATURES, fold_ids, coords_m
+    # 4. Spatial Purging Sensitivity Analysis (0, 50, 100, 200, 437.8 km)
+    logger.info("Conducting Spatial Purging Sensitivity Sweep across buffer distances...")
+    sensitivity_records = []
+    detailed_distance_report = {
+        "projection": "+proj=aeqd on centroid (WGS84)",
+        "n_outer_folds": 5,
+        "sensitivity_evaluated_buffers_km": PURGE_DISTANCES_KM,
+        "primary_operational_buffer_km": DEFAULT_PRIMARY_PURGE_KM,
+        "folds": {}
+    }
+
+    for buf_km in PURGE_DISTANCES_KM:
+        res = run_purged_spatial_cv(df, DETECTION_FEATURES, fold_ids, coords_m, purge_distance_km=buf_km)
+        for fm in res["fold_metrics"]:
+            sensitivity_records.append({
+                "purge_buffer_km": buf_km,
+                "fold": fm["fold"],
+                "n_test": fm["n_test"],
+                "n_train_retained": fm["n_train_retained"],
+                "n_train_purged": fm["n_train_purged"],
+                "retained_positives": fm["retained_positives"],
+                "retained_negatives": fm["retained_negatives"],
+                "actual_min_distance_to_test_km": fm["actual_min_distance_to_test_km"],
+                "inner_cv_method": fm["inner_cv_method"],
+                "rf_auroc": fm["rf_auroc"],
+                "xgb_auroc": fm["xgb_auroc"],
+                "rf_prauc": fm["rf_prauc"],
+                "xgb_prauc": fm["xgb_prauc"],
+                "rf_f1": fm["rf_f1_0.5"],
+                "xgb_f1": fm["xgb_f1_0.5"]
+            })
+    sensitivity_df = pd.DataFrame(sensitivity_records)
+    sensitivity_df.to_csv(METADATA_DIR / "spatial_purging_sensitivity.csv", index=False)
+    logger.info("Spatial purging sensitivity sweep completed and saved.")
+
+    # 5. Populate Detailed Distance Report
+    for f in range(5):
+        test_idx = np.where(fold_ids == f)[0]
+        train_idx = np.where(fold_ids != f)[0]
+        dists_km = cdist(coords_m[test_idx], coords_m[train_idx]) / 1000.0
+
+        purging_analysis = {}
+        for buf_km in PURGE_DISTANCES_KM:
+            purged_count = int(np.sum(dists_km.min(axis=0) < buf_km))
+            purged_pct = round((purged_count / len(train_idx)) * 100.0, 2)
+            purging_analysis[f"buffer_{buf_km}km"] = {
+                "purged_training_samples": purged_count,
+                "purged_training_pct": purged_pct,
+                "remaining_training_samples": len(train_idx) - purged_count
+            }
+
+        detailed_distance_report["folds"][f"fold_{f}"] = {
+            "n_test_samples": len(test_idx),
+            "n_train_samples_raw": len(train_idx),
+            "min_distance_unpurged_km": round(float(dists_km.min()), 2),
+            "p10_distance_km": round(float(np.percentile(dists_km, 10)), 2),
+            "mean_distance_km": round(float(dists_km.mean()), 2),
+            "max_distance_km": round(float(dists_km.max()), 2),
+            "spatial_purging_analysis": purging_analysis
+        }
+    with open(METADATA_DIR / "spatial_fold_distance_report.json", "w", encoding="utf-8") as f:
+        json.dump(detailed_distance_report, f, indent=2)
+
+    # -------------------------------------------------------------------------
+    # 6. WORKFLOW A: LANDSLIDE EVENT DETECTION PIPELINE
+    # -------------------------------------------------------------------------
+    logger.info("Executing Workflow A: Landslide Event Detection Pipeline (Purged 100km & Unpurged)...")
+    # Primary evaluation: 100 km spatial purge (ensures all test samples >= 100 km from train)
+    det_purged_res = run_purged_spatial_cv(
+        df, DETECTION_FEATURES, fold_ids, coords_m, purge_distance_km=DEFAULT_PRIMARY_PURGE_KM
+    )
+    det_unpurged_res = run_purged_spatial_cv(
+        df, DETECTION_FEATURES, fold_ids, coords_m, purge_distance_km=0.0
     )
     det_prod = fit_production_models_and_shap(df, DETECTION_FEATURES)
 
-    # Save Detection Feature Table (clean 254 x 13)
+    # Save Detection Feature Table
     det_export_cols = ["latitude", "longitude", "event_date", "Location Accuracy", "Landslide Trigger", "label", "spatial_fold"] + DETECTION_FEATURES
     df[det_export_cols].to_csv(DETECTION_DIR / "detection_feature_table.csv", index=False)
 
-    # Save Detection Predictions
+    # Save Detection Predictions (Primary Purged & Unpurged)
     det_preds_df = pd.DataFrame({
         "latitude": df["latitude"],
         "longitude": df["longitude"],
@@ -459,78 +646,119 @@ def execute_build():
         "Location Accuracy": df["Location Accuracy"],
         "label": df["label"],
         "spatial_fold": df["spatial_fold"],
-        "pred_prob_rf": det_results["oof_rf"],
-        "pred_prob_xgb": det_results["oof_xgb"],
-        "pred_class_rf_0.5": (det_results["oof_rf"] >= 0.5).astype(int),
-        "pred_class_xgb_0.5": (det_results["oof_xgb"] >= 0.5).astype(int)
+        "pred_prob_rf_purged100km": det_purged_res["oof_rf"],
+        "pred_prob_xgb_purged100km": det_purged_res["oof_xgb"],
+        "pred_class_rf_0.5": (det_purged_res["oof_rf"] >= 0.5).astype(int),
+        "pred_class_xgb_0.5": (det_purged_res["oof_xgb"] >= 0.5).astype(int),
+        "pred_prob_rf_unpurged": det_unpurged_res["oof_rf"],
+        "pred_prob_xgb_unpurged": det_unpurged_res["oof_xgb"],
     })
     det_preds_df.to_csv(DETECTION_DIR / "detection_predictions.csv", index=False)
 
-    # Save Detection Metrics
+    # Save Fold-Wise Detection Metrics
+    pd.DataFrame(det_purged_res["fold_metrics"]).to_csv(DETECTION_DIR / "detection_fold_metrics.csv", index=False)
+
+    # Save Pooled Detection Metrics (Both Purged 100km and Unpurged Baseline)
     det_metrics_summary = [
         {
-            "workflow": "Workflow A: Landslide Event Detection",
-            "model": "XGBoost (Hist Gradient)",
-            "feature_set": "Detection Features (dVH, dVV, VH_post, VV_post, Rain 1d/7d/30d, Topo)",
-            "n_features": len(DETECTION_FEATURES),
-            "auroc": det_results["overall_xgb"]["auroc"],
-            "prauc": det_results["overall_xgb"]["prauc"],
-            "f1_score_at_0.5": det_results["overall_xgb"]["f1_score_at_0.5"],
-            "accuracy_at_0.5": det_results["overall_xgb"]["accuracy_at_0.5"],
-            "precision_at_0.5": det_results["overall_xgb"]["precision_at_0.5"],
-            "recall_at_0.5": det_results["overall_xgb"]["recall_at_0.5"],
-            "validation_method": "5-Fold Spatial Cluster CV (KMeans projected coordinates)"
-        },
-        {
-            "workflow": "Workflow A: Landslide Event Detection",
+            "workflow": "Workflow A: Landslide Event Detection (Experimental Point-Zone Disturbance Assessment)",
             "model": "Random Forest (500 Trees)",
             "feature_set": "Detection Features (dVH, dVV, VH_post, VV_post, Rain 1d/7d/30d, Topo)",
             "n_features": len(DETECTION_FEATURES),
-            "auroc": det_results["overall_rf"]["auroc"],
-            "prauc": det_results["overall_rf"]["prauc"],
-            "f1_score_at_0.5": det_results["overall_rf"]["f1_score_at_0.5"],
-            "accuracy_at_0.5": det_results["overall_rf"]["accuracy_at_0.5"],
-            "precision_at_0.5": det_results["overall_rf"]["precision_at_0.5"],
-            "recall_at_0.5": det_results["overall_rf"]["recall_at_0.5"],
-            "validation_method": "5-Fold Spatial Cluster CV (KMeans projected coordinates)"
+            "purge_distance_km": DEFAULT_PRIMARY_PURGE_KM,
+            "validation_method": f"5-Fold Spatial Cluster CV with {DEFAULT_PRIMARY_PURGE_KM}km Spatial Purging",
+            "auroc": det_purged_res["overall_rf"]["auroc"],
+            "prauc": det_purged_res["overall_rf"]["prauc"],
+            "f1_score_at_0.5": det_purged_res["overall_rf"]["f1_score_at_0.5"],
+            "accuracy_at_0.5": det_purged_res["overall_rf"]["accuracy_at_0.5"],
+            "precision_at_0.5": det_purged_res["overall_rf"]["precision_at_0.5"],
+            "recall_at_0.5": det_purged_res["overall_rf"]["recall_at_0.5"],
+        },
+        {
+            "workflow": "Workflow A: Landslide Event Detection (Experimental Point-Zone Disturbance Assessment)",
+            "model": "XGBoost (Hist Gradient)",
+            "feature_set": "Detection Features (dVH, dVV, VH_post, VV_post, Rain 1d/7d/30d, Topo)",
+            "n_features": len(DETECTION_FEATURES),
+            "purge_distance_km": DEFAULT_PRIMARY_PURGE_KM,
+            "validation_method": f"5-Fold Spatial Cluster CV with {DEFAULT_PRIMARY_PURGE_KM}km Spatial Purging",
+            "auroc": det_purged_res["overall_xgb"]["auroc"],
+            "prauc": det_purged_res["overall_xgb"]["prauc"],
+            "f1_score_at_0.5": det_purged_res["overall_xgb"]["f1_score_at_0.5"],
+            "accuracy_at_0.5": det_purged_res["overall_xgb"]["accuracy_at_0.5"],
+            "precision_at_0.5": det_purged_res["overall_xgb"]["precision_at_0.5"],
+            "recall_at_0.5": det_purged_res["overall_xgb"]["recall_at_0.5"],
+        },
+        {
+            "workflow": "Workflow A: Landslide Event Detection (Experimental Point-Zone Disturbance Assessment)",
+            "model": "Random Forest (Unpurged Baseline)",
+            "feature_set": "Detection Features (dVH, dVV, VH_post, VV_post, Rain 1d/7d/30d, Topo)",
+            "n_features": len(DETECTION_FEATURES),
+            "purge_distance_km": 0.0,
+            "validation_method": "5-Fold Spatial Cluster CV (Unpurged Baseline, min separation 38.7 km)",
+            "auroc": det_unpurged_res["overall_rf"]["auroc"],
+            "prauc": det_unpurged_res["overall_rf"]["prauc"],
+            "f1_score_at_0.5": det_unpurged_res["overall_rf"]["f1_score_at_0.5"],
+            "accuracy_at_0.5": det_unpurged_res["overall_rf"]["accuracy_at_0.5"],
+            "precision_at_0.5": det_unpurged_res["overall_rf"]["precision_at_0.5"],
+            "recall_at_0.5": det_unpurged_res["overall_rf"]["recall_at_0.5"],
+        },
+        {
+            "workflow": "Workflow A: Landslide Event Detection (Experimental Point-Zone Disturbance Assessment)",
+            "model": "XGBoost (Unpurged Baseline)",
+            "feature_set": "Detection Features (dVH, dVV, VH_post, VV_post, Rain 1d/7d/30d, Topo)",
+            "n_features": len(DETECTION_FEATURES),
+            "purge_distance_km": 0.0,
+            "validation_method": "5-Fold Spatial Cluster CV (Unpurged Baseline, min separation 38.7 km)",
+            "auroc": det_unpurged_res["overall_xgb"]["auroc"],
+            "prauc": det_unpurged_res["overall_xgb"]["prauc"],
+            "f1_score_at_0.5": det_unpurged_res["overall_xgb"]["f1_score_at_0.5"],
+            "accuracy_at_0.5": det_unpurged_res["overall_xgb"]["accuracy_at_0.5"],
+            "precision_at_0.5": det_unpurged_res["overall_xgb"]["precision_at_0.5"],
+            "recall_at_0.5": det_unpurged_res["overall_xgb"]["recall_at_0.5"],
         }
     ]
     pd.DataFrame(det_metrics_summary).to_csv(DETECTION_DIR / "detection_metrics.csv", index=False)
 
-    # Save Detection Confusion Matrices
+    # Save Confusion Matrices
     det_cm_summary = [
-        {"model": "XGBoost", "threshold": 0.5, **det_results["overall_xgb"]["confusion_matrix"]},
-        {"model": "Random Forest", "threshold": 0.5, **det_results["overall_rf"]["confusion_matrix"]}
+        {"model": "Random Forest (Purged 100km)", "threshold": 0.5, **det_purged_res["overall_rf"]["confusion_matrix"]},
+        {"model": "XGBoost (Purged 100km)", "threshold": 0.5, **det_purged_res["overall_xgb"]["confusion_matrix"]},
     ]
     pd.DataFrame(det_cm_summary).to_csv(DETECTION_DIR / "detection_confusion_matrix.csv", index=False)
 
-    # Save Detection Feature Importance & SHAP
+    # Save Feature Importance & SHAP
     det_prod["shap_summary_df"].to_csv(DETECTION_DIR / "detection_feature_importance.csv", index=False)
     det_prod["shap_summary_df"].to_csv(DETECTION_DIR / "detection_shap_summary.csv", index=False)
 
-    # Save Detection Models Joblib (Python 3.12 compatible)
+    # Save Serialized Detection Models
     joblib.dump({
         "rf": det_prod["rf_model"],
         "xgb": det_prod["xgb_model"],
-        "feature_cols": DETECTION_FEATURES
+        "feature_cols": DETECTION_FEATURES,
+        "workflow": "Workflow A: Landslide Event Detection",
+        "scientific_classification": "Experimental Point-Zone Disturbance Assessment (Point-sample proxy; single 10m pixel under +/- 5km positional uncertainty)"
     }, DETECTION_DIR / "detection_models.joblib")
 
-    # -------------------------------------------------------------
-    # 4. WORKFLOW B: LANDSLIDE SUSCEPTIBILITY PIPELINE
-    # -------------------------------------------------------------
-    logger.info("Running Workflow B: Susceptibility Prediction (Cloud-Independent Core & Optical-Enhanced)...")
+    # -------------------------------------------------------------------------
+    # 7. WORKFLOW B: RAINFALL-CONDITIONED SUSCEPTIBILITY PIPELINE
+    # -------------------------------------------------------------------------
+    logger.info("Executing Workflow B: Rainfall-Conditioned Susceptibility Pipeline...")
+    # 7A. Core Model (Cloud-Independent, strictly pre-event)
+    susc_core_purged = run_purged_spatial_cv(
+        df, SUSCEPTIBILITY_CORE_FEATURES, fold_ids, coords_m, purge_distance_km=DEFAULT_PRIMARY_PURGE_KM
+    )
+    susc_core_unpurged = run_purged_spatial_cv(
+        df, SUSCEPTIBILITY_CORE_FEATURES, fold_ids, coords_m, purge_distance_km=0.0
+    )
 
-    # 4A. Cloud-Independent Core (No optical, >96% complete)
-    susc_core_res = run_leakage_safe_spatial_cv(
-        df, SUSCEPTIBILITY_CORE_FEATURES, fold_ids, coords_m
+    # 7B. Optical-Enhanced Model (Pre-event with 31.5% monsoon cloud missingness)
+    susc_opt_purged = run_purged_spatial_cv(
+        df, SUSCEPTIBILITY_OPTICAL_FEATURES, fold_ids, coords_m, purge_distance_km=DEFAULT_PRIMARY_PURGE_KM
     )
-    # 4B. Optical-Enhanced (Includes pre-event NDVI, NDWI, BSI with 31.5% monsoon cloud missingness)
-    susc_opt_res = run_leakage_safe_spatial_cv(
-        df, SUSCEPTIBILITY_OPTICAL_FEATURES, fold_ids, coords_m
-    )
-    # 4C. Reduced Pre-event (Slope & TRI excluded to measure terrain bias)
-    susc_red_res = run_leakage_safe_spatial_cv(
-        df, SUSCEPTIBILITY_REDUCED_FEATURES, fold_ids, coords_m
+
+    # 7C. Reduced Model (Terrain Bias Check, slope & tri excluded)
+    susc_red_purged = run_purged_spatial_cv(
+        df, SUSCEPTIBILITY_REDUCED_FEATURES, fold_ids, coords_m, purge_distance_km=DEFAULT_PRIMARY_PURGE_KM
     )
 
     susc_prod_core = fit_production_models_and_shap(df, SUSCEPTIBILITY_CORE_FEATURES)
@@ -548,88 +776,110 @@ def execute_build():
         "event_date": df["event_date"],
         "label": df["label"],
         "spatial_fold": df["spatial_fold"],
-        "pred_prob_rf_core": susc_core_res["oof_rf"],
-        "pred_prob_xgb_core": susc_core_res["oof_xgb"],
-        "pred_prob_rf_optical": susc_opt_res["oof_rf"],
-        "pred_prob_xgb_optical": susc_opt_res["oof_xgb"],
-        "pred_prob_rf_reduced": susc_red_res["oof_rf"],
-        "pred_prob_xgb_reduced": susc_red_res["oof_xgb"],
+        "pred_prob_rf_core_purged100km": susc_core_purged["oof_rf"],
+        "pred_prob_xgb_core_purged100km": susc_core_purged["oof_xgb"],
+        "pred_prob_rf_opt_purged100km": susc_opt_purged["oof_rf"],
+        "pred_prob_xgb_opt_purged100km": susc_opt_purged["oof_xgb"],
+        "pred_prob_rf_red_purged100km": susc_red_purged["oof_rf"],
+        "pred_prob_xgb_red_purged100km": susc_red_purged["oof_xgb"],
     })
     susc_preds_df.to_csv(SUSCEPTIBILITY_DIR / "susceptibility_predictions.csv", index=False)
 
-    # Save Susceptibility Metrics Comparison
+    # Save Fold-Wise Susceptibility Metrics
+    susc_fold_metrics = []
+    for fm in susc_core_purged["fold_metrics"]:
+        susc_fold_metrics.append({"configuration": "Cloud-Independent Core", **fm})
+    for fm in susc_opt_purged["fold_metrics"]:
+        susc_fold_metrics.append({"configuration": "Optical-Enhanced", **fm})
+    for fm in susc_red_purged["fold_metrics"]:
+        susc_fold_metrics.append({"configuration": "Reduced (Terrain Diagnostic)", **fm})
+    pd.DataFrame(susc_fold_metrics).to_csv(SUSCEPTIBILITY_DIR / "susceptibility_fold_metrics.csv", index=False)
+
+    # Save Pooled Susceptibility Metrics Comparison
     susc_metrics_summary = [
         {
-            "workflow": "Workflow B: Susceptibility Prediction",
-            "configuration": "Cloud-Independent Core Model",
-            "model": "XGBoost",
-            "feature_set": "Strictly Pre-Event (Topo + SAR pre + Rain 30d + API)",
-            "n_features": len(SUSCEPTIBILITY_CORE_FEATURES),
-            "auroc": susc_core_res["overall_xgb"]["auroc"],
-            "prauc": susc_core_res["overall_xgb"]["prauc"],
-            "f1_score_at_0.5": susc_core_res["overall_xgb"]["f1_score_at_0.5"],
-            "accuracy_at_0.5": susc_core_res["overall_xgb"]["accuracy_at_0.5"],
-            "missingness_handling": "Native directional routing (zero imputation)"
-        },
-        {
-            "workflow": "Workflow B: Susceptibility Prediction",
+            "workflow": "Workflow B: Rainfall-Conditioned Susceptibility (Diagnostic Baseline)",
             "configuration": "Cloud-Independent Core Model",
             "model": "Random Forest",
             "feature_set": "Strictly Pre-Event (Topo + SAR pre + Rain 30d + API)",
             "n_features": len(SUSCEPTIBILITY_CORE_FEATURES),
-            "auroc": susc_core_res["overall_rf"]["auroc"],
-            "prauc": susc_core_res["overall_rf"]["prauc"],
-            "f1_score_at_0.5": susc_core_res["overall_rf"]["f1_score_at_0.5"],
-            "accuracy_at_0.5": susc_core_res["overall_rf"]["accuracy_at_0.5"],
-            "missingness_handling": "Fold-isolated median imputation"
+            "purge_distance_km": DEFAULT_PRIMARY_PURGE_KM,
+            "auroc": susc_core_purged["overall_rf"]["auroc"],
+            "prauc": susc_core_purged["overall_rf"]["prauc"],
+            "f1_score_at_0.5": susc_core_purged["overall_rf"]["f1_score_at_0.5"],
+            "accuracy_at_0.5": susc_core_purged["overall_rf"]["accuracy_at_0.5"],
+            "missingness_handling": "Fold-isolated median imputation",
+            "validation_dataset": "Version 1.0 Historical Diagnostic Baseline"
         },
         {
-            "workflow": "Workflow B: Susceptibility Prediction",
-            "configuration": "Optical-Enhanced Model",
+            "workflow": "Workflow B: Rainfall-Conditioned Susceptibility (Diagnostic Baseline)",
+            "configuration": "Cloud-Independent Core Model",
             "model": "XGBoost",
-            "feature_set": "Core + Pre-event Sentinel-2 (NDVI, NDWI, BSI)",
-            "n_features": len(SUSCEPTIBILITY_OPTICAL_FEATURES),
-            "auroc": susc_opt_res["overall_xgb"]["auroc"],
-            "prauc": susc_opt_res["overall_xgb"]["prauc"],
-            "f1_score_at_0.5": susc_opt_res["overall_xgb"]["f1_score_at_0.5"],
-            "accuracy_at_0.5": susc_opt_res["overall_xgb"]["accuracy_at_0.5"],
-            "missingness_handling": "Native directional routing (31.5% optical nulls)"
+            "feature_set": "Strictly Pre-Event (Topo + SAR pre + Rain 30d + API)",
+            "n_features": len(SUSCEPTIBILITY_CORE_FEATURES),
+            "purge_distance_km": DEFAULT_PRIMARY_PURGE_KM,
+            "auroc": susc_core_purged["overall_xgb"]["auroc"],
+            "prauc": susc_core_purged["overall_xgb"]["prauc"],
+            "f1_score_at_0.5": susc_core_purged["overall_xgb"]["f1_score_at_0.5"],
+            "accuracy_at_0.5": susc_core_purged["overall_xgb"]["accuracy_at_0.5"],
+            "missingness_handling": "Native directional routing (zero imputation)",
+            "validation_dataset": "Version 1.0 Historical Diagnostic Baseline"
         },
         {
-            "workflow": "Workflow B: Susceptibility Prediction",
+            "workflow": "Workflow B: Rainfall-Conditioned Susceptibility (Diagnostic Baseline)",
             "configuration": "Optical-Enhanced Model",
             "model": "Random Forest",
             "feature_set": "Core + Pre-event Sentinel-2 (NDVI, NDWI, BSI)",
             "n_features": len(SUSCEPTIBILITY_OPTICAL_FEATURES),
-            "auroc": susc_opt_res["overall_rf"]["auroc"],
-            "prauc": susc_opt_res["overall_rf"]["prauc"],
-            "f1_score_at_0.5": susc_opt_res["overall_rf"]["f1_score_at_0.5"],
-            "accuracy_at_0.5": susc_opt_res["overall_rf"]["accuracy_at_0.5"],
-            "missingness_handling": "Fold-isolated median imputation"
+            "purge_distance_km": DEFAULT_PRIMARY_PURGE_KM,
+            "auroc": susc_opt_purged["overall_rf"]["auroc"],
+            "prauc": susc_opt_purged["overall_rf"]["prauc"],
+            "f1_score_at_0.5": susc_opt_purged["overall_rf"]["f1_score_at_0.5"],
+            "accuracy_at_0.5": susc_opt_purged["overall_rf"]["accuracy_at_0.5"],
+            "missingness_handling": "Fold-isolated median imputation",
+            "validation_dataset": "Version 1.0 Historical Diagnostic Baseline"
         },
         {
-            "workflow": "Workflow B: Susceptibility Prediction",
-            "configuration": "Reduced Model (Terrain Bias Check)",
+            "workflow": "Workflow B: Rainfall-Conditioned Susceptibility (Diagnostic Baseline)",
+            "configuration": "Optical-Enhanced Model",
             "model": "XGBoost",
-            "feature_set": "Pre-event excluding Slope & TRI",
-            "n_features": len(SUSCEPTIBILITY_REDUCED_FEATURES),
-            "auroc": susc_red_res["overall_xgb"]["auroc"],
-            "prauc": susc_red_res["overall_xgb"]["prauc"],
-            "f1_score_at_0.5": susc_red_res["overall_xgb"]["f1_score_at_0.5"],
-            "accuracy_at_0.5": susc_red_res["overall_xgb"]["accuracy_at_0.5"],
-            "missingness_handling": "Native directional routing"
+            "feature_set": "Core + Pre-event Sentinel-2 (NDVI, NDWI, BSI)",
+            "n_features": len(SUSCEPTIBILITY_OPTICAL_FEATURES),
+            "purge_distance_km": DEFAULT_PRIMARY_PURGE_KM,
+            "auroc": susc_opt_purged["overall_xgb"]["auroc"],
+            "prauc": susc_opt_purged["overall_xgb"]["prauc"],
+            "f1_score_at_0.5": susc_opt_purged["overall_xgb"]["f1_score_at_0.5"],
+            "accuracy_at_0.5": susc_opt_purged["overall_xgb"]["accuracy_at_0.5"],
+            "missingness_handling": "Native directional routing (31.5% optical nulls)",
+            "validation_dataset": "Version 1.0 Historical Diagnostic Baseline"
         },
         {
-            "workflow": "Workflow B: Susceptibility Prediction",
+            "workflow": "Workflow B: Rainfall-Conditioned Susceptibility (Diagnostic Baseline)",
             "configuration": "Reduced Model (Terrain Bias Check)",
             "model": "Random Forest",
             "feature_set": "Pre-event excluding Slope & TRI",
             "n_features": len(SUSCEPTIBILITY_REDUCED_FEATURES),
-            "auroc": susc_red_res["overall_rf"]["auroc"],
-            "prauc": susc_red_res["overall_rf"]["prauc"],
-            "f1_score_at_0.5": susc_red_res["overall_rf"]["f1_score_at_0.5"],
-            "accuracy_at_0.5": susc_red_res["overall_rf"]["accuracy_at_0.5"],
-            "missingness_handling": "Fold-isolated median imputation"
+            "purge_distance_km": DEFAULT_PRIMARY_PURGE_KM,
+            "auroc": susc_red_purged["overall_rf"]["auroc"],
+            "prauc": susc_red_purged["overall_rf"]["prauc"],
+            "f1_score_at_0.5": susc_red_purged["overall_rf"]["f1_score_at_0.5"],
+            "accuracy_at_0.5": susc_red_purged["overall_rf"]["accuracy_at_0.5"],
+            "missingness_handling": "Fold-isolated median imputation",
+            "validation_dataset": "Version 1.0 Historical Diagnostic Baseline"
+        },
+        {
+            "workflow": "Workflow B: Rainfall-Conditioned Susceptibility (Diagnostic Baseline)",
+            "configuration": "Reduced Model (Terrain Bias Check)",
+            "model": "XGBoost",
+            "feature_set": "Pre-event excluding Slope & TRI",
+            "n_features": len(SUSCEPTIBILITY_REDUCED_FEATURES),
+            "purge_distance_km": DEFAULT_PRIMARY_PURGE_KM,
+            "auroc": susc_red_purged["overall_xgb"]["auroc"],
+            "prauc": susc_red_purged["overall_xgb"]["prauc"],
+            "f1_score_at_0.5": susc_red_purged["overall_xgb"]["f1_score_at_0.5"],
+            "accuracy_at_0.5": susc_red_purged["overall_xgb"]["accuracy_at_0.5"],
+            "missingness_handling": "Native directional routing",
+            "validation_dataset": "Version 1.0 Historical Diagnostic Baseline"
         }
     ]
     pd.DataFrame(susc_metrics_summary).to_csv(SUSCEPTIBILITY_DIR / "susceptibility_metrics.csv", index=False)
@@ -638,70 +888,141 @@ def execute_build():
     susc_prod_core["shap_summary_df"].to_csv(SUSCEPTIBILITY_DIR / "susceptibility_feature_importance.csv", index=False)
     susc_prod_core["shap_summary_df"].to_csv(SUSCEPTIBILITY_DIR / "susceptibility_shap_summary.csv", index=False)
 
-    # Copy verified 0.5 deg regional grid
+    # Save Regional Grid (with documented reference period)
     p5_grid_path = OUTPUTS_DIR / "phase5_susceptibility_grid.csv"
     if p5_grid_path.exists():
         p5_grid = pd.read_csv(p5_grid_path)
+        p5_grid["rainfall_reference_period"] = "September 2026 synoptic late-monsoon window (30-day antecedent CHIRPS)"
         p5_grid.to_csv(SUSCEPTIBILITY_DIR / "susceptibility_grid_0.5deg.csv", index=False)
 
-    # Save Susceptibility Models Joblib
+    # Save Serialized Susceptibility Models
     joblib.dump({
         "core": {"rf": susc_prod_core["rf_model"], "xgb": susc_prod_core["xgb_model"], "feature_cols": SUSCEPTIBILITY_CORE_FEATURES},
         "optical": {"rf": susc_prod_opt["rf_model"], "xgb": susc_prod_opt["xgb_model"], "feature_cols": SUSCEPTIBILITY_OPTICAL_FEATURES},
-        "reduced": {"rf": susc_prod_red["rf_model"], "xgb": susc_prod_red["xgb_model"], "feature_cols": SUSCEPTIBILITY_REDUCED_FEATURES}
+        "reduced": {"rf": susc_prod_red["rf_model"], "xgb": susc_prod_red["xgb_model"], "feature_cols": SUSCEPTIBILITY_REDUCED_FEATURES},
+        "workflow": "Workflow B: Rainfall-Conditioned Susceptibility Prediction",
+        "scientific_classification": "Rainfall-Conditioned Susceptibility (Diagnostic Baseline with Version 1.0 controls)"
     }, SUSCEPTIBILITY_DIR / "susceptibility_models.joblib")
 
-    # -------------------------------------------------------------
-    # 5. METADATA CATALOG & SCHEMAS
-    # -------------------------------------------------------------
-    feature_schema = {
+    # -------------------------------------------------------------------------
+    # 8. METADATA CATALOG & COMPREHENSIVE EXPERIMENT METADATA
+    # -------------------------------------------------------------------------
+    feature_schema_doc = {
         "workflow_a_detection": {
-            "name": "Landslide Event Detection Feature Set",
-            "objective": "Classify post-hoc occurrence of ground failure using pre/post satellite change",
+            "name": "Landslide Event Detection Feature Set (Experimental Point-Zone Disturbance Assessment)",
+            "objective": "Classify post-hoc occurrence of ground disturbance using pre/post satellite change",
             "feature_count": len(DETECTION_FEATURES),
             "features": DETECTION_FEATURES,
-            "prohibited_features": ["VH_pre", "VV_pre", "latitude", "longitude"]
+            "prohibited_features": DETECTION_PROHIBITED,
+            "spatial_uncertainty_caveat": "NASA catalog coordinates carry +/- 5km uncertainty. Evaluates point-zone disturbance proxy, not validated scar-level detection."
         },
         "workflow_b_susceptibility_core": {
             "name": "Cloud-Independent Core Susceptibility Set",
             "objective": "Pre-event spatial landslide susceptibility modeling with all-weather completeness (>96%)",
             "feature_count": len(SUSCEPTIBILITY_CORE_FEATURES),
             "features": SUSCEPTIBILITY_CORE_FEATURES,
-            "prohibited_features": ["VH_post", "VV_post", "dVH", "dVV", "rain_1d", "rain_7d", "latitude", "longitude"]
+            "prohibited_features": SUSCEPTIBILITY_CORE_PROHIBITED,
+            "rainfall_conditioning": "Conditioned on 30-day antecedent rainfall and API (alpha=0.90)"
         },
         "workflow_b_susceptibility_optical": {
             "name": "Optical-Enhanced Susceptibility Set",
             "objective": "Pre-event spatial susceptibility modeling including Sentinel-2 spectral indices",
             "feature_count": len(SUSCEPTIBILITY_OPTICAL_FEATURES),
             "features": SUSCEPTIBILITY_OPTICAL_FEATURES,
-            "prohibited_features": ["VH_post", "VV_post", "dVH", "dVV", "rain_1d", "rain_7d", "latitude", "longitude"]
+            "prohibited_features": SUSCEPTIBILITY_OPTICAL_PROHIBITED,
+            "missingness_note": "Carries 31.5% missing data due to Himalayan monsoon clouds"
         },
         "workflow_b_susceptibility_reduced": {
             "name": "Reduced Susceptibility Set (Terrain Bias Diagnostic)",
             "objective": "Pre-event spatial susceptibility modeling excluding slope and TRI to evaluate terrain confound",
             "feature_count": len(SUSCEPTIBILITY_REDUCED_FEATURES),
             "features": SUSCEPTIBILITY_REDUCED_FEATURES,
-            "prohibited_features": ["slope", "tri", "VH_post", "VV_post", "dVH", "dVV", "rain_1d", "rain_7d", "latitude", "longitude"]
+            "prohibited_features": SUSCEPTIBILITY_REDUCED_PROHIBITED
         }
     }
     with open(METADATA_DIR / "feature_schema.json", "w", encoding="utf-8") as f:
-        json.dump(feature_schema, f, indent=2)
+        json.dump(feature_schema_doc, f, indent=2)
 
-    model_metadata = {
-        "execution_environment": "Python 3.12 (Isolated Clean Pipeline)",
+    experiment_metadata = {
+        "execution_timestamp": execution_start_time,
+        "environment": {
+            "os": platform.platform(),
+            "python_version": sys.version,
+            "package_versions": {
+                "scikit-learn": sklearn.__version__,
+                "xgboost": xgb.__version__,
+                "shap": shap.__version__,
+                "scipy": scipy.__version__,
+                "pyproj": Transformer.__module__,
+                "pandas": pd.__version__,
+                "numpy": np.__version__,
+                "joblib": joblib.__version__,
+            }
+        },
         "random_seed": 42,
-        "n_outer_spatial_folds": 5,
-        "spatial_clustering_algorithm": "KMeans on Azimuthal Equidistant projection (+proj=aeqd)",
-        "imputation_strategy": "Fold-isolated SimpleImputer(strategy='median') for Random Forest; Native for XGBoost",
-        "models": {
-            "RandomForestClassifier": {"n_estimators": 500, "class_weight": "balanced", "random_state": 42},
-            "XGBClassifier": {"n_estimators": 500, "max_depth": 5, "learning_rate": 0.05, "tree_method": "hist", "scale_pos_weight": "unbalanced ratio", "random_state": 42}
+        "dataset_lineage": {
+            "version_1_0": "Verified Diagnostic Baseline (N=254, 127 positive, 127 unstratified negative controls)",
+            "version_2_0": "EXTRACTION_PENDING_COLAB_GEE (Prepared protocol & Colab notebook; genuine extraction pending)",
+            "regional_grid_reference_period": "September 2026 synoptic late-monsoon window (30-day antecedent CHIRPS, alpha=0.90)",
+            "regional_grid_resolution": "0.5 deg macro-regional synoptic lattice (~55 km cell width, 765 valid cells)"
+        },
+        "programmatic_schema_verification": schema_verification,
+        "spatial_cross_validation": {
+            "clustering_algorithm": "KMeans (k=5) on Azimuthal Equidistant metric projection",
+            "primary_operational_purge_distance_km": DEFAULT_PRIMARY_PURGE_KM,
+            "sensitivity_purged_buffers_km": PURGE_DISTANCES_KM,
+            "inner_validation_strategy": "Spatially-Grouped Stratified (KMeans groups) with fallback to StratifiedKFold on depleted partitions",
+            "retained_train_sample_counts_100km_purge": {
+                f"fold_{fm['fold']}": {
+                    "test_n": fm["n_test"],
+                    "retained_train_n": fm["n_train_retained"],
+                    "purged_train_n": fm["n_train_purged"],
+                    "actual_min_dist_km": fm["actual_min_distance_to_test_km"],
+                    "inner_cv_method": fm["inner_cv_method"]
+                }
+                for fm in det_purged_res["fold_metrics"]
+            }
+        },
+        "headline_metrics_summary": {
+            "workflow_a_detection_purged100km": {
+                "rf_auroc": det_purged_res["overall_rf"]["auroc"],
+                "rf_prauc": det_purged_res["overall_rf"]["prauc"],
+                "rf_f1_0.5": det_purged_res["overall_rf"]["f1_score_at_0.5"],
+                "xgb_auroc": det_purged_res["overall_xgb"]["auroc"],
+                "xgb_prauc": det_purged_res["overall_xgb"]["prauc"],
+                "xgb_f1_0.5": det_purged_res["overall_xgb"]["f1_score_at_0.5"]
+            },
+            "workflow_b_susceptibility_core_purged100km": {
+                "rf_auroc": susc_core_purged["overall_rf"]["auroc"],
+                "rf_prauc": susc_core_purged["overall_rf"]["prauc"],
+                "rf_f1_0.5": susc_core_purged["overall_rf"]["f1_score_at_0.5"],
+                "xgb_auroc": susc_core_purged["overall_xgb"]["auroc"],
+                "xgb_prauc": susc_core_purged["overall_xgb"]["prauc"],
+                "xgb_f1_0.5": susc_core_purged["overall_xgb"]["f1_score_at_0.5"]
+            },
+            "workflow_b_susceptibility_optical_purged100km": {
+                "rf_auroc": susc_opt_purged["overall_rf"]["auroc"],
+                "rf_prauc": susc_opt_purged["overall_rf"]["prauc"],
+                "xgb_auroc": susc_opt_purged["overall_xgb"]["auroc"],
+                "xgb_prauc": susc_opt_purged["overall_xgb"]["prauc"]
+            },
+            "workflow_b_susceptibility_reduced_purged100km": {
+                "rf_auroc": susc_red_purged["overall_rf"]["auroc"],
+                "rf_prauc": susc_red_purged["overall_rf"]["prauc"],
+                "xgb_auroc": susc_red_purged["overall_xgb"]["auroc"],
+                "xgb_prauc": susc_red_purged["overall_xgb"]["prauc"]
+            }
+        },
+        "scientific_disclosures": {
+            "positional_uncertainty": "57.5% of NASA catalog events known only within 5 km; single-pixel radar deltas suffer from coordinate misalignment.",
+            "negative_control_flatness": "Version 1.0 controls have mean slope 1.4 deg; high accuracy partially reflects mountain-vs-plains separation.",
+            "operational_readiness": "Version 2.0 hillslope controls must be extracted via Google Colab before declaring susceptibility models operational."
         }
     }
-    with open(METADATA_DIR / "model_metadata.json", "w", encoding="utf-8") as f:
-        json.dump(model_metadata, f, indent=2)
+    with open(METADATA_DIR / "experiment_metadata.json", "w", encoding="utf-8") as f:
+        json.dump(experiment_metadata, f, indent=2)
 
-    logger.info("=== RESEARCH ARTIFACT BUILD COMPLETE ===")
+    logger.info("=== RESEARCH ARTIFACT BUILD AND SCIENTIFIC REMEDIATION PASS COMPLETE ===")
 
 
 if __name__ == "__main__":
