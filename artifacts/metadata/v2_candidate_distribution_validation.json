@@ -1,4 +1,7 @@
 {
+  "candidate_control_terminology": "Candidate Hillslope Control / Unrecorded Failure Status",
+  "inventory_incompleteness_disclaimer": "Absence from NASA COOLR catalog establishes unrecorded failure status, not guaranteed absolute stability. Controls are sampled from unfailed hillslopes matching empirical positive event terrain envelopes.",
+  "confound_mitigation_policy": "Sampling mask stratification is designed to mitigate the flat-terrain confound. Actual confound elimination cannot be claimed a priori; it must be empirically verified via two-sample Kolmogorov-Smirnov testing once extracted Version 2.0 distributions are ingested.",
   "slope": {
     "p05": 3.5535171985626217,
     "p10": 6.148203849792482,
@@ -35,12 +38,53 @@
   "v2_control_envelope": {
     "slope_min_deg": 6.1,
     "slope_max_deg": 41.4,
-    "elevation_min_m": 266.0,
+    "elevation_min_m": 327.0,
     "elevation_max_m": 3027.0,
     "min_dist_to_positive_m": 2000,
     "max_buffer_search_km": 40,
+    "min_buffer_search_km": 10,
     "jrc_max_water_pct": 10,
-    "sar_max_std_db": 1.5
+    "esa_worldcover_snow_ice_excluded_class": 70,
+    "esa_worldcover_water_excluded_class": 80,
+    "sar_observation_window_days": [
+      180,
+      15
+    ],
+    "sar_max_std_db": 1.5,
+    "sar_min_observations": 3
+  },
+  "geomorphometric_definitions": {
+    "tri_riley_standard": "Riley et al. (1999) root-sum-squared elevation differences across 8 neighbors: sqrt(sum(z_i - z_0)^2)",
+    "tri_mean_absolute_difference": "Wilson & Gallant / standard mean absolute elevation difference: (1/8) * sum(|z_i - z_0|)",
+    "tri_focal_diff_proxy": "Absolute difference from 3x3 uniform focal mean: |z_0 - mean_3x3(z)| (retained as proxy)",
+    "twi_merit_hydro": "Beven & Kirkby (1979) ln(alpha / tan(beta)) using MERIT Hydro flow accumulation upstream contributing area (upa)",
+    "twi_slope_proxy": "Slope-only proxy: ln(1 / tan(beta)) = -ln(tan(beta)) (retained as proxy)"
+  },
+  "sampling_audit_schema": {
+    "required_rejection_counters": [
+      "roi_out_of_bounds",
+      "scar_proximity_under_2km",
+      "elevation_out_of_bounds",
+      "slope_out_of_bounds",
+      "water_body_overlap",
+      "snow_ice_overlap",
+      "sar_insufficient_baseline",
+      "sar_temporal_instability",
+      "no_valid_candidate_after_search"
+    ]
+  },
+  "matching_diagnostics_schema": {
+    "diagnostic_variables": [
+      "spatial_distance_km",
+      "min_dist_to_all_positives_km",
+      "delta_slope_deg",
+      "delta_elevation_m",
+      "delta_aspect_deg",
+      "delta_tri",
+      "sar_pre_std_vv",
+      "sar_pre_count"
+    ],
+    "limitation_note": "A 10\u201340 km ring buffer serves as a regional physiographic proxy but does not guarantee identical catchment or bedrock lithology."
   },
   "v1_distribution_divergence": {
     "note": "Version 1.0 controls show extreme statistical divergence from landslide terrain (p-value < 1e-15), proving flat-terrain bias.",
@@ -56,6 +100,6 @@
     "description": "Candidate sampling envelopes are empirically validated against positive events. Feature extraction requires authenticated Earth Engine execution in Colab.",
     "colab_notebook": "notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb",
     "gee_project": "landslidedetection-506008",
-    "provenance_policy": "No synthetic feature generation permitted. Version 1.0 remains baseline until GEE extraction is completed."
+    "provenance_policy": "No synthetic feature generation permitted. Version 1.0 remains baseline until genuine GEE extraction is completed."
   }
 }
