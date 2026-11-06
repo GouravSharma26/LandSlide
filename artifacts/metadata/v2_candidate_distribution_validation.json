@@ -2,12 +2,16 @@
   "candidate_control_terminology": "Candidate Hillslope Control / Unrecorded Failure Status",
   "inventory_incompleteness_disclaimer": "Absence from NASA COOLR catalog establishes unrecorded failure status, not guaranteed absolute stability. Controls are sampled from unfailed hillslopes matching empirical positive event terrain envelopes.",
   "confound_mitigation_policy": "Sampling mask stratification is designed to mitigate the flat-terrain confound. Actual confound elimination cannot be claimed a priori; it must be empirically verified via two-sample Kolmogorov-Smirnov testing once extracted Version 2.0 distributions are ingested.",
+  "sar_screening_characterization": "Pre-event backscatter standard deviation (<= 1.5 dB) serves as a microwave temporal consistency screening criterion, not geodetic proof of physical ground stability. Radar backscatter temporal variance is influenced by seasonal freeze-thaw cycles, vegetation phenology, episodic soil moisture spikes from monsoon rains, and steep-slope local incidence angle variations (layover and shadow).",
+  "candidate_selection_strategy": "For each positive event, candidates are sampled within a 10-40km ring buffer and evaluated sequentially against all physical and data availability filters. Among all valid candidates, the optimal control is selected by minimizing the standardized multidimensional topographic distance D_topo to the paired positive event: D_topo = sqrt(((slope_c - slope_p)/10.5)^2 + ((elev_c - elev_p)/775)^2 + ((tri_c - tri_p)/17.5)^2). This ensures that accepted controls are geomorphologically representative rather than arbitrary first passes.",
+  "twi_resolution_alignment_specification": "SRTM 30m elevation derivatives are combined with MERIT Hydro 90m flow accumulation (upa). To resolve the resolution mismatch, MERIT Hydro 'upa' is resampled via bilinear interpolation to match the 30m SRTM grid. At 30m resolution, contour length b = 30m, yielding specific catchment area alpha = (upa * 1e6) / 30m. Topographic Wetness Index is calculated as ln(alpha / tan(beta)), with tan(beta) >= 0.001.",
   "slope": {
     "p05": 3.5535171985626217,
     "p10": 6.148203849792482,
     "p25": 13.177201271057127,
     "median": 21.000547409057617,
     "mean": 21.829074983922844,
+    "std": 11.993174191348674,
     "p75": 29.506576538085938,
     "p90": 39.45148468017578,
     "p95": 41.3844612121582,
@@ -19,6 +23,7 @@
     "p10": 327.0,
     "median": 1168.0,
     "mean": 1285.2991452991453,
+    "std": 818.7248734228929,
     "p90": 2246.8,
     "p95": 3026.9999999999995,
     "min": 87.0,
@@ -27,11 +32,15 @@
   "tri": {
     "p10": 9.766862278361598,
     "median": 26.902200561697075,
+    "mean": 29.919447627492236,
+    "std": 17.069119859775356,
     "p90": 52.20283328009231
   },
   "twi": {
     "p10": 9.666833105259254,
     "median": 10.82921593162895,
+    "mean": 11.379636735901363,
+    "std": 2.336099089295158,
     "p90": 13.004326537624618
   },
   "n_positives": 127,
@@ -57,13 +66,16 @@
     "tri_riley_standard": "Riley et al. (1999) root-sum-squared elevation differences across 8 neighbors: sqrt(sum(z_i - z_0)^2)",
     "tri_mean_absolute_difference": "Wilson & Gallant / standard mean absolute elevation difference: (1/8) * sum(|z_i - z_0|)",
     "tri_focal_diff_proxy": "Absolute difference from 3x3 uniform focal mean: |z_0 - mean_3x3(z)| (retained as proxy)",
-    "twi_merit_hydro": "Beven & Kirkby (1979) ln(alpha / tan(beta)) using MERIT Hydro flow accumulation upstream contributing area (upa)",
+    "twi_merit_hydro": "Beven & Kirkby (1979) ln(alpha / tan(beta)) using bilinearly resampled MERIT Hydro flow accumulation (upa)",
     "twi_slope_proxy": "Slope-only proxy: ln(1 / tan(beta)) = -ln(tan(beta)) (retained as proxy)"
   },
   "sampling_audit_schema": {
     "required_rejection_counters": [
       "roi_out_of_bounds",
       "scar_proximity_under_2km",
+      "missing_terrain_data",
+      "missing_water_data",
+      "missing_landcover_data",
       "elevation_out_of_bounds",
       "slope_out_of_bounds",
       "water_body_overlap",
@@ -81,8 +93,17 @@
       "delta_elevation_m",
       "delta_aspect_deg",
       "delta_tri",
+      "d_topo_composite",
       "sar_pre_std_vv",
       "sar_pre_count"
+    ],
+    "reporting_metrics": [
+      "min",
+      "p25",
+      "median",
+      "mean",
+      "p75",
+      "max"
     ],
     "limitation_note": "A 10\u201340 km ring buffer serves as a regional physiographic proxy but does not guarantee identical catchment or bedrock lithology."
   },
