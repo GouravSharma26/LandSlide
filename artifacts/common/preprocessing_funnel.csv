@@ -1,0 +1,8 @@
+Stage,Count,Loss
+1. Raw NASA COOLR Inventory,14750,Global uncurated repository
+2. Parseable Event Dates,13113,"-1,637 missing date records"
+"3. Himalayan ROI (26-35 deg N, 74-97 deg E)",1689,"-11,424 outside target mountain belt"
+4. Sentinel Active Baseline (2017-2023),306,"-1,383 outside satellite window"
+5. Rainfall Triggers Only,206,-100 non-rain triggers (earthquake/mining)
+6. Positional Accuracy within 5 km,128,-78 coarse or unverified coordinates
+7. Spatio-Temporal Deduplication,127,-1 duplicate point-date report

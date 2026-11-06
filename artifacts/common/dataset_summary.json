@@ -1,0 +1,35 @@
+{
+  "dataset_name": "Himalayan Landslide Intelligence Dataset (Version 1.0)",
+  "total_observations": 254,
+  "positive_events": 127,
+  "negative_controls": 127,
+  "class_ratio": "1:1",
+  "spatial_domain": {
+    "name": "Himalayan Mountain Belt",
+    "lat_min": 26.078,
+    "lat_max": 35.42789524703042,
+    "lon_min": 74.11624959506106,
+    "lon_max": 96.64159847100524,
+    "approx_area_sq_km": 2209523
+  },
+  "temporal_domain": {
+    "start_date": "2017-01-06 00:00:00",
+    "end_date": "2020-08-31 00:00:00",
+    "baseline_coverage": "2017-01-01 to 2023-12-31"
+  },
+  "data_sources": [
+    "NASA Global Landslide Catalog (COOLR)",
+    "ESA Sentinel-1 IW GRD (VV/VH C-band SAR)",
+    "ESA Sentinel-2 MSI Surface Reflectance + s2cloudless",
+    "UCSB CHIRPS Daily Precipitation (0.05 deg / ~5.5 km)",
+    "USGS SRTMGL1_003 30m Digital Elevation Model",
+    "MERIT Hydro Upstream Area (upa)"
+  ],
+  "api_decay_factor": 0.9,
+  "semivariogram_detrended_range_km": 437.8,
+  "results_provenance": {
+    "version_1_0_historical": "Verified Experimental Baseline (N=254, slope < 5 deg controls)",
+    "version_2_0_hillslope": "Validated Specification (Colab extraction ready)",
+    "regional_grid_0_5deg": "Verified Macro-Synoptic Layer (765 cells, ~55 km resolution)"
+  }
+}

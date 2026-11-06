@@ -1,0 +1,22 @@
+{
+  "execution_environment": "Python 3.12 (Isolated Clean Pipeline)",
+  "random_seed": 42,
+  "n_outer_spatial_folds": 5,
+  "spatial_clustering_algorithm": "KMeans on Azimuthal Equidistant projection (+proj=aeqd)",
+  "imputation_strategy": "Fold-isolated SimpleImputer(strategy='median') for Random Forest; Native for XGBoost",
+  "models": {
+    "RandomForestClassifier": {
+      "n_estimators": 500,
+      "class_weight": "balanced",
+      "random_state": 42
+    },
+    "XGBClassifier": {
+      "n_estimators": 500,
+      "max_depth": 5,
+      "learning_rate": 0.05,
+      "tree_method": "hist",
+      "scale_pos_weight": "unbalanced ratio",
+      "random_state": 42
+    }
+  }
+}

@@ -1,0 +1,29 @@
+feature,data_type,non_null_count,null_count,missingness_pct,physical_cause
+latitude,float64,254,0,0.0,Complete unbroken spatial coverage
+longitude,float64,254,0,0.0,Complete unbroken spatial coverage
+event_date,object,254,0,0.0,Complete unbroken spatial coverage
+Location Accuracy,object,254,0,0.0,Complete unbroken spatial coverage
+Landslide Trigger,object,254,0,0.0,Complete unbroken spatial coverage
+Imported Event Source Catalog,object,254,0,0.0,Complete unbroken spatial coverage
+label,int64,254,0,0.0,Complete unbroken spatial coverage
+block_id,object,254,0,0.0,Complete unbroken spatial coverage
+aspect,float64,244,10,3.94,SRTM boundary voids / alpine crests
+curvature,float64,244,10,3.94,SRTM boundary voids / alpine crests
+elevation,float64,244,10,3.94,SRTM boundary voids / alpine crests
+slope,float64,244,10,3.94,SRTM boundary voids / alpine crests
+tri,float64,244,10,3.94,SRTM boundary voids / alpine crests
+twi,float64,244,10,3.94,SRTM boundary voids / alpine crests
+BSI,float64,174,80,31.5,Monsoon convective cloud cover (July-Sep)
+NDVI,float64,174,80,31.5,Monsoon convective cloud cover (July-Sep)
+NDWI,float64,174,80,31.5,Monsoon convective cloud cover (July-Sep)
+spectral_window_days,float64,174,80,31.5,Monsoon convective cloud cover (July-Sep)
+VH_post,float64,249,5,1.97,Swath edge / radar shadow layover
+VH_pre,float64,249,5,1.97,Swath edge / radar shadow layover
+VV_post,float64,249,5,1.97,Swath edge / radar shadow layover
+VV_pre,float64,249,5,1.97,Swath edge / radar shadow layover
+dVH,float64,247,7,2.76,Swath edge / radar shadow layover
+dVV,float64,247,7,2.76,Swath edge / radar shadow layover
+API,float64,254,0,0.0,Complete unbroken spatial coverage
+rain_1d,float64,254,0,0.0,Complete unbroken spatial coverage
+rain_30d,float64,254,0,0.0,Complete unbroken spatial coverage
+rain_7d,float64,254,0,0.0,Complete unbroken spatial coverage

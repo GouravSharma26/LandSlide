@@ -1,0 +1,112 @@
+{
+  "workflow_a_detection": {
+    "name": "Landslide Event Detection Feature Set",
+    "objective": "Classify post-hoc occurrence of ground failure using pre/post satellite change",
+    "feature_count": 13,
+    "features": [
+      "elevation",
+      "slope",
+      "aspect",
+      "curvature",
+      "twi",
+      "VH_post",
+      "VV_post",
+      "dVH",
+      "dVV",
+      "rain_1d",
+      "rain_7d",
+      "rain_30d",
+      "API"
+    ],
+    "prohibited_features": [
+      "VH_pre",
+      "VV_pre",
+      "latitude",
+      "longitude"
+    ]
+  },
+  "workflow_b_susceptibility_core": {
+    "name": "Cloud-Independent Core Susceptibility Set",
+    "objective": "Pre-event spatial landslide susceptibility modeling with all-weather completeness (>96%)",
+    "feature_count": 10,
+    "features": [
+      "elevation",
+      "slope",
+      "aspect",
+      "curvature",
+      "tri",
+      "twi",
+      "VH_pre",
+      "VV_pre",
+      "rain_30d",
+      "API"
+    ],
+    "prohibited_features": [
+      "VH_post",
+      "VV_post",
+      "dVH",
+      "dVV",
+      "rain_1d",
+      "rain_7d",
+      "latitude",
+      "longitude"
+    ]
+  },
+  "workflow_b_susceptibility_optical": {
+    "name": "Optical-Enhanced Susceptibility Set",
+    "objective": "Pre-event spatial susceptibility modeling including Sentinel-2 spectral indices",
+    "feature_count": 13,
+    "features": [
+      "elevation",
+      "slope",
+      "aspect",
+      "curvature",
+      "tri",
+      "twi",
+      "VH_pre",
+      "VV_pre",
+      "rain_30d",
+      "API",
+      "NDVI",
+      "NDWI",
+      "BSI"
+    ],
+    "prohibited_features": [
+      "VH_post",
+      "VV_post",
+      "dVH",
+      "dVV",
+      "rain_1d",
+      "rain_7d",
+      "latitude",
+      "longitude"
+    ]
+  },
+  "workflow_b_susceptibility_reduced": {
+    "name": "Reduced Susceptibility Set (Terrain Bias Diagnostic)",
+    "objective": "Pre-event spatial susceptibility modeling excluding slope and TRI to evaluate terrain confound",
+    "feature_count": 8,
+    "features": [
+      "elevation",
+      "aspect",
+      "curvature",
+      "twi",
+      "VH_pre",
+      "VV_pre",
+      "rain_30d",
+      "API"
+    ],
+    "prohibited_features": [
+      "slope",
+      "tri",
+      "VH_post",
+      "VV_post",
+      "dVH",
+      "dVV",
+      "rain_1d",
+      "rain_7d",
+      "latitude",
+      "longitude"
+    ]
+  }
+}

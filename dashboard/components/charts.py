@@ -1,0 +1,531 @@
+"""Reusable Plotly charts styled for dark navy dashboard aesthetic."""
+
+from typing import Dict, Any, List, Optional
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import plotly.express as px
+from sklearn.metrics import roc_curve, precision_recall_curve, roc_auc_score, average_precision_score
+
+from dashboard.config import THEME_COLORS
+from dashboard.utils.visualization import apply_custom_theme
+
+
+def render_yearly_distribution_chart(df: pd.DataFrame) -> go.Figure:
+    """Renders annual event count bar chart with gradient fill."""
+    if df.empty or "year" not in df.columns:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="Event Count by Year (No Data)")
+
+    year_counts = df["year"].value_counts().sort_index().reset_index()
+    year_counts.columns = ["Year", "Events"]
+    year_counts["Year"] = year_counts["Year"].astype(str)
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=year_counts["Year"],
+                y=year_counts["Events"],
+                marker=dict(
+                    color=THEME_COLORS["primary"],
+                    line=dict(color="#2EC4B6", width=1.5),
+                ),
+                text=year_counts["Events"],
+                textposition="auto",
+                hoverinfo="x+y",
+            )
+        ]
+    )
+    return apply_custom_theme(
+        fig,
+        title="Landslide Events by Year",
+        x_title="Calendar Year",
+        y_title="Event Count",
+        height=350,
+        show_legend=False,
+    )
+
+
+def render_monthly_seasonality_chart(df: pd.DataFrame) -> go.Figure:
+    """Renders monthly seasonality chart highlighting the Himalayan monsoon window."""
+    if df.empty:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="Monthly Seasonality (No Data)")
+
+    months_order = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ]
+
+    # Calculate counts per month
+    if "month_name" in df.columns:
+        counts = df["month_name"].value_counts().reindex(months_order, fill_value=0)
+    else:
+        counts = pd.Series(0, index=months_order)
+
+    # Monsoon highlight colors (Jul, Aug, Sep get bright cyan/purple; others get muted blue)
+    colors = [
+        THEME_COLORS["danger"] if m in ["Jul", "Aug", "Sep"]
+        else THEME_COLORS["accent_blue"]
+        for m in months_order
+    ]
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=months_order,
+                y=counts.values,
+                marker=dict(color=colors),
+                text=counts.values,
+                textposition="auto",
+            )
+        ]
+    )
+
+    fig.add_annotation(
+        x="Aug",
+        y=max(counts.values) * 0.95 if max(counts.values) > 0 else 10,
+        text="Monsoon Peak (Jul–Sep)",
+        showarrow=True,
+        arrowhead=2,
+        arrowcolor=THEME_COLORS["warning"],
+        font=dict(color=THEME_COLORS["warning"], size=11),
+        bgcolor="rgba(28, 37, 65, 0.9)",
+        bordercolor=THEME_COLORS["warning"],
+    )
+
+    return apply_custom_theme(
+        fig,
+        title="Monthly Distribution (Monsoon Sensitivity)",
+        x_title="Month",
+        y_title="Observation Count",
+        height=350,
+        show_legend=False,
+    )
+
+
+def render_trigger_breakdown_chart(df: pd.DataFrame) -> go.Figure:
+    """Renders trigger category breakdown donut chart."""
+    if df.empty:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="Trigger Categories (No Data)")
+
+    col = "Landslide Trigger" if "Landslide Trigger" in df.columns else "trigger"
+    if col not in df.columns:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="Trigger Information Unavailable")
+
+    trigger_counts = df[col].value_counts().head(8).reset_index()
+    trigger_counts.columns = ["Trigger", "Count"]
+
+    colors = [
+        THEME_COLORS["primary"],
+        THEME_COLORS["secondary"],
+        THEME_COLORS["accent_blue"],
+        THEME_COLORS["warning"],
+        THEME_COLORS["danger"],
+        "#70D6FF",
+        "#B5179E",
+        "#FF9F1C",
+    ]
+
+    fig = go.Figure(
+        data=[
+            go.Pie(
+                labels=trigger_counts["Trigger"],
+                values=trigger_counts["Count"],
+                hole=0.45,
+                marker=dict(colors=colors, line=dict(color=THEME_COLORS["card_bg"], width=2)),
+                textinfo="percent+label",
+                hoverinfo="label+value+percent",
+            )
+        ]
+    )
+    return apply_custom_theme(
+        fig,
+        title="Primary Reported Landslide Triggers",
+        height=350,
+        show_legend=False,
+    )
+
+
+def render_model_comparison_bar_chart(metrics_df: pd.DataFrame) -> go.Figure:
+    """Renders grouped bar chart comparing RF vs XGBoost across AUROC, PR-AUC, and F1."""
+    if metrics_df.empty:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="Model Metrics Unavailable")
+
+    metrics_names = ["AUROC", "PR-AUC", "F1 Score"]
+    
+    # We display the REDUCED feature set as primary, and full as secondary
+    red_row = metrics_df[metrics_df["feature_set"].str.contains("REDUCED", case=False, na=False)]
+    if red_row.empty:
+        red_row = metrics_df.iloc[-1:]
+
+    rf_scores = [
+        float(red_row["rf_auroc"].values[0]),
+        float(red_row["rf_prauc"].values[0]),
+        float(red_row["rf_f1"].values[0]),
+    ]
+    xgb_scores = [
+        float(red_row["xgb_auroc"].values[0]),
+        float(red_row["xgb_prauc"].values[0]),
+        float(red_row["xgb_f1"].values[0]),
+    ]
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                name="Random Forest (Reduced)",
+                x=metrics_names,
+                y=rf_scores,
+                marker_color=THEME_COLORS["secondary"],
+                text=[f"{v:.3f}" for v in rf_scores],
+                textposition="auto",
+            ),
+            go.Bar(
+                name="XGBoost (Reduced)",
+                x=metrics_names,
+                y=xgb_scores,
+                marker_color=THEME_COLORS["primary"],
+                text=[f"{v:.3f}" for v in xgb_scores],
+                textposition="auto",
+            ),
+        ]
+    )
+    fig.update_layout(barmode="group", yaxis_range=[0.75, 1.02])
+    return apply_custom_theme(
+        fig,
+        title="Spatial Out-of-Fold Model Performance (Reduced Set)",
+        x_title="Evaluation Metric",
+        y_title="Score",
+        height=350,
+    )
+
+
+def render_roc_curves(oof_df: pd.DataFrame, feature_set: str = "reduced") -> go.Figure:
+    """Plots spatial cross-validation ROC curves for RF and XGBoost."""
+    if oof_df.empty:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="ROC Curves (No Data)")
+
+    y_true = oof_df["label"].values
+    p_rf = oof_df[f"oof_rf_{feature_set}"].values
+    p_xgb = oof_df[f"oof_xgb_{feature_set}"].values
+
+    fpr_rf, tpr_rf, _ = roc_curve(y_true, p_rf)
+    fpr_xgb, tpr_xgb, _ = roc_curve(y_true, p_xgb)
+
+    auc_rf = roc_auc_score(y_true, p_rf)
+    auc_xgb = roc_auc_score(y_true, p_xgb)
+
+    fig = go.Figure()
+
+    # Diagonal reference line
+    fig.add_trace(
+        go.Scatter(
+            x=[0, 1],
+            y=[0, 1],
+            mode="lines",
+            line=dict(color="rgba(255, 255, 255, 0.3)", dash="dash"),
+            name="Random Guess (AUC=0.50)",
+        )
+    )
+
+    # Random Forest ROC
+    fig.add_trace(
+        go.Scatter(
+            x=fpr_rf,
+            y=tpr_rf,
+            mode="lines",
+            line=dict(color=THEME_COLORS["secondary"], width=3),
+            name=f"Random Forest (AUROC = {auc_rf:.4f})",
+        )
+    )
+
+    # XGBoost ROC
+    fig.add_trace(
+        go.Scatter(
+            x=fpr_xgb,
+            y=tpr_xgb,
+            mode="lines",
+            line=dict(color=THEME_COLORS["primary"], width=3),
+            name=f"XGBoost (AUROC = {auc_xgb:.4f})",
+        )
+    )
+
+    return apply_custom_theme(
+        fig,
+        title=f"Receiver Operating Characteristic (ROC) — {feature_set.upper()} Features (OOF)",
+        x_title="False Positive Rate (1 - Specificity)",
+        y_title="True Positive Rate (Recall / Sensitivity)",
+        height=400,
+    )
+
+
+def render_pr_curves(oof_df: pd.DataFrame, feature_set: str = "reduced") -> go.Figure:
+    """Plots Precision-Recall curves for spatial out-of-fold predictions."""
+    if oof_df.empty:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="Precision-Recall Curves (No Data)")
+
+    y_true = oof_df["label"].values
+    p_rf = oof_df[f"oof_rf_{feature_set}"].values
+    p_xgb = oof_df[f"oof_xgb_{feature_set}"].values
+
+    prec_rf, rec_rf, _ = precision_recall_curve(y_true, p_rf)
+    prec_xgb, rec_xgb, _ = precision_recall_curve(y_true, p_xgb)
+
+    prauc_rf = average_precision_score(y_true, p_rf)
+    prauc_xgb = average_precision_score(y_true, p_xgb)
+
+    baseline = float(np.mean(y_true))
+
+    fig = go.Figure()
+
+    # Baseline positive prevalence
+    fig.add_trace(
+        go.Scatter(
+            x=[0, 1],
+            y=[baseline, baseline],
+            mode="lines",
+            line=dict(color="rgba(255, 255, 255, 0.3)", dash="dash"),
+            name=f"Baseline Prevalence ({baseline:.2f})",
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=rec_rf,
+            y=prec_rf,
+            mode="lines",
+            line=dict(color=THEME_COLORS["secondary"], width=3),
+            name=f"Random Forest (PR-AUC = {prauc_rf:.4f})",
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=rec_xgb,
+            y=prec_xgb,
+            mode="lines",
+            line=dict(color=THEME_COLORS["primary"], width=3),
+            name=f"XGBoost (PR-AUC = {prauc_xgb:.4f})",
+        )
+    )
+
+    return apply_custom_theme(
+        fig,
+        title=f"Precision-Recall (PR) Curve — {feature_set.upper()} Features (OOF)",
+        x_title="Recall (Sensitivity)",
+        y_title="Precision (Positive Predictive Value)",
+        height=400,
+    )
+
+
+def render_confusion_matrix_chart(
+    cm_dict: Dict[str, Any], model_name: str = "XGBoost"
+) -> go.Figure:
+    """Renders confusion matrix heatmap with counts and percentage labels."""
+    cm = cm_dict["confusion_matrix"]
+    tn, fp, fn, tp = cm_dict["tn"], cm_dict["fp"], cm_dict["fn"], cm_dict["tp"]
+    thresh = cm_dict["threshold"]
+
+    z = [[tn, fp], [fn, tp]]
+    text_labels = [
+        [f"TN: {tn}<br>({tn/(tn+fp):.1%})", f"FP: {fp}<br>({fp/(tn+fp):.1%})"],
+        [f"FN: {fn}<br>({fn/(fn+tp):.1%})", f"TP: {tp}<br>({tp/(fn+tp):.1%})"],
+    ]
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=z,
+            x=["Predicted Stable (0)", "Predicted Landslide (1)"],
+            y=["Actual Stable (0)", "Actual Landslide (1)"],
+            text=text_labels,
+            texttemplate="%{text}",
+            colorscale=[[0, "#1C2541"], [0.5, "#3A86FF"], [1.0, "#48E5C2"]],
+            showscale=False,
+        )
+    )
+
+    fig.update_layout(yaxis=dict(autorange="reversed"))
+
+    return apply_custom_theme(
+        fig,
+        title=f"Confusion Matrix: {model_name} (Threshold = {thresh:.2f})",
+        height=350,
+        show_legend=False,
+    )
+
+
+def render_feature_importance_chart(
+    rf_model: Any, xgb_model: Any, feature_cols: List[str]
+) -> go.Figure:
+    """Renders dual-bar feature importance comparison."""
+    # RF feature importance
+    if hasattr(rf_model, "named_steps") and hasattr(rf_model.named_steps["clf"], "feature_importances_"):
+        rf_imp = rf_model.named_steps["clf"].feature_importances_
+    elif hasattr(rf_model, "feature_importances_"):
+        rf_imp = rf_model.feature_importances_
+    else:
+        rf_imp = np.zeros(len(feature_cols))
+
+    # XGB feature importance
+    if hasattr(xgb_model, "feature_importances_"):
+        xgb_imp = xgb_model.feature_importances_
+    else:
+        xgb_imp = np.zeros(len(feature_cols))
+
+    df_imp = pd.DataFrame({
+        "Feature": feature_cols,
+        "Random Forest": rf_imp,
+        "XGBoost": xgb_imp,
+    }).sort_values(by="XGBoost", ascending=True)
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Bar(
+            y=df_imp["Feature"],
+            x=df_imp["Random Forest"],
+            name="Random Forest (MDI)",
+            orientation="h",
+            marker_color=THEME_COLORS["secondary"],
+        )
+    )
+
+    fig.add_trace(
+        go.Bar(
+            y=df_imp["Feature"],
+            x=df_imp["XGBoost"],
+            name="XGBoost (Gain)",
+            orientation="h",
+            marker_color=THEME_COLORS["primary"],
+        )
+    )
+
+    fig.update_layout(barmode="group")
+
+    return apply_custom_theme(
+        fig,
+        title="Relative Feature Importance Comparison",
+        x_title="Normalized Importance",
+        y_title="Feature Name",
+        height=550,
+    )
+
+
+def render_shap_summary_chart(shap_values: np.ndarray, X: pd.DataFrame, model_name: str) -> go.Figure:
+    """Renders mean absolute SHAP value ranking bar chart."""
+    if shap_values is None or X.empty:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="SHAP Values Unavailable")
+
+    mean_shap = np.nanmean(np.abs(shap_values), axis=0)
+    df_shap = pd.DataFrame({
+        "Feature": X.columns,
+        "Mean |SHAP|": mean_shap,
+    }).sort_values(by="Mean |SHAP|", ascending=True)
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                y=df_shap["Feature"],
+                x=df_shap["Mean |SHAP|"],
+                orientation="h",
+                marker=dict(
+                    color=df_shap["Mean |SHAP|"],
+                    colorscale=[[0, "#3A86FF"], [1, "#FF4D6D"]],
+                ),
+                text=[f"{v:.4f}" for v in df_shap["Mean |SHAP|"]],
+                textposition="auto",
+            )
+        ]
+    )
+
+    return apply_custom_theme(
+        fig,
+        title=f"SHAP Feature Impact: {model_name} (Mean |SHAP Value|)",
+        x_title="Mean |SHAP value| (Average Impact on Model Output Magnitude)",
+        y_title="Predictor Feature",
+        height=520,
+        show_legend=False,
+    )
+
+
+def render_correlation_heatmap(df: pd.DataFrame, features: List[str]) -> go.Figure:
+    """Renders Pearson correlation matrix heatmap for environmental variables."""
+    if df.empty:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="Correlation Matrix Unavailable")
+
+    available_features = [f for f in features if f in df.columns]
+    corr = df[available_features].corr()
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=corr.values,
+            x=corr.columns,
+            y=corr.index,
+            colorscale="RdBu_r",
+            zmin=-1.0,
+            zmax=1.0,
+            text=np.round(corr.values, 2),
+            texttemplate="%{text}",
+            colorbar=dict(
+                title=dict(text="r", font=dict(color="#FFFFFF", size=12)),
+                tickfont=dict(color="#A0AEC0", size=10),
+            ),
+        )
+    )
+
+    fig.update_layout(yaxis=dict(autorange="reversed"))
+
+    return apply_custom_theme(
+        fig,
+        title="Inter-Feature Pearson Correlation Heatmap",
+        height=550,
+        show_legend=False,
+    )
+
+
+def render_missingness_chart(missing_summary_df: pd.DataFrame) -> go.Figure:
+    """Renders missingness rate percentage bar chart."""
+    if missing_summary_df.empty:
+        fig = go.Figure()
+        return apply_custom_theme(fig, title="Missingness Audit Unavailable")
+
+    plot_df = missing_summary_df[missing_summary_df["missing_pct"] > 0].copy()
+    if plot_df.empty:
+        plot_df = missing_summary_df.head(10).copy()
+
+    plot_df = plot_df.sort_values(by="missing_pct", ascending=True)
+
+    colors = [
+        THEME_COLORS["danger"] if pct > 30 else THEME_COLORS["warning"] if pct > 5 else THEME_COLORS["primary"]
+        for pct in plot_df["missing_pct"]
+    ]
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                y=plot_df["column"],
+                x=plot_df["missing_pct"],
+                orientation="h",
+                marker_color=colors,
+                text=[f"{pct:.1f}% ({cnt} nulls)" for pct, cnt in zip(plot_df["missing_pct"], plot_df["missing_count"])],
+                textposition="auto",
+            )
+        ]
+    )
+
+    return apply_custom_theme(
+        fig,
+        title="Missing Values Rate by Variable (Phase 3 Feature Table)",
+        x_title="Missingness Percentage (%)",
+        y_title="Variable Name",
+        height=450,
+        show_legend=False,
+    )
+
