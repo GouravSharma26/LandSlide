@@ -1,7 +1,7 @@
 # Version 2.0 Candidate Hillslope-Control Extraction Protocol & Execution Guide
 
 **Himalayan Landslide Intelligence Research Project**  
-*Step 5.2 Scientific Governance, Geomorphometric Specifications & Turnkey Earth Engine Guide*
+*Step 5.3 Final Sampling Logic, Hydrological Integrity Audit & Turnkey Earth Engine Guide*
 
 ---
 
@@ -33,7 +33,7 @@ This demonstrated that Version 1.0 models ($>97\%$ AUROC) partially learned the 
 
 ---
 
-## 2. Implemented Sampling Filters & Mathematical Specifications
+## 2. Implemented Sampling Filters & Hydrological Specifications
 
 The Colab extraction notebook (`notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb`) implements strict, sequential physical and data-integrity filters applied to every candidate point:
 
@@ -41,7 +41,7 @@ The Colab extraction notebook (`notebooks/Phase3b_V2_Hillslope_Extraction_Colab.
 | :--- | :--- | :--- | :--- |
 | **F1** | **Regional ROI** | $[26.0^\circ\text{N}, 35.0^\circ\text{N}]$, $[74.0^\circ\text{E}, 97.0^\circ\text{E}]$ | `roi_out_of_bounds` |
 | **F2** | **Universal Exclusion Buffer** | Geodesic distance $> 2000\text{ m}$ from ALL 127 known positive events | `scar_proximity_under_2km` |
-| **F3** | **Mandatory Terrain Features** | Explicit non-null checks on elevation, slope, aspect, curvature, TRI, TWI (no 0.0 fallbacks) | `missing_terrain_data` |
+| **F3** | **Mandatory Terrain Features** | Explicit non-null checks on elevation, slope, aspect, curvature, TRI, TWI (no defaults) | `missing_terrain_data` |
 | **F4** | **Water Data Availability** | Explicit non-null check on JRC Global Surface Water (no `unmask(0)` silent pass) | `missing_water_data` |
 | **F5** | **Land-Cover Availability** | Explicit non-null check on ESA WorldCover 10m | `missing_landcover_data` |
 | **F6** | **Elevation Envelope** | $266\text{ m} \le \text{elevation} \le 3027\text{ m}$ ($P_{10}$ to $P_{95}$ of positive events) | `elevation_out_of_bounds` |
@@ -50,107 +50,118 @@ The Colab extraction notebook (`notebooks/Phase3b_V2_Hillslope_Extraction_Colab.
 | **F9** | **Permanent Snow/Ice Mask** | ESA WorldCover 10m (v100) Class 70 (Snow and ice) | `snow_ice_overlap` |
 | **F10** | **SAR Observation Count** | $N_{\text{acquisitions}} \ge 3$ in pre-event baseline window $[t_{\text{event}}-180\text{d}, t_{\text{event}}-15\text{d}]$ | `sar_insufficient_baseline` |
 | **F11** | **SAR Temporal Screening** | Sentinel-1 IW GRD VV standard deviation $\sigma_{\text{VV}} \le 1.5\text{ dB}$ | `sar_temporal_instability` |
+| **F12** | **Coordinate Deduplication** | Rejection of candidates within 30m of previously evaluated candidate | `duplicate_candidate_coordinates` |
 
-### 2.1 SAR Temporal Consistency Screening Criterion
+### 2.1 Hydrological Resolution Treatment in TWI (Beven & Kirkby 1979)
+- **Resolution Mismatch & Physical Justification:**
+  - SRTM digital elevation model has a native resolution of 1 arc-second ($\approx 30\text{ m}$).
+  - MERIT Hydro flow accumulation (`upa`) has a native resolution of 3 arc-seconds ($\approx 90\text{ m}$).
+  - Flow accumulation represents cumulative upstream topological routing. Artificially interpolating a 90m flow accumulation raster down to 30m using bilinear or nearest-neighbor interpolation does *not* create genuine 30m hydrological flow paths; it merely introduces numerical smoothing artifacts.
+- **Scientifically Consistent Native Grid Implementation:**
+  - Topographic Wetness Index is calculated on the **native 90m MERIT Hydro hydrological grid**.
+  - Total contributing area $A = \text{upa} \times 10^6\text{ m}^2$.
+  - Specific catchment area is computed using the native metric contour width $b = 90.0\text{ m}$:
+    $$\alpha = \frac{\text{upa} \times 10^6 \text{ m}^2}{90.0\text{ m}} = \frac{A}{b} \quad [\text{units: m}^2/\text{m} = \text{m}]$$
+  - SRTM 30m slope is spatially aggregated (mean reduction) to the 90m hydrological cell to represent the mean hillslope gradient $\bar{\beta}$ over that cell:
+    $$\beta = \bar{\beta}_{\text{90m}} \times \left(\frac{\pi}{180.0}\right)$$
+    $$\tan\beta = \max(\tan\beta, 0.001) \quad [\text{dimensionless}]$$
+    $$\text{TWI} = \ln \left( \frac{\alpha}{\tan\beta} \right) \quad [\text{dimensionless topographic index}]$$
+  - Slope-only proxy is computed on the same 90m cell for baseline comparison:
+    $$\text{TWI}_{\text{slope\_proxy}} = -\ln(\tan\beta)$$
+
+### 2.2 SAR Temporal Consistency Screening & Asymmetry Analysis
 - **Screening Role:** Pre-event backscatter temporal standard deviation ($\le 1.5\text{ dB}$) serves as a *microwave temporal consistency screening criterion*, not geodetic proof of physical ground stability.
 - **Confounding Influences Documented:**
-  - Seasonal freeze-thaw cycles and winter snow pack metamorphism.
+  - Seasonal freeze-thaw cycles and snow metamorphism.
   - Vegetation phenological shifts and seasonal biomass changes.
   - Episodic soil moisture pulses from monsoon rainfall.
   - Steep-slope radar geometry effects (local incidence angle variations, radar layover, and radar shadow).
-- **Observation Window:** 180 days to 15 days prior to positive event date ($[t_{\text{event}}-180\text{d}, t_{\text{event}}-15\text{d}]$). The 15-day exclusion prevents leakage of potential precursory mass movement.
-- **Sensor:** Sentinel-1 IW GRD, C-Band (5.405 GHz), VV polarization.
-
-### 2.2 Corrected Terrain Ruggedness Index (Riley et al. 1999)
-- **Standard Formulation:** Riley et al. (1999) calculates the root-sum-squared elevation differences between the central cell $z_0$ and its 8 neighboring cells ($3 \times 3$ kernel):
-  $$\text{TRI}_{\text{Riley}} = \sqrt{ \sum_{i=1}^8 \left(z_i - z_0\right)^2 }$$
-- **Mean Absolute Difference:** The Wilson & Gallant average absolute elevation difference across the 8 neighbors is also exported:
-  $$\text{TRI}_{\text{mean\_diff}} = \frac{1}{8} \sum_{i=1}^8 |z_i - z_0|$$
-- **Focal Mean Difference Proxy:** The legacy calculation $|z_0 - \text{mean}_{3\times 3}(z)|$ is renamed and retained strictly as `tri_focal_diff_proxy`. Unit tests in `tests/test_v2_sampling_and_features.py` prove that the focal mean difference severely underestimates ruggedness.
-
-### 2.3 Corrected Topographic Wetness Index (Beven & Kirkby 1979)
-- **Resolution Mismatch & Alignment Approach:**
-  - SRTM elevation has a native resolution of 1 arc-second ($\approx 30\text{ m}$).
-  - MERIT Hydro flow accumulation (`upa`) has a native resolution of 3 arc-seconds ($\approx 90\text{ m}$).
-  - To eliminate spatial misalignment without distorting hydrology, MERIT Hydro `upa` is explicitly resampled via bilinear interpolation to match the 30m SRTM projection and grid:
-    $$\text{upa}_{\text{30m}} = \text{reproject}(\text{upa}, \text{crs}=\text{SRTM}, \text{scale}=30, \text{resampling}=\text{'bilinear'})$$
-  - At 30m grid cell resolution, contour width is $b = 30\text{ m}$, yielding specific catchment area:
-    $$\alpha = \frac{\text{upa}_{\text{30m}} \times 10^6 \text{ m}^2}{30\text{ m}}$$
-    $$\text{TWI} = \ln \left( \frac{\alpha}{\tan \beta} \right)$$
-    where $\beta$ is slope in radians (bounded below by $\tan \beta \ge 0.001$).
-- **Slope-Only Proxy:** The legacy calculation $-\ln(\tan \beta) = \ln(1 / \tan \beta)$ is renamed and retained strictly as `twi_slope_proxy`.
+- **Matching Asymmetry & Selection Bias Analysis:**
+  - Positive events from NASA COOLR are externally reported landslides whose pre-event radar consistency was not screened.
+  - Applying this filter only to controls creates potential selection asymmetry: if unstable slopes naturally exhibit higher radar variance prior to failure (e.g. from moisture fluctuations or surface creep), screening controls might favor stable mature forest over bare rock or scree.
+  - **Sensitivity Analysis Design:** In post-extraction validation, models will be evaluated both with and without this screening criterion to quantify whether asymmetric screening induces a performance or feature importance artifact.
 
 ---
 
-## 3. Candidate Selection Strategy & Matching Diagnostics
+## 3. Strict Positive Validation & Multi-Batch Candidate Optimization
 
-Rather than arbitrarily accepting the first candidate point that passes broad terrain bounds, Version 2.0 implements an **optimized candidate selection strategy**.
+### 3.1 Strict Positive-Event Terrain Validation (No Fallbacks)
+Prior to matching:
+- Positive events are verified against authoritative ROI bounds $[26.0^\circ, 35.0^\circ\text{N}]$, $[74.0^\circ, 97.0^\circ\text{E}]$.
+- Terrain features (`slope`, `elevation`, `aspect`, `tri`, `curvature`, `twi`) are extracted directly from `static_diag` at the positive event coordinate.
+- **Zero Fallback Policy:** Any positive event with missing terrain features (e.g. SRTM alpine void or boundary clipping) is strictly excluded from matching. It is recorded in `v2_positive_events_excluded_audit.csv` with the exact missing fields. Arbitrary defaults (e.g. `slope=21.0`, `elev=1200m`) are prohibited.
 
-### 3.1 Selection Strategy: Minimizing Topographic Distance $D_{\text{topo}}$
-For each positive event $(i)$:
-1. A candidate batch is sampled within the $10\text{ km}-40\text{ km}$ ring buffer.
-2. All points failing physical or data-integrity filters are rejected with logged tallies.
-3. For all surviving valid candidates, a standardized multidimensional topographic distance $D_{\text{topo}}$ to the paired positive event is calculated using empirical positive event standard deviations ($\sigma_{\text{slope}} = 10.5^\circ$, $\sigma_{\text{elev}} = 775.0\text{ m}$, $\sigma_{\text{tri}} = 17.5$):
-   $$D_{\text{topo}} = \sqrt{ \left(\frac{|\text{slope}_c - \text{slope}_p|}{10.5}\right)^2 + \left(\frac{|\text{elevation}_c - \text{elevation}_p|}{775.0}\right)^2 + \left(\frac{|\text{TRI}_c - \text{TRI}_p|}{17.5}\right)^2 }$$
-4. The candidate control that **minimizes $D_{\text{topo}}$** is selected as the representative hillslope control.
+### 3.2 Multi-Batch Candidate Optimization across All 3 Batches
+To ensure representative hillslope controls:
+1. Three sequential batches of candidate points (25 points each, total 75 candidates) are sampled within the $10\text{ km}-40\text{ km}$ ring buffer.
+2. The loop **does not exit early** upon finding valid points in batch 1; all three batches are fully evaluated.
+3. Candidates are deduplicated by coordinate proximity ($30\text{ m}$ tolerance).
+4. For all surviving unique valid candidates, the standardized three-feature topographic distance is calculated using positive-event standard deviations ($\sigma_{\text{slope}} = 10.5^\circ$, $\sigma_{\text{elev}} = 775.0\text{ m}$, $\sigma_{\text{tri}} = 17.5$):
+   $$\text{three\_feature\_topographic\_distance} = \sqrt{ \left(\frac{|\text{slope}_c - \text{slope}_p|}{10.5^\circ}\right)^2 + \left(\frac{|\text{elevation}_c - \text{elevation}_p|}{775.0\text{ m}}\right)^2 + \left(\frac{|\text{TRI}_c - \text{TRI}_p|}{17.5}\right)^2 }$$
+5. The candidate minimizing this standardized distance across the combined 3-batch candidate set is selected.
+6. The result is documented as the **minimum-distance candidate among sampled valid candidates**, not a claim of global optimality.
 
-### 3.2 Full Empirical Distribution Reporting
-Instead of reporting single summary statistics, Step 5 exports the full distribution (Min, P25, Median, Mean, P75, Max) of matching differences to `v2_matching_distribution_summary.csv` for:
-- `spatial_distance_km`
-- `delta_slope_deg`
-- `delta_elevation_m`
-- `delta_aspect_deg`
-- `delta_tri`
-- `d_topo_composite`
-
-### 3.3 Limitation Governance
-> [!IMPORTANT]
-> A $10\text{ km} - 40\text{ km}$ spatial ring buffer serves as a regional physiographic surrogate (capturing gross tectonic setting and monsoon climatology). It **does not guarantee identical hydrological catchment boundaries or identical bedrock lithology**. The matching diagnostics provide transparent quantification of remaining geomorphic differences.
+### 3.3 Enhanced Matching Diagnostics & Cross-Event Duplicate Audit
+In `v2_control_matching_diagnostics.csv`:
+- `three_feature_topographic_distance` is explicitly reported.
+- Independent deltas are recorded for `delta_slope_deg`, `delta_elevation_m`, `delta_aspect_deg`, `delta_tri`, `delta_curvature`, and `delta_twi`.
+- **Cross-Event Duplicate Audit:** Checks whether the same hillslope candidate was selected for multiple positive events, reporting duplicate count and minimum pairwise separation distance across all accepted controls.
+- **Full Empirical Distribution:** Min, P25, Median, Mean, P75, and Max are exported to `v2_matching_distribution_summary.csv`.
 
 ---
 
 ## 4. Turnkey Google Colab Execution Instructions
 
-Because Google Earth Engine requires interactive browser-based OAuth authentication under GCP project `landslidedetection-506008`, feature extraction is executed in Google Colab:
+Because Google Earth Engine requires interactive OAuth authentication under GCP project `landslidedetection-506008`, extraction is executed in Google Colab:
 
 ### Step-by-Step Procedure:
 1. **Open Google Colab:** Navigate to [https://colab.research.google.com/](https://colab.research.google.com/).
 2. **Open the Corrected Notebook:**
    Select **File -> Upload notebook**, and select:
-   [`notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb`](file:///c:/Gourav%20Sharma/work/LANDSLIDE/notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb)
-   *(Or open from GitHub: `https://github.com/GouravSharma26/LandSlide/blob/main/notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb`)*
+   [`notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb`](https://github.com/GouravSharma26/LandSlide/blob/main/notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb)
 3. **Run Cell 1 (Authentication):**
-   Execute Cell 1 and click the authentication link. Log in with your authorized Google account and allow access for `landslidedetection-506008`.
+   Execute Cell 1 and log in with your authorized Google account for `landslidedetection-506008`.
 4. **Run All Remaining Cells (Runtime -> Run all):**
-   - **Step 2:** Automatically loads the 127 verified positive events from GitHub.
-   - **Step 3:** Declares SRTM, Riley TRI, 30m-aligned MERIT Hydro TWI, ESA WorldCover, and JRC water layers (without `unmask(0)`).
-   - **Step 4:** Executes candidate sampling with optimized selection minimizing $D_{\text{topo}}$, recording candidate counts, accepted counts, and rejection tallies across all 12 categories.
-   - **Step 5:** Executes strict validation assertions and outputs full empirical matching distributions.
+   - **Step 2:** Loads confirmed positive events and declares the 2.0 km universal exclusion zone.
+   - **Step 3:** Declares SRTM, Riley TRI, native 90m MERIT Hydro TWI, ESA WorldCover, and masked JRC water.
+   - **Step 4:** Validates positive events without defaults, screens 3 batches per event, deduplicates coordinates, and selects min-distance controls across all 13 rejection categories.
+   - **Step 5:** Executes validation assertions, duplicate control audits, and exports empirical matching percentiles.
    - **Step 6 & 7:** Declares dynamic collections and multi-scale SAR / rainfall / spectral extractors with adaptive window fallbacks.
-   - **Step 8:** Extracts dynamic features for all 127 controls (~25 to 35 minutes).
+   - **Step 8:** Extracts dynamic features for all accepted controls (~25 to 35 minutes).
    - **Step 9:** Merges tables into `v2_feature_table_experimental.csv` and compiles `v2_extraction_provenance.json`.
-   - **Step 10 & 11:** Triggers automatic browser download of all 5 artifacts:
-     - `phase2_v2_hillslope_controls.csv`
-     - `v2_control_matching_diagnostics.csv`
-     - `v2_matching_distribution_summary.csv`
-     - `v2_feature_table_experimental.csv`
-     - `v2_extraction_provenance.json`
+   - **Step 10 & 11:** Triggers automatic browser download of all 6 exported artifacts:
+     1. `phase2_v2_hillslope_controls.csv`
+     2. `v2_control_matching_diagnostics.csv`
+     3. `v2_positive_events_excluded_audit.csv`
+     4. `v2_matching_distribution_summary.csv`
+     5. `v2_feature_table_experimental.csv`
+     6. `v2_extraction_provenance.json`
 5. **Place Downloaded Artifacts into Local Repository:**
-   Copy the five downloaded files to their target directories:
+   Copy the six downloaded files to:
    - `outputs/phase2_v2_hillslope_controls.csv`
    - `artifacts/susceptibility/v2_control_matching_diagnostics.csv`
+   - `artifacts/susceptibility/v2_positive_events_excluded_audit.csv`
    - `artifacts/susceptibility/v2_matching_distribution_summary.csv`
    - `artifacts/susceptibility/v2_feature_table_experimental.csv`
    - `artifacts/metadata/v2_extraction_provenance.json`
 
 ---
 
-## 5. Post-Extraction Scientific Validation & Promotion Protocol
+## 5. Test Suite Categorization & Integrity
 
-Upon receipt of the genuine extracted Version 2.0 files, the following protocol will be executed:
-1. **Distribution Validation:** Run Kolmogorov-Smirnov tests comparing positive event distributions against extracted controls. Confound mitigation is established only if slope and TRI distributions align without statistically extreme divergence.
-2. **Model Retraining:** Execute `python scripts/build_research_artifacts.py --dataset v2` to train:
-   - Workflow A: Event Detection (100 km spatial purge).
-   - Workflow B: Susceptibility Core, Optical-Enhanced, and Reduced models under identical purged folds.
-3. **Governance Audit:** The 43 automated tests in `tests/` will verify zero prohibited features, zero temporal leakage, and genuine spatial fold separation.
-4. **Promotion:** Version 2.0 will be promoted to the primary research benchmark on the dashboard only after this full empirical validation is satisfied.
+The test suite in [`tests/`](file:///c:/Gourav%20Sharma/work/LANDSLIDE/tests/) is structured into distinct, transparent categories:
+
+1. **Category 1: Pure Python Unit Tests (Mocked / Offline Logic)**
+   - Multi-batch candidate selection helpers (`select_best_candidate_across_batches`)
+   - TWI dimensional analysis and monotonicity (`calculate_twi_hydrological_native_grid`)
+   - Positive-event terrain validation without fallbacks (`validate_positive_event`)
+   - Candidate screening filters (`evaluate_candidate_point`)
+   - Cross-event duplicate control detection
+2. **Category 2: Notebook Structure & Governance Tests (Static AST / JSON Inspection)**
+   - Confirms zero arbitrary fallback defaults exist in the Colab notebook
+   - Confirms candidate search does not break prematurely on batch 1
+   - Confirms MERIT Hydro 90m native grid and slope aggregation are implemented
+   - Confirms all 13 rejection categories are tracked in audit schemas
+   - Confirms candidate terminology and immutable V1 historical baseline
+3. **Category 3: Earth Engine Remote Integration Tests**
+   - Explicitly documented as pending actual authenticated Google Colab execution. No mock GEE execution is claimed locally.

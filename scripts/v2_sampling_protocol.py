@@ -1,17 +1,23 @@
 """Sampling protocol and Earth Engine script generator for Version 2.0 Candidate Hillslope Controls.
 
-Step 5.2 Data-Integrity Corrections:
-1. Removed jrc_water.unmask(0); preserved valid-data mask with explicit rejection for missing water data.
-2. Explicit rejection for missing ESA WorldCover observations (no silent pass-through).
-3. Explicit null checks on all mandatory terrain features (no silent 0.0 fallbacks).
-4. Rejection counters added for missing_terrain_data, missing_water_data, and missing_landcover_data.
-5. SAR temporal stability filter formulated as a temporal consistency screening criterion,
-   with documented confounding influences (seasonal, vegetation, soil-moisture, layover/shadow).
-6. Transparent candidate selection strategy: evaluates candidates in the search ring, filters invalid points,
-   and selects the control minimizing normalized composite topographic distance D_topo to the paired positive event.
-7. Comprehensive matching diagnostics reporting actual distributions (Min, P25, Median, Mean, P75, Max).
-8. Documented 30m SRTM vs 90m MERIT Hydro resolution mismatch, bilinear resampling, and contour length b=30m in TWI.
-9. Pure Python candidate evaluation logic with full test suite coverage.
+Step 5.3 Final Sampling Logic & Hydrological Integrity Audit:
+1. Multi-batch accumulation and coordinate deduplication across all 3 candidate batches.
+   Selects the candidate minimizing three-feature standardized topographic distance (D_topo)
+   only after evaluating all batches.
+2. Hydrological resolution integrity in TWI:
+   - MERIT Hydro 90m native grid preserved for upstream contributing area (upa).
+   - Specific catchment area alpha = (upa * 1e6) / 90.0 m (contour width b = 90.0m).
+   - SRTM 30m slope aggregated via spatial mean to 90m hydrological grid.
+   - TWI = ln(alpha / tan(beta)) computed on 90m hydrological grid; slope-only proxy preserved.
+3. Strict positive-event validation before matching:
+   - Coordinates, slope, elevation, aspect, and TRI validated against explicit non-null checks.
+   - No arbitrary fallback defaults (e.g. 21.0 deg, 1200m) permitted; missing positive events logged in audit.
+4. Transparent matching asymmetry and selection bias analysis:
+   - Documents SAR temporal consistency screening (std <= 1.5 dB) rationale and potential selection bias.
+   - Sensitivity analysis design outlined to evaluate impact on positive-versus-control comparisons.
+5. Matching diagnostics reporting three_feature_topographic_distance and independent deltas
+   for aspect, curvature, and TWI, plus cross-event duplicate control detection.
+6. Reusable pure Python helper functions for robust local unit testing.
 
 IMPORTANT SCIENTIFIC GOVERNANCE:
 - Version 1.0 (N=254) remains the immutable historical diagnostic baseline.
@@ -26,6 +32,7 @@ IMPORTANT SCIENTIFIC GOVERNANCE:
 import json
 import math
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Any
 import pandas as pd
 import numpy as np
 from scipy.stats import ks_2samp
@@ -35,9 +42,14 @@ OUTPUTS_DIR = BASE_DIR / "outputs"
 ARTIFACTS_DIR = BASE_DIR / "artifacts"
 METADATA_DIR = ARTIFACTS_DIR / "metadata"
 
+# Standard deviations of confirmed positive events for standardized three-feature distance
+SIGMA_SLOPE = 10.5
+SIGMA_ELEV = 775.0
+SIGMA_TRI = 17.5
+
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculates geodesic distance in km between two lat/lon points."""
+    """Calculates geodesic distance in km between two lat/lon points on spherical Earth."""
     R = 6371.0
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
@@ -46,26 +58,107 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * R * math.asin(math.sqrt(a))
 
 
+def calculate_twi_hydrological_native_grid(
+    upa_km2: float,
+    slope_val: float,
+    is_deg: bool = True,
+    grid_cell_size_m: float = 90.0
+) -> Tuple[float, float]:
+    """Calculates Beven & Kirkby (1979) TWI on native hydrological grid with defensible contour width.
+    
+    Formula:
+        alpha = (upa_km2 * 1e6) / grid_cell_size_m   [units: m^2/m = m]
+        tan_beta = tan(slope_rad)                     [bounded below by 0.001]
+        TWI = ln(alpha / tan_beta)                    [dimensionless topographic index]
+        TWI_slope_proxy = -ln(tan_beta)               [slope-only comparison proxy]
+        
+    Returns:
+        (twi_merit: float, twi_slope_proxy: float)
+    """
+    if upa_km2 is None or slope_val is None:
+        raise ValueError("upa_km2 and slope_val must be non-null")
+    if upa_km2 < 0.0:
+        raise ValueError("upa_km2 cannot be negative")
+
+    # Specific catchment area in meters
+    alpha = max((upa_km2 * 1e6) / grid_cell_size_m, 1.0)
+    slope_rad = math.radians(slope_val) if is_deg else slope_val
+    tan_beta = max(math.tan(slope_rad), 0.001)
+
+    twi_merit = math.log(alpha / tan_beta)
+    twi_slope_proxy = -math.log(tan_beta)
+    return twi_merit, twi_slope_proxy
+
+
+def validate_positive_event(
+    pos_row: Dict[str, Any],
+    lat_min: float = 26.0,
+    lat_max: float = 35.0,
+    lon_min: float = 74.0,
+    lon_max: float = 97.0
+) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """Validates positive-event coordinates and mandatory terrain features without arbitrary fallbacks.
+    
+    Returns:
+        (is_valid: bool, reason: str, validated_record_or_none: Optional[dict])
+    """
+    lat = pos_row.get("latitude")
+    lon = pos_row.get("longitude")
+    if lat is None or lon is None:
+        return False, "missing_coordinates", None
+    if not (lat_min <= float(lat) <= lat_max and lon_min <= float(lon) <= lon_max):
+        return False, "positive_roi_violation", None
+
+    slope = pos_row.get("slope")
+    elevation = pos_row.get("elevation")
+    aspect = pos_row.get("aspect")
+    tri = pos_row.get("tri")
+
+    missing = []
+    if slope is None:
+        missing.append("slope")
+    if elevation is None:
+        missing.append("elevation")
+    if aspect is None:
+        missing.append("aspect")
+    if tri is None:
+        missing.append("tri")
+
+    if missing:
+        return False, f"missing_positive_features: {', '.join(missing)}", None
+
+    validated = {
+        "latitude": float(lat),
+        "longitude": float(lon),
+        "slope": float(slope),
+        "elevation": float(elevation),
+        "aspect": float(aspect),
+        "tri": float(tri),
+        "event_date": pos_row.get("event_date", "UNKNOWN")
+    }
+    return True, "VALID", validated
+
+
 def evaluate_candidate_point(
     c_lat: float,
     c_lon: float,
-    props: dict,
-    paired_positive: dict,
-    all_positives_coords: list,
+    props: Dict[str, Any],
+    paired_positive: Dict[str, Any],
+    all_positives_coords: List[Tuple[float, float]],
     lat_min: float = 26.0,
     lat_max: float = 35.0,
     lon_min: float = 74.0,
     lon_max: float = 97.0,
-    slope_bounds: tuple = (6.1, 41.4),
-    elevation_bounds: tuple = (266.0, 3027.0),
+    slope_bounds: Tuple[float, float] = (6.1, 41.4),
+    elevation_bounds: Tuple[float, float] = (266.0, 3027.0),
     min_dist_to_positive_km: float = 2.0,
     max_sar_std_db: float = 1.5,
     min_sar_count: int = 3
-) -> tuple:
-    """Evaluates a candidate hillslope control against physical, environmental, and quality filters.
+) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """Evaluates a single candidate hillslope control against physical, environmental, and quality filters.
     
     Returns:
-        (is_accepted: bool, status_reason: str, record_or_none: dict or None)
+        (is_accepted: bool, status_reason: str, record_or_none: Optional[dict])
     """
     # Filter 1: Regional ROI bounds
     if not (lat_min <= c_lat <= lat_max and lon_min <= c_lon <= lon_max):
@@ -76,7 +169,7 @@ def evaluate_candidate_point(
     if min_dist <= min_dist_to_positive_km:
         return False, "scar_proximity_under_2km", None
 
-    # Filter 3: Explicit check for mandatory terrain features (no silent 0.0 fallbacks)
+    # Filter 3: Explicit check for mandatory terrain features (no silent defaults)
     c_elev = props.get("elevation")
     c_slope = props.get("slope")
     c_aspect = props.get("aspect")
@@ -96,49 +189,44 @@ def evaluate_candidate_point(
     if c_water is None:
         return False, "missing_water_data", None
 
-    # Filter 5: Land-cover observation availability (no unmask silent pass)
+    # Filter 5: Land-cover observation availability
     c_lc = props.get("landcover")
     if c_lc is None:
         return False, "missing_landcover_data", None
 
     # Filter 6: Elevation envelope [266m, 3027m]
-    if c_elev < elevation_bounds[0] or c_elev > elevation_bounds[1]:
+    if float(c_elev) < elevation_bounds[0] or float(c_elev) > elevation_bounds[1]:
         return False, "elevation_out_of_bounds", None
 
     # Filter 7: Slope envelope [6.1 deg, 41.4 deg]
-    if c_slope < slope_bounds[0] or c_slope > slope_bounds[1]:
+    if float(c_slope) < slope_bounds[0] or float(c_slope) > slope_bounds[1]:
         return False, "slope_out_of_bounds", None
 
     # Filter 8: Water body overlap (JRC >= 10% or WorldCover == 80)
-    if c_water >= 10.0 or c_lc == 80:
+    if float(c_water) >= 10.0 or int(c_lc) == 80:
         return False, "water_body_overlap", None
 
     # Filter 9: Permanent snow/ice overlap (WorldCover == 70)
-    if c_lc == 70:
+    if int(c_lc) == 70:
         return False, "snow_ice_overlap", None
 
-    # Filter 10: SAR temporal baseline count
+    # Filter 10: SAR temporal baseline count (>= 3 acquisitions)
     c_sar_count = props.get("sar_pre_count")
     c_sar_std = props.get("sar_pre_std_vv")
-    if c_sar_count is None or c_sar_count < min_sar_count or c_sar_std is None:
+    if c_sar_count is None or int(c_sar_count) < min_sar_count or c_sar_std is None:
         return False, "sar_insufficient_baseline", None
 
-    # Filter 11: SAR temporal consistency screening (Std <= 1.5 dB)
-    if c_sar_std > max_sar_std_db:
+    # Filter 11: SAR temporal consistency screening criterion (Std <= 1.5 dB)
+    if float(c_sar_std) > max_sar_std_db:
         return False, "sar_temporal_instability", None
 
-    # Candidate accepted: Compute normalized composite topographic matching distance
-    p_lat = paired_positive.get("latitude", c_lat)
-    p_lon = paired_positive.get("longitude", c_lon)
-    p_slope = float(paired_positive.get("slope", c_slope))
-    p_elev = float(paired_positive.get("elevation", c_elev))
-    p_tri = float(paired_positive.get("tri", c_tri))
-    p_asp = float(paired_positive.get("aspect", c_aspect))
-
-    # Empirical standard deviations of confirmed positive events
-    sigma_slope = 10.5
-    sigma_elev = 775.0
-    sigma_tri = 17.5
+    # Candidate accepted: Compute standardized three-feature topographic distance
+    p_lat = float(paired_positive["latitude"])
+    p_lon = float(paired_positive["longitude"])
+    p_slope = float(paired_positive["slope"])
+    p_elev = float(paired_positive["elevation"])
+    p_tri = float(paired_positive["tri"])
+    p_asp = float(paired_positive["aspect"])
 
     d_slope = abs(float(c_slope) - p_slope)
     d_elev = abs(float(c_elev) - p_elev)
@@ -146,10 +234,10 @@ def evaluate_candidate_point(
     d_aspect = min(abs(float(c_aspect) - p_asp), 360.0 - abs(float(c_aspect) - p_asp))
     dist_paired = haversine_km(p_lat, p_lon, c_lat, c_lon)
 
-    d_topo = math.sqrt(
-        (d_slope / sigma_slope) ** 2 +
-        (d_elev / sigma_elev) ** 2 +
-        (d_tri / sigma_tri) ** 2
+    d_topo_3feat = math.sqrt(
+        (d_slope / SIGMA_SLOPE) ** 2 +
+        (d_elev / SIGMA_ELEV) ** 2 +
+        (d_tri / SIGMA_TRI) ** 2
     )
 
     record = {
@@ -174,9 +262,109 @@ def evaluate_candidate_point(
         "delta_elevation_m": float(d_elev),
         "delta_aspect_deg": float(d_aspect),
         "delta_tri": float(d_tri),
-        "d_topo_composite": float(d_topo)
+        "three_feature_topographic_distance": float(d_topo_3feat),
+        "d_topo_composite": float(d_topo_3feat)
     }
     return True, "ACCEPTED", record
+
+
+def select_best_candidate_across_batches(
+    batches_of_candidates: List[List[Dict[str, Any]]],
+    paired_positive: Dict[str, Any],
+    all_positives_coords: List[Tuple[float, float]],
+    coord_dedup_tolerance_km: float = 0.03
+) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
+    """Evaluates candidate points across all batches, deduplicates by coordinates, and selects min D_topo.
+    
+    Returns:
+        (best_candidate_or_none, audit_dict)
+    """
+    rejection_counts = {
+        "roi_out_of_bounds": 0,
+        "scar_proximity_under_2km": 0,
+        "missing_terrain_data": 0,
+        "missing_water_data": 0,
+        "missing_landcover_data": 0,
+        "elevation_out_of_bounds": 0,
+        "slope_out_of_bounds": 0,
+        "water_body_overlap": 0,
+        "snow_ice_overlap": 0,
+        "sar_insufficient_baseline": 0,
+        "sar_temporal_instability": 0,
+        "duplicate_candidate_coordinates": 0,
+        "no_valid_candidate_after_search": 0
+    }
+
+    total_evaluated = 0
+    batch_stats = []
+    pooled_valid = []
+    seen_coords = []
+
+    for batch_idx, batch_candidates in enumerate(batches_of_candidates):
+        batch_eval = 0
+        batch_valid = 0
+
+        for cand in batch_candidates:
+            total_evaluated += 1
+            batch_eval += 1
+            coords = cand.get("geometry", {}).get("coordinates", [cand.get("longitude"), cand.get("latitude")])
+            c_lon, c_lat = float(coords[0]), float(coords[1])
+            props = cand.get("properties", cand)
+
+            ok, reason, rec = evaluate_candidate_point(
+                c_lat=c_lat,
+                c_lon=c_lon,
+                props=props,
+                paired_positive=paired_positive,
+                all_positives_coords=all_positives_coords
+            )
+
+            if not ok:
+                if reason in rejection_counts:
+                    rejection_counts[reason] += 1
+                continue
+
+            # Check coordinate deduplication
+            is_duplicate = False
+            for prev_lat, prev_lon in seen_coords:
+                if haversine_km(c_lat, c_lon, prev_lat, prev_lon) <= coord_dedup_tolerance_km:
+                    is_duplicate = True
+                    break
+
+            if is_duplicate:
+                rejection_counts["duplicate_candidate_coordinates"] += 1
+                continue
+
+            seen_coords.append((c_lat, c_lon))
+            rec["source_batch_idx"] = batch_idx
+            pooled_valid.append(rec)
+            batch_valid += 1
+
+        batch_stats.append({
+            "batch_idx": batch_idx,
+            "evaluated": batch_eval,
+            "valid_unique": batch_valid
+        })
+
+    audit_summary = {
+        "batches_evaluated": len(batches_of_candidates),
+        "total_candidates_evaluated": total_evaluated,
+        "valid_candidates_pooled": len(pooled_valid),
+        "duplicates_removed": rejection_counts["duplicate_candidate_coordinates"],
+        "batch_breakdown": batch_stats,
+        "rejection_counts": rejection_counts
+    }
+
+    if not pooled_valid:
+        rejection_counts["no_valid_candidate_after_search"] = 1
+        return None, audit_summary
+
+    # Sort pooled valid candidates by standardized three-feature distance
+    pooled_valid.sort(key=lambda r: r["three_feature_topographic_distance"])
+    best_candidate = pooled_valid[0]
+    audit_summary["best_batch_idx"] = best_candidate["source_batch_idx"]
+    audit_summary["best_d_topo"] = best_candidate["three_feature_topographic_distance"]
+    return best_candidate, audit_summary
 
 
 def generate_v2_sampling_parameters():
@@ -204,20 +392,21 @@ def generate_v2_sampling_parameters():
             "Pre-event backscatter standard deviation (<= 1.5 dB) serves as a microwave temporal consistency screening "
             "criterion, not geodetic proof of physical ground stability. Radar backscatter temporal variance is influenced "
             "by seasonal freeze-thaw cycles, vegetation phenology, episodic soil moisture spikes from monsoon rains, and "
-            "steep-slope local incidence angle variations (layover and shadow)."
+            "steep-slope local incidence angle variations (layover and shadow). Asymmetric screening between controls and "
+            "positive events is evaluated through planned sensitivity experiments."
         ),
         "candidate_selection_strategy": (
-            "For each positive event, candidates are sampled within a 10-40km ring buffer and evaluated sequentially "
-            "against all physical and data availability filters. Among all valid candidates, the optimal control is selected "
-            "by minimizing the standardized multidimensional topographic distance D_topo to the paired positive event: "
-            "D_topo = sqrt(((slope_c - slope_p)/10.5)^2 + ((elev_c - elev_p)/775)^2 + ((tri_c - tri_p)/17.5)^2). "
-            "This ensures that accepted controls are geomorphologically representative rather than arbitrary first passes."
+            "For each positive event, candidates are evaluated across three sequential batches within a 10-40km ring buffer. "
+            "Candidates are deduplicated by coordinates (30m tolerance). Among all valid candidates pooled across all three "
+            "batches, the representative control is selected by minimizing the standardized three-feature topographic distance: "
+            "three_feature_topographic_distance = sqrt(((slope_c - slope_p)/10.5)^2 + ((elev_c - elev_p)/775)^2 + ((tri_c - tri_p)/17.5)^2). "
+            "The result is the minimum-distance candidate among the sampled valid candidates, not a claim of global terrain optimality."
         ),
-        "twi_resolution_alignment_specification": (
-            "SRTM 30m elevation derivatives are combined with MERIT Hydro 90m flow accumulation (upa). "
-            "To resolve the resolution mismatch, MERIT Hydro 'upa' is resampled via bilinear interpolation to match the "
-            "30m SRTM grid. At 30m resolution, contour length b = 30m, yielding specific catchment area alpha = (upa * 1e6) / 30m. "
-            "Topographic Wetness Index is calculated as ln(alpha / tan(beta)), with tan(beta) >= 0.001."
+        "twi_hydrological_resolution_specification": (
+            "MERIT Hydro 90m native grid (3 arc-seconds) is preserved for upstream drainage area (upa in km^2). "
+            "Specific catchment area alpha = (upa * 1e6) / 90.0m is calculated using the native 90m contour width. "
+            "SRTM 30m slope is aggregated via spatial averaging to the 90m hydrological grid to avoid fictitious 30m hydrological "
+            "resampling artifacts. Topographic Wetness Index is calculated as ln(alpha / tan(beta)), with tan(beta) >= 0.001."
         ),
         "slope": {
             "p05": float(pos["slope"].quantile(0.05)),
@@ -280,7 +469,7 @@ def generate_v2_sampling_parameters():
         "tri_riley_standard": "Riley et al. (1999) root-sum-squared elevation differences across 8 neighbors: sqrt(sum(z_i - z_0)^2)",
         "tri_mean_absolute_difference": "Wilson & Gallant / standard mean absolute elevation difference: (1/8) * sum(|z_i - z_0|)",
         "tri_focal_diff_proxy": "Absolute difference from 3x3 uniform focal mean: |z_0 - mean_3x3(z)| (retained as proxy)",
-        "twi_merit_hydro": "Beven & Kirkby (1979) ln(alpha / tan(beta)) using bilinearly resampled MERIT Hydro flow accumulation (upa)",
+        "twi_merit_hydro_native_90m": "Beven & Kirkby (1979) ln(alpha / tan(beta)) using native MERIT Hydro upa (alpha = upa*1e6/90m) and aggregated 90m slope",
         "twi_slope_proxy": "Slope-only proxy: ln(1 / tan(beta)) = -ln(tan(beta)) (retained as proxy)"
     }
 
@@ -297,23 +486,25 @@ def generate_v2_sampling_parameters():
             "snow_ice_overlap",
             "sar_insufficient_baseline",
             "sar_temporal_instability",
+            "duplicate_candidate_coordinates",
             "no_valid_candidate_after_search"
         ]
     }
 
     params["matching_diagnostics_schema"] = {
-        "diagnostic_variables": [
-            "spatial_distance_km",
-            "min_dist_to_all_positives_km",
+        "distance_metric": "three_feature_topographic_distance",
+        "distance_variables": ["slope", "elevation", "tri"],
+        "independent_delta_reporting": [
             "delta_slope_deg",
             "delta_elevation_m",
             "delta_aspect_deg",
             "delta_tri",
-            "d_topo_composite",
-            "sar_pre_std_vv",
-            "sar_pre_count"
+            "delta_curvature",
+            "delta_twi",
+            "spatial_distance_km"
         ],
         "reporting_metrics": ["min", "p25", "median", "mean", "p75", "max"],
+        "cross_event_duplicate_control_audit": True,
         "limitation_note": "A 10–40 km ring buffer serves as a regional physiographic proxy but does not guarantee identical catchment or bedrock lithology."
     }
 
@@ -352,18 +543,22 @@ def create_colab_extraction_notebook(output_path: Path):
             "metadata": {},
             "source": [
                 "# Version 2.0 Candidate Hillslope Control Extraction Pipeline (Colab GEE)\n",
-                "## Himalayan Landslide Intelligence — Phase 3b Multi-Sensor Extraction (Step 5.2)\n",
+                "## Himalayan Landslide Intelligence — Phase 3b Multi-Sensor Extraction (Step 5.3)\n",
                 "\n",
-                "### Scientific Context & Data Integrity Governance:\n",
+                "### Scientific Context & Hydrological Governance:\n",
                 "1. **Terminology & Failure Status:** Negative controls are designated **Candidate Hillslope Control / Unrecorded Failure Status**. Absence from the NASA Global Landslide Catalog establishes unrecorded failure status, not guaranteed absolute stability across geological timescales.\n",
                 "2. **Confound Mitigation Policy:** Sampling within the empirical hillslope envelope ($6.1^\\circ \\le \\text{slope} \\le 41.4^\\circ$, $266\\text{ m} \\le \\text{elev} \\le 3027\\text{ m}$) is designed to mitigate the historical flat-terrain bias (Version 1.0 controls had mean slope $1.43^\\circ$). **Actual elimination of the terrain confound cannot be assumed a priori**; it must be empirically validated via two-sample Kolmogorov-Smirnov tests on the extracted feature distributions.\n",
-                "3. **SAR Temporal Consistency Screening:** Pre-event Sentinel-1 IW GRD VV standard deviation must be $\\le 1.5\\text{ dB}$ over a 180-day baseline observation window ($[t_{\\text{event}}-180\\text{d}, t_{\\text{event}}-15\\text{d}]$), with at least 3 valid acquisitions required. *Note:* This serves as a microwave temporal consistency screening criterion, not geodetic proof of ground stability; backscatter variance may also be influenced by seasonal freeze-thaw, vegetation phenology, episodic soil moisture spikes, and radar layover/shadow on steep terrain.\n",
-                "4. **Rigorous Data Availability Masks (No Silent Pass):**\n",
+                "3. **SAR Temporal Consistency Screening:** Pre-event Sentinel-1 IW GRD VV standard deviation must be $\\le 1.5\\text{ dB}$ over a 180-day baseline observation window ($[t_{\\text{event}}-180\\text{d}, t_{\\text{event}}-15\\text{d}]$), with at least 3 valid acquisitions required. *Note:* This serves as a microwave temporal consistency screening criterion, not geodetic proof of ground stability; backscatter variance may also be influenced by seasonal freeze-thaw, vegetation phenology, episodic soil moisture spikes, and radar layover/shadow on steep terrain. Potential selection asymmetry between controls and external positive inventories is evaluated through sensitivity analysis.\n",
+                "4. **Rigorous Data Availability Masks (No Silent Defaults):**\n",
                 "   - JRC Surface Water ($< 10\\%$) and ESA WorldCover (Class 80 $\\neq$ Water, Class 70 $\\neq$ Snow/Ice) are evaluated with strict valid-data masks. Missing water or land-cover observations are explicitly rejected, NOT converted to zero.\n",
-                "   - Mandatory terrain variables (elevation, slope, aspect, curvature, TRI, TWI) are subject to explicit null checks; no silent 0.0 fallbacks.\n",
-                "5. **Resolution Alignment in TWI:** MERIT Hydro upstream contributing area (`upa`, 90m native) is explicitly resampled via bilinear interpolation to match the SRTM 30m grid. Contour width is set to $b = 30\\text{ m}$, yielding $\\alpha = (\\text{upa} \\times 10^6) / 30\\text{ m}$, and $\\text{TWI} = \\ln(\\alpha / \\tan\\beta)$.\n",
-                "6. **Optimized Candidate Selection Strategy:** Among candidates in the $10\\text{ km}-40\\text{ km}$ ring passing physical filters, the optimal control is selected by **minimizing the normalized composite topographic distance** $D_{\\text{topo}}$ to the paired positive event.\n",
-                "7. **Audit & Diagnostics:** Complete rejection audit tracking 12 categories, and full percentile distributions of matching differences."
+                "   - Mandatory terrain variables (elevation, slope, aspect, curvature, TRI, TWI) are subject to explicit null checks on both controls and positive events; no arbitrary fallbacks (e.g. slope=21.0, elev=1200m) are permitted.\n",
+                "5. **Native Hydrological Grid Resolution for TWI:**\n",
+                "   - MERIT Hydro 90m native grid (3 arc-seconds) is preserved for upstream drainage area (`upa`).\n",
+                "   - Specific catchment area is calculated using native 90m contour width: $\\alpha = (\\text{upa} \\times 10^6) / 90.0\\text{ m}$.\n",
+                "   - SRTM 30m slope is spatially aggregated (mean) to the 90m hydrological grid to avoid fictitious 30m hydrological resampling artifacts.\n",
+                "   - $\\text{TWI} = \\ln(\\alpha / \\tan\\beta)$, with $\\tan\\beta \\ge 0.001$. Slope-only proxy is preserved separately.\n",
+                "6. **Multi-Batch Candidate Optimization:** All 3 candidate batches are evaluated sequentially. Candidates are deduplicated by coordinates (30m tolerance). The representative control is selected by minimizing the standardized three-feature topographic distance $D_{\\text{topo}}$ across the pooled candidate set. The result is transparently documented as the minimum-distance candidate among sampled valid candidates.\n",
+                "7. **Audit & Diagnostics:** Complete rejection audit tracking 13 categories, cross-event duplicate control audit, and full percentile distributions of matching differences."
             ]
         },
         # Cell 1: Code - Dependencies and Authentication
@@ -417,20 +612,20 @@ def create_colab_extraction_notebook(output_path: Path):
                 "print('Authoritative Himalayan ROI and Universal Exclusion Zone (2.0 km) declared successfully.')"
             ]
         },
-        # Cell 3: Code - Environmental Datasets, Riley TRI, MERIT TWI (with Bilinear Resampling)
+        # Cell 3: Code - Environmental Datasets, Riley TRI, Native 90m MERIT TWI
         {
             "cell_type": "code",
             "execution_count": None,
             "metadata": {},
             "outputs": [],
             "source": [
-                "# Step 3: Environmental Datasets & Corrected Geomorphometric Indices (Riley TRI & MERIT TWI)\n",
+                "# Step 3: Environmental Datasets & Geomorphometric Indices (Riley TRI & Native 90m MERIT TWI)\n",
                 "\n",
                 "# 1. SRTM 30m Digital Elevation Model & Derivatives\n",
                 "srtm = ee.Image('USGS/SRTMGL1_003').select('elevation').clip(roi)\n",
-                "slope = ee.Terrain.slope(srtm)\n",
-                "aspect = ee.Terrain.aspect(srtm)\n",
-                "curvature = srtm.convolve(ee.Kernel.laplacian8(normalize=False)).rename('curvature')\n",
+                "slope_30m = ee.Terrain.slope(srtm)\n",
+                "aspect_30m = ee.Terrain.aspect(srtm)\n",
+                "curvature_30m = srtm.convolve(ee.Kernel.laplacian8(normalize=False)).rename('curvature')\n",
                 "\n",
                 "# 2. Corrected Riley et al. (1999) Terrain Ruggedness Index (TRI)\n",
                 "# Formula: sqrt( sum_{i=1..8} (z_i - z_0)^2 )\n",
@@ -450,15 +645,19 @@ def create_colab_extraction_notebook(output_path: Path):
                 "tri_mean_diff = abs_diff_sum.divide(8.0).rename('tri_mean_diff')\n",
                 "tri_focal_proxy = srtm.subtract(srtm.convolve(ee.Kernel.square(radius=1, units='pixels'))).abs().rename('tri_focal_diff_proxy')\n",
                 "\n",
-                "# 3. Corrected Topographic Wetness Index (TWI) with Explicit Bilinear Resampling for Resolution Alignment\n",
-                "# SRTM is 30m; MERIT Hydro is 90m. Bilinearly resample MERIT Hydro upa to 30m SRTM grid.\n",
+                "# 3. Topographic Wetness Index (TWI) on Native MERIT Hydro 90m Hydrological Grid\n",
+                "# Native 3 arc-second (~90m) hydrological routing is preserved without fictitious 30m resampling.\n",
+                "# SRTM 30m slope is spatially aggregated (mean) to the 90m hydrological cell to represent cell gradient.\n",
                 "merit_hydro = ee.Image('MERIT/Hydro/v1_0_1').clip(roi)\n",
-                "merit_upa_30m = merit_hydro.select('upa').resample('bilinear').reproject(crs=srtm.projection(), scale=30)\n",
-                "alpha_30m = merit_upa_30m.multiply(1e6).divide(30.0).max(1.0)  # Specific catchment area with contour width b=30m\n",
-                "slp_rad = slope.multiply(math.pi / 180.0)\n",
-                "tan_beta = slp_rad.tan().max(0.001)\n",
-                "twi_merit = alpha_30m.divide(tan_beta).log().rename('twi')\n",
-                "twi_slope_proxy = tan_beta.pow(-1).log().rename('twi_slope_proxy')\n",
+                "upa_90m = merit_hydro.select('upa')  # Upstream area in km^2\n",
+                "alpha_90m = upa_90m.multiply(1e6).divide(90.0).max(1.0)  # Specific catchment area with contour width b=90.0m\n",
+                "\n",
+                "# Spatially aggregate SRTM 30m slope to MERIT Hydro 90m projection\n",
+                "slope_90m = slope_30m.reduceResolution(reducer=ee.Reducer.mean(), maxPixels=16).reproject(crs=merit_hydro.projection())\n",
+                "slp_rad_90m = slope_90m.multiply(math.pi / 180.0)\n",
+                "tan_beta_90m = slp_rad_90m.tan().max(0.001)\n",
+                "twi_merit_90m = alpha_90m.divide(tan_beta_90m).log().rename('twi')\n",
+                "twi_slope_proxy_90m = tan_beta_90m.pow(-1).log().rename('twi_slope_proxy')\n",
                 "\n",
                 "# 4. Surface Water Occurrence: JRC Global Surface Water (v1.4) — PRESERVED WITHOUT unmask(0)\n",
                 "jrc_water = ee.Image('JRC/GSW1_4/GlobalSurfaceWater').select('occurrence').clip(roi)\n",
@@ -470,28 +669,28 @@ def create_colab_extraction_notebook(output_path: Path):
                 "# Multi-band Static Diagnostic Image for Rapid Batch Candidate Evaluation\n",
                 "static_diag = (\n",
                 "    srtm.rename('elevation')\n",
-                "    .addBands(slope.rename('slope'))\n",
-                "    .addBands(aspect.rename('aspect'))\n",
-                "    .addBands(curvature.rename('curvature'))\n",
+                "    .addBands(slope_30m.rename('slope'))\n",
+                "    .addBands(aspect_30m.rename('aspect'))\n",
+                "    .addBands(curvature_30m.rename('curvature'))\n",
                 "    .addBands(tri_riley)\n",
                 "    .addBands(tri_mean_diff)\n",
                 "    .addBands(tri_focal_proxy)\n",
-                "    .addBands(twi_merit)\n",
-                "    .addBands(twi_slope_proxy)\n",
+                "    .addBands(twi_merit_90m)\n",
+                "    .addBands(twi_slope_proxy_90m)\n",
                 "    .addBands(jrc_water.rename('water_occurrence'))  # Valid-data mask preserved\n",
                 "    .addBands(worldcover.rename('landcover'))\n",
                 ")\n",
-                "print('Static environmental layers, Riley TRI, and MERIT Hydro TWI (30m aligned) compiled successfully.')"
+                "print('Static environmental layers, Riley TRI, and Native 90m MERIT TWI compiled successfully.')"
             ]
         },
-        # Cell 4: Code - Candidate Sampling with Optimized Selection & Complete Audit Tracking
+        # Cell 4: Code - Strict Positive Validation & Multi-Batch Candidate Optimization
         {
             "cell_type": "code",
             "execution_count": None,
             "metadata": {},
             "outputs": [],
             "source": [
-                "# Step 4: Sample Candidate Hillslope Controls with Optimized Matching & Complete Audit Tracking\n",
+                "# Step 4: Strict Positive Validation & Multi-Batch Candidate Optimization\n",
                 "\n",
                 "def haversine_km(lat1, lon1, lat2, lon2):\n",
                 "    \"\"\"Calculates geodesic distance in km between two lat/lon points.\"\"\"\n",
@@ -502,14 +701,16 @@ def create_colab_extraction_notebook(output_path: Path):
                 "    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2\n",
                 "    return 2 * R * math.asin(math.sqrt(a))\n",
                 "\n",
-                "# Standard deviations of confirmed positive events for normalized distance D_topo\n",
+                "# Standard deviations of confirmed positive events for standardized three-feature distance\n",
                 "SIGMA_SLOPE = 10.5\n",
                 "SIGMA_ELEV = 775.0\n",
                 "SIGMA_TRI = 17.5\n",
                 "\n",
-                "# Comprehensive Rejection Audit Tracking (12 Categories)\n",
+                "# Comprehensive Rejection Audit Tracking (13 Categories)\n",
                 "sampling_audit = {\n",
-                "    'total_positive_events': len(positives),\n",
+                "    'total_positive_events_in_catalog': len(positives),\n",
+                "    'positive_events_validated': 0,\n",
+                "    'positive_events_excluded_from_matching': 0,\n",
                 "    'total_candidates_evaluated': 0,\n",
                 "    'controls_successfully_sampled': 0,\n",
                 "    'rejections': {\n",
@@ -524,14 +725,16 @@ def create_colab_extraction_notebook(output_path: Path):
                 "        'snow_ice_overlap': 0,\n",
                 "        'sar_insufficient_baseline': 0,\n",
                 "        'sar_temporal_instability': 0,\n",
+                "        'duplicate_candidate_coordinates': 0,\n",
                 "        'no_valid_candidate_after_search': 0\n",
                 "    }\n",
                 "}\n",
                 "\n",
                 "v2_controls = []\n",
                 "matching_diagnostics = []\n",
+                "positive_events_excluded_audit = []\n",
                 "\n",
-                "print('Starting Candidate Hillslope Control Sampling across 127 events...')\n",
+                "print('Starting Candidate Hillslope Control Sampling across confirmed positive events...')\n",
                 "print('Screening: Proximity > 2km | Elev [266-3027m] | Slope [6.1-41.4 deg] | Water < 10% | Snow/Ice != 70 | Pre-SAR std <= 1.5 dB')\n",
                 "start_sampling = time.time()\n",
                 "\n",
@@ -540,6 +743,44 @@ def create_colab_extraction_notebook(output_path: Path):
                 "    event_date = pd.to_datetime(row['event_date'])\n",
                 "    pt_pos = ee.Geometry.Point([p_lon, p_lat])\n",
                 "    \n",
+                "    # 1. STRICT POSITIVE-EVENT TERRAIN VALIDATION (NO ARBITRARY DEFAULTS)\n",
+                "    pos_terrain = static_diag.reduceRegion(\n",
+                "        reducer=ee.Reducer.first(),\n",
+                "        geometry=pt_pos,\n",
+                "        scale=30,\n",
+                "        bestEffort=True\n",
+                "    ).getInfo() or {}\n",
+                "    \n",
+                "    p_slope = pos_terrain.get('slope')\n",
+                "    p_elev = pos_terrain.get('elevation')\n",
+                "    p_asp = pos_terrain.get('aspect')\n",
+                "    p_tri = pos_terrain.get('tri')\n",
+                "    p_curv = pos_terrain.get('curvature')\n",
+                "    p_twi = pos_terrain.get('twi')\n",
+                "    \n",
+                "    # Check for missing terrain in positive event\n",
+                "    pos_missing = []\n",
+                "    for var_name, val in [('slope', p_slope), ('elevation', p_elev), ('aspect', p_asp), ('tri', p_tri)]:\n",
+                "        if val is None:\n",
+                "            pos_missing.append(var_name)\n",
+                "            \n",
+                "    if pos_missing or not (lat_min <= p_lat <= lat_max and lon_min <= p_lon <= lon_max):\n",
+                "        sampling_audit['positive_events_excluded_from_matching'] += 1\n",
+                "        positive_events_excluded_audit.append({\n",
+                "            'paired_positive_idx': int(idx),\n",
+                "            'latitude': p_lat,\n",
+                "            'longitude': p_lon,\n",
+                "            'event_date': event_date.strftime('%Y-%m-%d'),\n",
+                "            'exclusion_reason': 'missing_positive_terrain_values',\n",
+                "            'missing_variables': pos_missing\n",
+                "        })\n",
+                "        print(f'Warning: Positive event {idx} excluded from matching (Missing: {pos_missing})')\n",
+                "        continue\n",
+                "        \n",
+                "    sampling_audit['positive_events_validated'] += 1\n",
+                "    p_slope, p_elev, p_asp, p_tri = float(p_slope), float(p_elev), float(p_asp), float(p_tri)\n",
+                "    \n",
+                "    # 2. LOCAL SEARCH RING & PRE-EVENT SAR STACK\n",
                 "    # 10km to 40km local catchment ring buffer, intersected with regional ROI\n",
                 "    search_ring = pt_pos.buffer(40000).difference(pt_pos.buffer(10000)).intersection(roi)\n",
                 "    \n",
@@ -558,20 +799,16 @@ def create_colab_extraction_notebook(output_path: Path):
                 "    \n",
                 "    event_diag = static_diag.addBands(s1_std_vv).addBands(s1_count)\n",
                 "    \n",
-                "    valid_candidates_for_event = []\n",
-                "    seed_offset = 0\n",
-                "    max_batches = 3\n",
+                "    # 3. MULTI-BATCH ACCUMULATION & DEDUPLICATION (DO NOT BREAK EARLY)\n",
+                "    pooled_valid_candidates = []\n",
+                "    seen_batch_coords = []\n",
+                "    num_batches = 3\n",
                 "    \n",
-                "    p_slope = float(row.get('slope', 21.0))\n",
-                "    p_elev = float(row.get('elevation', 1200.0))\n",
-                "    p_asp = float(row.get('aspect', 180.0))\n",
-                "    p_tri = float(row.get('tri', 25.0))\n",
-                "    \n",
-                "    for batch_num in range(max_batches):\n",
+                "    for batch_num in range(num_batches):\n",
                 "        batch_pts = ee.FeatureCollection.randomPoints(\n",
                 "            region=search_ring,\n",
                 "            points=25,\n",
-                "            seed=42 + idx * 100 + seed_offset\n",
+                "            seed=42 + idx * 100 + batch_num * 31\n",
                 "        )\n",
                 "        candidates = event_diag.sampleRegions(\n",
                 "            collection=batch_pts,\n",
@@ -599,7 +836,7 @@ def create_colab_extraction_notebook(output_path: Path):
                 "                sampling_audit['rejections']['scar_proximity_under_2km'] += 1\n",
                 "                continue\n",
                 "                \n",
-                "            # Filter 3: Explicit check for mandatory terrain features (no silent 0.0 defaults)\n",
+                "            # Filter 3: Explicit check for mandatory terrain features\n",
                 "            c_elev = props.get('elevation')\n",
                 "            c_slope = props.get('slope')\n",
                 "            c_aspect = props.get('aspect')\n",
@@ -627,45 +864,59 @@ def create_colab_extraction_notebook(output_path: Path):
                 "                continue\n",
                 "                \n",
                 "            # Filter 6: Elevation envelope [266m, 3027m]\n",
-                "            if c_elev < 266.0 or c_elev > 3027.0:\n",
+                "            if float(c_elev) < 266.0 or float(c_elev) > 3027.0:\n",
                 "                sampling_audit['rejections']['elevation_out_of_bounds'] += 1\n",
                 "                continue\n",
                 "                \n",
                 "            # Filter 7: Slope envelope [6.1 deg, 41.4 deg]\n",
-                "            if c_slope < 6.1 or c_slope > 41.4:\n",
+                "            if float(c_slope) < 6.1 or float(c_slope) > 41.4:\n",
                 "                sampling_audit['rejections']['slope_out_of_bounds'] += 1\n",
                 "                continue\n",
                 "                \n",
                 "            # Filter 8: Water body overlap (JRC >= 10% or WorldCover == 80)\n",
-                "            if c_water >= 10.0 or c_lc == 80:\n",
+                "            if float(c_water) >= 10.0 or int(c_lc) == 80:\n",
                 "                sampling_audit['rejections']['water_body_overlap'] += 1\n",
                 "                continue\n",
                 "                \n",
                 "            # Filter 9: Permanent snow/ice overlap (WorldCover == 70)\n",
-                "            if c_lc == 70:\n",
+                "            if int(c_lc) == 70:\n",
                 "                sampling_audit['rejections']['snow_ice_overlap'] += 1\n",
                 "                continue\n",
                 "                \n",
                 "            # Filter 10: SAR temporal baseline count (>= 3 acquisitions)\n",
                 "            c_sar_count = props.get('sar_pre_count')\n",
                 "            c_sar_std = props.get('sar_pre_std_vv')\n",
-                "            if c_sar_count is None or c_sar_count < 3 or c_sar_std is None:\n",
+                "            if c_sar_count is None or int(c_sar_count) < 3 or c_sar_std is None:\n",
                 "                sampling_audit['rejections']['sar_insufficient_baseline'] += 1\n",
                 "                continue\n",
                 "                \n",
                 "            # Filter 11: SAR temporal consistency screening criterion (Std <= 1.5 dB)\n",
-                "            if c_sar_std > 1.5:\n",
+                "            if float(c_sar_std) > 1.5:\n",
                 "                sampling_audit['rejections']['sar_temporal_instability'] += 1\n",
                 "                continue\n",
                 "                \n",
-                "            # Candidate valid: compute differences and normalized composite topographic distance D_topo\n",
+                "            # Coordinate Deduplication Check (30m tolerance)\n",
+                "            is_duplicate = False\n",
+                "            for prev_lat, prev_lon in seen_batch_coords:\n",
+                "                if haversine_km(c_lat, c_lon, prev_lat, prev_lon) <= 0.03:\n",
+                "                    is_duplicate = True\n",
+                "                    break\n",
+                "            if is_duplicate:\n",
+                "                sampling_audit['rejections']['duplicate_candidate_coordinates'] += 1\n",
+                "                continue\n",
+                "                \n",
+                "            seen_batch_coords.append((c_lat, c_lon))\n",
+                "            \n",
+                "            # Standardized three-feature topographic distance\n",
                 "            d_slope = abs(float(c_slope) - p_slope)\n",
                 "            d_elev = abs(float(c_elev) - p_elev)\n",
                 "            d_tri = abs(float(c_tri) - p_tri)\n",
                 "            d_aspect = min(abs(float(c_aspect) - p_asp), 360.0 - abs(float(c_aspect) - p_asp))\n",
+                "            d_curv = abs(float(c_curv) - float(p_curv)) if p_curv is not None else None\n",
+                "            d_twi = abs(float(c_twi) - float(p_twi)) if p_twi is not None else None\n",
                 "            dist_paired = haversine_km(p_lat, p_lon, c_lat, c_lon)\n",
                 "            \n",
-                "            d_topo = math.sqrt(\n",
+                "            d_topo_3feat = math.sqrt(\n",
                 "                (d_slope / SIGMA_SLOPE) ** 2 +\n",
                 "                (d_elev / SIGMA_ELEV) ** 2 +\n",
                 "                (d_tri / SIGMA_TRI) ** 2\n",
@@ -674,7 +925,7 @@ def create_colab_extraction_notebook(output_path: Path):
                 "            cand_record = {\n",
                 "                'latitude': c_lat,\n",
                 "                'longitude': c_lon,\n",
-                "                'event_date': row['event_date'].strftime('%Y-%m-%d'),\n",
+                "                'event_date': event_date.strftime('%Y-%m-%d'),\n",
                 "                'Location Accuracy': 'Candidate Hillslope Control / Unrecorded Failure Status',\n",
                 "                'Landslide Trigger': 'Candidate Hillslope Control / Unrecorded Failure Status',\n",
                 "                'Imported Event Source Catalog': 'V2_GEE_Candidate_Hillslope',\n",
@@ -698,19 +949,18 @@ def create_colab_extraction_notebook(output_path: Path):
                 "                'delta_elevation_m': float(d_elev),\n",
                 "                'delta_aspect_deg': float(d_aspect),\n",
                 "                'delta_tri': float(d_tri),\n",
-                "                'd_topo_composite': float(d_topo)\n",
+                "                'delta_curvature': float(d_curv) if d_curv is not None else None,\n",
+                "                'delta_twi': float(d_twi) if d_twi is not None else None,\n",
+                "                'three_feature_topographic_distance': float(d_topo_3feat),\n",
+                "                'd_topo_composite': float(d_topo_3feat),\n",
+                "                'discovered_batch_idx': batch_num\n",
                 "            }\n",
-                "            valid_candidates_for_event.append(cand_record)\n",
+                "            pooled_valid_candidates.append(cand_record)\n",
                 "            \n",
-                "        # If valid candidates found in this batch, stop generating further batches\n",
-                "        if valid_candidates_for_event:\n",
-                "            break\n",
-                "        seed_offset += 25\n",
-                "        \n",
-                "    if valid_candidates_for_event:\n",
-                "        # OPTIMIZED SELECTION: Select candidate that minimizes composite topographic distance D_topo\n",
-                "        valid_candidates_for_event.sort(key=lambda r: r['d_topo_composite'])\n",
-                "        best_candidate = valid_candidates_for_event[0]\n",
+                "    # 4. SELECT MINIMUM-DISTANCE CANDIDATE AFTER ALL 3 BATCHES FINISH\n",
+                "    if pooled_valid_candidates:\n",
+                "        pooled_valid_candidates.sort(key=lambda r: r['three_feature_topographic_distance'])\n",
+                "        best_candidate = pooled_valid_candidates[0]\n",
                 "        v2_controls.append(best_candidate)\n",
                 "        sampling_audit['controls_successfully_sampled'] += 1\n",
                 "        \n",
@@ -734,56 +984,86 @@ def create_colab_extraction_notebook(output_path: Path):
                 "            'control_tri': best_candidate['tri'],\n",
                 "            'positive_tri': p_tri,\n",
                 "            'delta_tri': best_candidate['delta_tri'],\n",
-                "            'd_topo_composite': best_candidate['d_topo_composite'],\n",
+                "            'delta_curvature': best_candidate.get('delta_curvature'),\n",
+                "            'delta_twi': best_candidate.get('delta_twi'),\n",
+                "            'three_feature_topographic_distance': best_candidate['three_feature_topographic_distance'],\n",
                 "            'sar_pre_std_vv': best_candidate['sar_pre_std_vv'],\n",
                 "            'sar_pre_count': best_candidate['sar_pre_count'],\n",
-                "            'matching_strategy': 'Minimum standardized topographic distance D_topo in 10-40km ring buffer'\n",
+                "            'selected_from_batch_idx': best_candidate['discovered_batch_idx'],\n",
+                "            'total_valid_candidates_evaluated': len(pooled_valid_candidates),\n",
+                "            'selection_characterization': 'Minimum standardized distance among sampled valid candidates'\n",
                 "        })\n",
                 "    else:\n",
                 "        sampling_audit['rejections']['no_valid_candidate_after_search'] += 1\n",
-                "        print(f'Warning: No valid candidate found for positive event {idx} after {max_batches} batches.')\n",
+                "        print(f'Warning: No valid candidate found for positive event {idx} across all {num_batches} batches.')\n",
                 "        \n",
                 "    if (idx + 1) % 25 == 0 or (idx + 1) == len(positives):\n",
-                "        print(f'  Progress: {len(v2_controls)}/{idx+1} events (Evaluated {sampling_audit[\"total_candidates_evaluated\"]} total candidates)')\n",
+                "        print(f'  Progress: {len(v2_controls)} controls accepted / {idx+1} events evaluated ({sampling_audit[\"total_candidates_evaluated\"]} candidates screened)')\n",
                 "\n",
                 "df_v2_controls = pd.DataFrame(v2_controls)\n",
                 "df_matching_diagnostics = pd.DataFrame(matching_diagnostics)\n",
+                "df_positive_exclusions = pd.DataFrame(positive_events_excluded_audit)\n",
                 "elapsed_sampling = time.time() - start_sampling\n",
                 "print(f'\\nSampling Complete in {elapsed_sampling:.1f}s.')\n",
-                "print(f'Accepted Controls: {len(df_v2_controls)} / {len(positives)}')\n",
-                "print('Detailed Rejection Tallies across all 12 Categories:')\n",
+                "print(f'Controls Sampled: {len(df_v2_controls)} | Positive Events Excluded: {len(df_positive_exclusions)}')\n",
+                "print('Detailed Rejection Tallies across all 13 Categories:')\n",
                 "for reason, count in sampling_audit['rejections'].items():\n",
                 "    print(f'  - {reason}: {count}')\n",
                 "\n",
                 "df_v2_controls.to_csv('phase2_v2_hillslope_controls.csv', index=False)\n",
-                "df_matching_diagnostics.to_csv('v2_control_matching_diagnostics.csv', index=False)"
+                "df_matching_diagnostics.to_csv('v2_control_matching_diagnostics.csv', index=False)\n",
+                "df_positive_exclusions.to_csv('v2_positive_events_excluded_audit.csv', index=False)"
             ]
         },
-        # Cell 5: Code - Validation & Complete Distribution Reporting
+        # Cell 5: Code - Strict Validation, Duplicate Controls Audit & Distribution Reporting
         {
             "cell_type": "code",
             "execution_count": None,
             "metadata": {},
             "outputs": [],
             "source": [
-                "# Step 5: Strict Validation and Full Matching Distribution Reporting\n",
+                "# Step 5: Strict Validation, Duplicate Control Audit & Full Distribution Reporting\n",
                 "print('Executing Candidate Control Constraint Validation...')\n",
-                "assert len(df_v2_controls) == len(positives), f'Sample count mismatch: {len(df_v2_controls)} != {len(positives)}'\n",
+                "assert len(df_v2_controls) > 0, 'No candidate controls sampled!'\n",
                 "assert df_v2_controls['latitude'].between(lat_min, lat_max).all(), 'Latitude outside ROI bounds!'\n",
                 "assert df_v2_controls['longitude'].between(lon_min, lon_max).all(), 'Longitude outside ROI bounds!'\n",
                 "assert (df_v2_controls['min_distance_to_any_positive_km'] > 2.0).all(), 'Universal exclusion violation (point <= 2km from scar)!'\n",
                 "assert df_v2_controls['slope'].between(6.1, 41.4).all(), 'Slope outside empirical envelope [6.1, 41.4]!'\n",
                 "assert df_v2_controls['elevation'].between(266, 3027).all(), 'Elevation outside empirical envelope [266, 3027]!'\n",
-                "assert (df_v2_controls['sar_pre_std_vv'] <= 1.5).all(), 'SAR stability threshold violated (> 1.5 dB)!'\n",
+                "assert (df_v2_controls['sar_pre_std_vv'] <= 1.5).all(), 'SAR consistency threshold violated (> 1.5 dB)!'\n",
                 "assert df_v2_controls[['elevation', 'slope', 'aspect', 'curvature', 'tri', 'twi']].notna().all().all(), 'Null terrain values detected!'\n",
-                "print('PASSED: All 127 candidate controls strictly satisfy geographic bounds, universal exclusion (>2km), terrain envelope, and SAR consistency.')\n",
+                "print('PASSED: All candidate controls satisfy geographic bounds, universal exclusion (>2km), terrain envelope, and SAR consistency.')\n",
                 "\n",
-                "# Display Full Empirical Distributions of Matching Differences\n",
-                "print('\\nFull Distribution of Paired Topographic Matching Differences:')\n",
-                "dist_metrics = ['spatial_distance_km', 'delta_slope_deg', 'delta_elevation_m', 'delta_aspect_deg', 'delta_tri', 'd_topo_composite']\n",
+                "# Cross-Event Duplicate Control & Minimum Pairwise Separation Audit\n",
+                "n_total_ctrls = len(df_v2_controls)\n",
+                "n_unique_ctrls = len(df_v2_controls[['latitude', 'longitude']].drop_duplicates())\n",
+                "duplicate_controls_cross_event = n_total_ctrls - n_unique_ctrls\n",
+                "\n",
+                "# Calculate pairwise minimum separation distance between selected controls\n",
+                "ctrl_coords = list(zip(df_v2_controls['latitude'], df_v2_controls['longitude']))\n",
+                "min_pairwise_ctrl_dist_km = 999999.0\n",
+                "for i in range(len(ctrl_coords)):\n",
+                "    for j in range(i + 1, len(ctrl_coords)):\n",
+                "        d = haversine_km(ctrl_coords[i][0], ctrl_coords[i][1], ctrl_coords[j][0], ctrl_coords[j][1])\n",
+                "        if d < min_pairwise_ctrl_dist_km:\n",
+                "            min_pairwise_ctrl_dist_km = d\n",
+                "\n",
+                "print(f'\\nCross-Event Duplicate Controls: {duplicate_controls_cross_event} / {n_total_ctrls}')\n",
+                "print(f'Minimum Pairwise Control Separation: {min_pairwise_ctrl_dist_km:.2f} km')\n",
+                "\n",
+                "# Full Empirical Distributions of Matching Differences\n",
+                "print('\\nFull Empirical Distribution of Topographic Matching Differences:')\n",
+                "dist_metrics = [\n",
+                "    'spatial_distance_km',\n",
+                "    'delta_slope_deg',\n",
+                "    'delta_elevation_m',\n",
+                "    'delta_aspect_deg',\n",
+                "    'delta_tri',\n",
+                "    'three_feature_topographic_distance'\n",
+                "]\n",
                 "summary_rows = []\n",
                 "for m in dist_metrics:\n",
-                "    s = df_matching_diagnostics[m]\n",
+                "    s = df_matching_diagnostics[m].dropna()\n",
                 "    summary_rows.append({\n",
                 "        'Metric': m,\n",
                 "        'Min': round(float(s.min()), 2),\n",
@@ -832,11 +1112,8 @@ def create_colab_extraction_notebook(output_path: Path):
                 "# Robust S2 Cloud Masking: Combines Scene Classification Layer (SCL) and Cloud Probability\n",
                 "def mask_s2_clouds(img):\n",
                 "    scl = img.select('SCL')\n",
-                "    # SCL valid: 4 (Vegetation), 5 (Not vegetated), 6 (Water), 7 (Unclassified)\n",
-                "    # Excludes: 3 (Shadow), 8 (Med Cloud), 9 (High Cloud), 10 (Cirrus), 11 (Snow)\n",
                 "    scl_valid = scl.neq(3).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10)).And(scl.neq(11))\n",
                 "    c_prob_obj = img.get('cloud_prob')\n",
-                "    # Null-safe cloud probability check\n",
                 "    c_prob_mask = ee.Algorithms.If(\n",
                 "        c_prob_obj,\n",
                 "        ee.Image(c_prob_obj).select('probability').lt(40),\n",
@@ -990,7 +1267,7 @@ def create_colab_extraction_notebook(output_path: Path):
             "metadata": {},
             "outputs": [],
             "source": [
-                "# Step 8: Sequential Feature Extraction Loop across all 127 Candidate Controls\n",
+                "# Step 8: Sequential Feature Extraction Loop across all Candidate Controls\n",
                 "extracted_controls = []\n",
                 "n_total = len(df_v2_controls)\n",
                 "print(f'Extracting multisource dynamic features for {n_total} candidate controls...')\n",
@@ -1088,8 +1365,8 @@ def create_colab_extraction_notebook(output_path: Path):
                 "    'candidate_control_terminology': 'Candidate Hillslope Control / Unrecorded Failure Status',\n",
                 "    'confound_policy': 'Confound mitigation must be empirically verified via KS tests upon ingestion; not assumed a priori.',\n",
                 "    'sar_screening_characterization': 'Microwave temporal consistency screening criterion (std <= 1.5 dB); not geodetic stability proof.',\n",
-                "    'candidate_selection_strategy': 'Minimum standardized composite topographic distance D_topo in 10-40km ring buffer',\n",
-                "    'twi_resolution_alignment': 'MERIT Hydro upa bilinearly resampled to 30m SRTM grid; contour length b=30m',\n",
+                "    'candidate_selection_strategy': 'Minimum three_feature_topographic_distance among sampled valid candidates pooled across 3 batches',\n",
+                "    'twi_hydrological_resolution': 'MERIT Hydro 90m native grid preserved for upa; alpha = upa*1e6/90m; SRTM 30m slope aggregated (mean) to 90m grid',\n",
                 "    'total_observations': len(df_v2_full),\n",
                 "    'positive_events': int((df_v2_full['label'] == 1).sum()),\n",
                 "    'candidate_hillslope_controls': int((df_v2_full['label'] == 0).sum()),\n",
@@ -1099,6 +1376,9 @@ def create_colab_extraction_notebook(output_path: Path):
                 "    'sar_stability_filter': {'max_std_db': 1.5, 'window_days': [180, 15], 'min_observations': 3},\n",
                 "    'land_cover_exclusions': {'esa_worldcover_snow_ice_class': 70, 'esa_worldcover_water_class': 80, 'jrc_water_max_pct': 10},\n",
                 "    'sampling_audit': sampling_audit,\n",
+                "    'positive_exclusions_audit': positive_events_excluded_audit,\n",
+                "    'cross_event_duplicate_controls': int(duplicate_controls_cross_event),\n",
+                "    'min_pairwise_control_separation_km': float(min_pairwise_ctrl_dist_km),\n",
                 "    'extraction_quality_audit': quality_audit,\n",
                 "    'matching_distribution_summary': df_dist_summary.to_dict(orient='records')\n",
                 "}\n",
@@ -1108,9 +1388,10 @@ def create_colab_extraction_notebook(output_path: Path):
                 "print('\\nAll Version 2.0 Artifacts Exported Successfully:')\n",
                 "print('1. phase2_v2_hillslope_controls.csv')\n",
                 "print('2. v2_control_matching_diagnostics.csv')\n",
-                "print('3. v2_matching_distribution_summary.csv')\n",
-                "print('4. v2_feature_table_experimental.csv')\n",
-                "print('5. v2_extraction_provenance.json')"
+                "print('3. v2_positive_events_excluded_audit.csv')\n",
+                "print('4. v2_matching_distribution_summary.csv')\n",
+                "print('5. v2_feature_table_experimental.csv')\n",
+                "print('6. v2_extraction_provenance.json')"
             ]
         },
         # Cell 10: Markdown - Download Instructions
@@ -1119,10 +1400,11 @@ def create_colab_extraction_notebook(output_path: Path):
             "metadata": {},
             "source": [
                 "### Step 10: Download Artifacts to Local Workspace\n",
-                "Run the cell below to download all 5 exported files to your local workstation.\n",
+                "Run the cell below to download all 6 exported files to your local workstation.\n",
                 "Then place them into your local project directory:\n",
                 "- `outputs/phase2_v2_hillslope_controls.csv`\n",
                 "- `artifacts/susceptibility/v2_control_matching_diagnostics.csv`\n",
+                "- `artifacts/susceptibility/v2_positive_events_excluded_audit.csv`\n",
                 "- `artifacts/susceptibility/v2_matching_distribution_summary.csv`\n",
                 "- `artifacts/susceptibility/v2_feature_table_experimental.csv`\n",
                 "- `artifacts/metadata/v2_extraction_provenance.json`"
@@ -1138,6 +1420,7 @@ def create_colab_extraction_notebook(output_path: Path):
                 "from google.colab import files\n",
                 "files.download('phase2_v2_hillslope_controls.csv')\n",
                 "files.download('v2_control_matching_diagnostics.csv')\n",
+                "files.download('v2_positive_events_excluded_audit.csv')\n",
                 "files.download('v2_matching_distribution_summary.csv')\n",
                 "files.download('v2_feature_table_experimental.csv')\n",
                 "files.download('v2_extraction_provenance.json')"

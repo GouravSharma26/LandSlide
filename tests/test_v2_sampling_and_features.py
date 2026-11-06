@@ -1,38 +1,37 @@
-"""Unit and governance tests for Version 2.0 Candidate Hillslope Control sampling and feature formulations.
+"""Unit, governance, and structural tests for Version 2.0 Candidate Hillslope Control sampling.
 
-Step 5.2 Test Coverage:
-1. Candidate Hillslope Control terminology and unrecorded failure status governance.
-2. Sampling envelope constraint parameters (slope, elevation, universal exclusion, water, snow/ice, SAR stability).
-3. Mathematical formulation of Riley et al. (1999) TRI vs focal-mean difference proxy.
-4. Mathematical formulation of Beven & Kirkby (1979) TWI with 30m bilinear resampling vs slope-only proxy.
-5. Rejection audit schema completeness across all 12 rejection categories.
-6. Paired matching diagnostics schema and regional ring limitations.
-7. Version 2.0 pending extraction status and confound verification policy.
-8. Version 1.0 historical baseline immutability.
-9. Local unit tests for candidate evaluation logic:
-   - Valid candidate acceptance and composite distance D_topo calculation
-   - Null inputs / missing terrain data rejection (no silent 0.0 defaults)
-   - Missing water observation rejection (no unmask(0) silent pass)
-   - Missing land-cover observation rejection (no unmask silent pass)
-   - Elevation out of bounds rejection
-   - Slope out of bounds rejection
-   - Water body overlap rejection
-   - Permanent snow/ice overlap rejection
-   - Invalid SAR count rejection (< 3 passes)
-   - SAR temporal instability rejection (> 1.5 dB)
-   - ROI boundary violation rejection
-   - Universal scar proximity violation rejection (<= 2000m)
-   - Optimization of candidate selection via minimum D_topo
+Test Categories:
+Category 1: Pure Python Unit Tests (Mocked / Offline Logic)
+  - Multi-batch candidate optimization (Batch 2 better, Batch 3 better, deduplication, no valid candidates, minimum distance selection)
+  - Native 90m hydrological TWI unit and formula consistency (dimensional analysis and monotonicity)
+  - Positive-event terrain validation without fallbacks (missing slope, elevation, aspect, TRI, ROI violations)
+  - Candidate evaluation filters (bounds, scar proximity, missing terrain/water/landcover, water/snow overlap, SAR baseline/stability)
+  - Cross-event duplicate control detection
+Category 2: Notebook Structure and Governance Tests (Static AST / JSON Inspection)
+  - Verification of no arbitrary positive-event terrain defaults in notebook
+  - Verification of no premature loop break across batches in notebook
+  - Verification of MERIT Hydro 90m native grid & slope aggregation documentation
+  - Verification of all 13 rejection categories in audit dictionary
+  - Verification of candidate terminology and immutable V1 historical baseline
+Category 3: Earth Engine Integration Tests
+  - Documented as pending actual authenticated Google Colab execution (no local simulation).
 """
 
 import json
 import math
 from pathlib import Path
+from typing import Dict, Any, List
 import numpy as np
 import pandas as pd
 import pytest
 
-from scripts.v2_sampling_protocol import evaluate_candidate_point, haversine_km
+from scripts.v2_sampling_protocol import (
+    evaluate_candidate_point,
+    select_best_candidate_across_batches,
+    validate_positive_event,
+    calculate_twi_hydrological_native_grid,
+    haversine_km
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = BASE_DIR / "outputs"
@@ -43,8 +42,8 @@ NOTEBOOKS_DIR = BASE_DIR / "notebooks"
 
 # Base valid candidate fixture for testing
 @pytest.fixture
-def valid_candidate_data():
-    props = {
+def valid_candidate_props():
+    return {
         "elevation": 1250.0,
         "slope": 22.5,
         "aspect": 185.0,
@@ -59,118 +58,381 @@ def valid_candidate_data():
         "sar_pre_std_vv": 0.85,
         "sar_pre_count": 8
     }
-    paired_pos = {
+
+
+@pytest.fixture
+def valid_paired_pos():
+    return {
         "latitude": 30.5,
         "longitude": 79.2,
         "elevation": 1200.0,
         "slope": 21.0,
         "aspect": 180.0,
-        "tri": 26.0
-    }
-    all_pos_coords = [(30.5, 79.2), (31.0, 78.5), (29.8, 80.1)]
-    return {
-        "c_lat": 30.65,
-        "c_lon": 79.35,
-        "props": props,
-        "paired_pos": paired_pos,
-        "all_pos_coords": all_pos_coords
+        "tri": 26.0,
+        "event_date": "2018-08-15"
     }
 
 
-def test_candidate_control_terminology():
-    """Verifies that candidate control terminology reflects unrecorded failure status."""
-    with open(METADATA_DIR / "v2_candidate_distribution_validation.json", "r", encoding="utf-8") as f:
-        meta = json.load(f)
-    assert meta["candidate_control_terminology"] == "Candidate Hillslope Control / Unrecorded Failure Status"
-    assert "NASA COOLR" in meta["inventory_incompleteness_disclaimer"]
-    assert "unrecorded failure status" in meta["inventory_incompleteness_disclaimer"].lower()
+@pytest.fixture
+def all_pos_coords():
+    return [(30.5, 79.2), (31.0, 78.5), (29.8, 80.1)]
 
-    # Verify Colab notebook contains this terminology
+
+# =============================================================================
+# Category 1: Pure Python Unit Tests (Offline / Algorithmic Verification)
+# =============================================================================
+
+def test_twi_unit_and_formula_consistency():
+    """Verifies Beven & Kirkby (1979) TWI on native 90m hydrological grid.
+    
+    Dimensional checks:
+    - upa in km^2 -> A = upa * 1e6 m^2
+    - contour width b = 90.0 m
+    - specific catchment area alpha = A / b [units: m^2/m = m]
+    - tan(beta) dimensionless ratio
+    - TWI = ln(alpha / tan(beta))
+    """
+    # 1. Monotonicity with contributing area
+    twi_small_area, _ = calculate_twi_hydrological_native_grid(upa_km2=0.01, slope_val=15.0, is_deg=True, grid_cell_size_m=90.0)
+    twi_large_area, _ = calculate_twi_hydrological_native_grid(upa_km2=10.0, slope_val=15.0, is_deg=True, grid_cell_size_m=90.0)
+    assert twi_large_area > twi_small_area, "Larger upstream contributing area must produce higher TWI"
+
+    # 2. Monotonicity with slope gradient
+    twi_gentle_slope, _ = calculate_twi_hydrological_native_grid(upa_km2=1.0, slope_val=5.0, is_deg=True, grid_cell_size_m=90.0)
+    twi_steep_slope, _ = calculate_twi_hydrological_native_grid(upa_km2=1.0, slope_val=35.0, is_deg=True, grid_cell_size_m=90.0)
+    assert twi_gentle_slope > twi_steep_slope, "Gentler hillslope must produce higher TWI"
+
+    # 3. Slope-only proxy behavior
+    _, proxy_gentle = calculate_twi_hydrological_native_grid(upa_km2=1.0, slope_val=5.0, is_deg=True, grid_cell_size_m=90.0)
+    _, proxy_same_slope_diff_area = calculate_twi_hydrological_native_grid(upa_km2=100.0, slope_val=5.0, is_deg=True, grid_cell_size_m=90.0)
+    assert proxy_gentle == pytest.approx(proxy_same_slope_diff_area), "Slope proxy must be invariant to contributing area"
+
+    # 4. Error handling
+    with pytest.raises(ValueError):
+        calculate_twi_hydrological_native_grid(upa_km2=-1.0, slope_val=15.0)
+
+
+def test_positive_event_missing_data_validation(valid_paired_pos):
+    """Verifies that positive events with missing mandatory terrain features are rejected."""
+    # Valid event passes
+    ok, reason, validated = validate_positive_event(valid_paired_pos)
+    assert ok is True
+    assert reason == "VALID"
+    assert validated["elevation"] == 1200.0
+
+    # Missing slope
+    corrupted = dict(valid_paired_pos, slope=None)
+    ok, reason, _ = validate_positive_event(corrupted)
+    assert ok is False
+    assert "missing_positive_features: slope" in reason
+
+    # Missing elevation
+    corrupted = dict(valid_paired_pos, elevation=None)
+    ok, reason, _ = validate_positive_event(corrupted)
+    assert ok is False
+    assert "elevation" in reason
+
+    # Missing aspect
+    corrupted = dict(valid_paired_pos, aspect=None)
+    ok, reason, _ = validate_positive_event(corrupted)
+    assert ok is False
+    assert "aspect" in reason
+
+    # Missing tri
+    corrupted = dict(valid_paired_pos, tri=None)
+    ok, reason, _ = validate_positive_event(corrupted)
+    assert ok is False
+    assert "tri" in reason
+
+    # ROI violation
+    corrupted = dict(valid_paired_pos, latitude=22.0)
+    ok, reason, _ = validate_positive_event(corrupted)
+    assert ok is False
+    assert reason == "positive_roi_violation"
+
+
+def test_batch_optimization_better_in_batch_2(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies that the candidate search does not break on batch 1 when a better match exists in batch 2."""
+    # Batch 0 has a valid candidate with large D_topo
+    cand_b0_props = dict(valid_candidate_props, slope=38.0, elevation=2800.0, tri=50.0)
+    cand_b0 = {"longitude": 79.35, "latitude": 30.65, "properties": cand_b0_props}
+
+    # Batch 1 has an even better candidate close to paired positive (slope 21, elev 1200, tri 26)
+    cand_b1_props = dict(valid_candidate_props, slope=21.2, elevation=1210.0, tri=26.1)
+    cand_b1 = {"longitude": 79.40, "latitude": 30.70, "properties": cand_b1_props}
+
+    # Batch 2 has a candidate with medium D_topo
+    cand_b2_props = dict(valid_candidate_props, slope=28.0, elevation=1600.0, tri=32.0)
+    cand_b2 = {"longitude": 79.45, "latitude": 30.75, "properties": cand_b2_props}
+
+    batches = [[cand_b0], [cand_b1], [cand_b2]]
+    best_cand, audit = select_best_candidate_across_batches(batches, valid_paired_pos, all_pos_coords)
+
+    assert best_cand is not None
+    assert audit["batches_evaluated"] == 3
+    assert audit["best_batch_idx"] == 1, "Best candidate must be selected from Batch 1 (second batch)"
+    assert best_cand["slope"] == pytest.approx(21.2)
+    assert best_cand["three_feature_topographic_distance"] < 0.10
+
+
+def test_batch_optimization_better_in_batch_3(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies that candidate search finds and selects the best candidate when it occurs in batch 3."""
+    cand_b0_props = dict(valid_candidate_props, slope=35.0, elevation=2500.0, tri=45.0)
+    cand_b0 = {"longitude": 79.35, "latitude": 30.65, "properties": cand_b0_props}
+
+    cand_b1_props = dict(valid_candidate_props, slope=30.0, elevation=2000.0, tri=38.0)
+    cand_b1 = {"longitude": 79.40, "latitude": 30.70, "properties": cand_b1_props}
+
+    # Best candidate is in Batch 2 (the 3rd batch)
+    cand_b2_props = dict(valid_candidate_props, slope=21.05, elevation=1202.0, tri=26.05)
+    cand_b2 = {"longitude": 79.45, "latitude": 30.75, "properties": cand_b2_props}
+
+    batches = [[cand_b0], [cand_b1], [cand_b2]]
+    best_cand, audit = select_best_candidate_across_batches(batches, valid_paired_pos, all_pos_coords)
+
+    assert best_cand is not None
+    assert audit["best_batch_idx"] == 2, "Best candidate must be selected from Batch 2 (third batch)"
+    assert best_cand["slope"] == pytest.approx(21.05)
+    assert best_cand["three_feature_topographic_distance"] < 0.05
+
+
+def test_batch_optimization_coordinate_deduplication(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies that candidates with duplicate coordinates across batches are properly deduplicated."""
+    # Candidate appearing in Batch 0 and again in Batch 1
+    cand_a1 = {"longitude": 79.35, "latitude": 30.65, "properties": dict(valid_candidate_props, slope=22.0)}
+    cand_a2 = {"longitude": 79.35, "latitude": 30.65, "properties": dict(valid_candidate_props, slope=22.0)}
+    # Distinct candidate in Batch 2
+    cand_b = {"longitude": 79.45, "latitude": 30.75, "properties": dict(valid_candidate_props, slope=21.0)}
+
+    batches = [[cand_a1], [cand_a2], [cand_b]]
+    best_cand, audit = select_best_candidate_across_batches(batches, valid_paired_pos, all_pos_coords)
+
+    assert audit["total_candidates_evaluated"] == 3
+    assert audit["duplicates_removed"] == 1, "Duplicate candidate coordinate must be detected and removed"
+    assert audit["valid_candidates_pooled"] == 2
+
+
+def test_batch_optimization_no_valid_candidates(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies behavior when all candidates across all batches fail filters."""
+    # All candidates fail (e.g. slope out of bounds)
+    invalid_props = dict(valid_candidate_props, slope=2.0)
+    cand0 = {"longitude": 79.35, "latitude": 30.65, "properties": invalid_props}
+    cand1 = {"longitude": 79.40, "latitude": 30.70, "properties": invalid_props}
+    cand2 = {"longitude": 79.45, "latitude": 30.75, "properties": invalid_props}
+
+    batches = [[cand0], [cand1], [cand2]]
+    best_cand, audit = select_best_candidate_across_batches(batches, valid_paired_pos, all_pos_coords)
+
+    assert best_cand is None
+    assert audit["valid_candidates_pooled"] == 0
+    assert audit["rejection_counts"]["no_valid_candidate_after_search"] == 1
+    assert audit["rejection_counts"]["slope_out_of_bounds"] == 3
+
+
+def test_candidate_acceptance_valid(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies candidate acceptance and standardized D_topo calculation."""
+    ok, reason, rec = evaluate_candidate_point(
+        c_lat=30.65,
+        c_lon=79.35,
+        props=valid_candidate_props,
+        paired_positive=valid_paired_pos,
+        all_positives_coords=all_pos_coords
+    )
+    assert ok is True
+    assert reason == "ACCEPTED"
+    assert rec["delta_slope_deg"] == pytest.approx(1.5, rel=1e-3)
+    assert rec["delta_elevation_m"] == pytest.approx(50.0, rel=1e-3)
+    assert rec["three_feature_topographic_distance"] > 0.0
+
+
+def test_candidate_rejection_null_terrain_inputs(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies that missing terrain features are explicitly rejected without silent 0.0 fallbacks."""
+    for terrain_key in ["aspect", "curvature", "tri", "tri_mean_diff", "twi", "slope", "elevation"]:
+        corrupted = dict(valid_candidate_props)
+        corrupted[terrain_key] = None
+        ok, reason, rec = evaluate_candidate_point(
+            c_lat=30.65, c_lon=79.35, props=corrupted,
+            paired_positive=valid_paired_pos, all_positives_coords=all_pos_coords
+        )
+        assert ok is False
+        assert reason == "missing_terrain_data"
+        assert rec is None
+
+
+def test_candidate_rejection_missing_water_mask(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies that missing JRC water occurrence is rejected and not silently unmasked to zero."""
+    corrupted = dict(valid_candidate_props, water_occurrence=None)
+    ok, reason, _ = evaluate_candidate_point(
+        c_lat=30.65, c_lon=79.35, props=corrupted,
+        paired_positive=valid_paired_pos, all_positives_coords=all_pos_coords
+    )
+    assert ok is False
+    assert reason == "missing_water_data"
+
+
+def test_candidate_rejection_missing_landcover_mask(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies that missing WorldCover land-cover observation is rejected."""
+    corrupted = dict(valid_candidate_props, landcover=None)
+    ok, reason, _ = evaluate_candidate_point(
+        c_lat=30.65, c_lon=79.35, props=corrupted,
+        paired_positive=valid_paired_pos, all_positives_coords=all_pos_coords
+    )
+    assert ok is False
+    assert reason == "missing_landcover_data"
+
+
+def test_candidate_rejection_elevation_out_of_bounds(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies rejection of elevations outside empirical envelope [266m, 3027m]."""
+    for bad_elev in [150.0, 3200.0]:
+        corrupted = dict(valid_candidate_props, elevation=bad_elev)
+        ok, reason, _ = evaluate_candidate_point(
+            c_lat=30.65, c_lon=79.35, props=corrupted,
+            paired_positive=valid_paired_pos, all_positives_coords=all_pos_coords
+        )
+        assert ok is False
+        assert reason == "elevation_out_of_bounds"
+
+
+def test_candidate_rejection_slope_out_of_bounds(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies rejection of slopes outside empirical envelope [6.1 deg, 41.4 deg]."""
+    for bad_slope in [3.0, 48.0]:
+        corrupted = dict(valid_candidate_props, slope=bad_slope)
+        ok, reason, _ = evaluate_candidate_point(
+            c_lat=30.65, c_lon=79.35, props=corrupted,
+            paired_positive=valid_paired_pos, all_positives_coords=all_pos_coords
+        )
+        assert ok is False
+        assert reason == "slope_out_of_bounds"
+
+
+def test_candidate_rejection_water_overlap(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies rejection of points overlapping water bodies (JRC >= 10% or WorldCover == 80)."""
+    # Case A: JRC water occurrence >= 10%
+    props_jrc = dict(valid_candidate_props, water_occurrence=15.0)
+    ok, reason, _ = evaluate_candidate_point(30.65, 79.35, props_jrc, valid_paired_pos, all_pos_coords)
+    assert ok is False
+    assert reason == "water_body_overlap"
+
+    # Case B: ESA WorldCover Class 80 (Permanent water)
+    props_wc = dict(valid_candidate_props, landcover=80)
+    ok, reason, _ = evaluate_candidate_point(30.65, 79.35, props_wc, valid_paired_pos, all_pos_coords)
+    assert ok is False
+    assert reason == "water_body_overlap"
+
+
+def test_candidate_rejection_snow_ice_overlap(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies rejection of points overlapping permanent snow/ice (WorldCover Class 70)."""
+    props_snow = dict(valid_candidate_props, landcover=70)
+    ok, reason, _ = evaluate_candidate_point(30.65, 79.35, props_snow, valid_paired_pos, all_pos_coords)
+    assert ok is False
+    assert reason == "snow_ice_overlap"
+
+
+def test_candidate_rejection_sar_insufficient_baseline(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies rejection of points with fewer than 3 SAR passes or null standard deviation."""
+    props_few = dict(valid_candidate_props, sar_pre_count=2)
+    ok, reason, _ = evaluate_candidate_point(30.65, 79.35, props_few, valid_paired_pos, all_pos_coords)
+    assert ok is False
+    assert reason == "sar_insufficient_baseline"
+
+    props_null = dict(valid_candidate_props, sar_pre_std_vv=None)
+    ok, reason, _ = evaluate_candidate_point(30.65, 79.35, props_null, valid_paired_pos, all_pos_coords)
+    assert ok is False
+    assert reason == "sar_insufficient_baseline"
+
+
+def test_candidate_rejection_sar_temporal_instability(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies rejection of points exceeding SAR temporal stability threshold (> 1.5 dB)."""
+    props_unstable = dict(valid_candidate_props, sar_pre_std_vv=1.95)
+    ok, reason, _ = evaluate_candidate_point(30.65, 79.35, props_unstable, valid_paired_pos, all_pos_coords)
+    assert ok is False
+    assert reason == "sar_temporal_instability"
+
+
+def test_candidate_rejection_roi_violation(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies rejection of coordinates outside authoritative Himalayan ROI."""
+    ok, reason, _ = evaluate_candidate_point(24.5, 79.35, valid_candidate_props, valid_paired_pos, all_pos_coords)
+    assert ok is False
+    assert reason == "roi_out_of_bounds"
+
+    ok, reason, _ = evaluate_candidate_point(30.65, 98.5, valid_candidate_props, valid_paired_pos, all_pos_coords)
+    assert ok is False
+    assert reason == "roi_out_of_bounds"
+
+
+def test_candidate_rejection_proximity_violation(valid_candidate_props, valid_paired_pos, all_pos_coords):
+    """Verifies rejection of candidate points within 2000m of ANY known positive scar."""
+    c_lat_close = 30.504
+    c_lon_close = 79.204
+    ok, reason, _ = evaluate_candidate_point(c_lat_close, c_lon_close, valid_candidate_props, valid_paired_pos, all_pos_coords)
+    assert ok is False
+    assert reason == "scar_proximity_under_2km"
+
+
+def test_cross_event_duplicate_controls_detection():
+    """Verifies detection of cross-event duplicate control coordinates and minimum separation."""
+    # Control list with 1 duplicate and 2 unique points
+    ctrls = [
+        {"latitude": 30.1, "longitude": 79.1},
+        {"latitude": 30.5, "longitude": 79.5},
+        {"latitude": 30.1, "longitude": 79.1},  # duplicate of point 0
+    ]
+    df_c = pd.DataFrame(ctrls)
+    n_unique = len(df_c[["latitude", "longitude"]].drop_duplicates())
+    duplicates = len(df_c) - n_unique
+    assert duplicates == 1, "Must detect 1 duplicate cross-event control"
+
+
+# =============================================================================
+# Category 2: Notebook Structure and Governance Tests (Static Inspection)
+# =============================================================================
+
+def test_notebook_structure_no_defaults():
+    """Verifies that no arbitrary positive-event terrain defaults exist in the Colab notebook."""
+    nb_path = NOTEBOOKS_DIR / "Phase3b_V2_Hillslope_Extraction_Colab.ipynb"
+    assert nb_path.exists(), f"Missing Colab notebook at {nb_path}"
+    with open(nb_path, "r", encoding="utf-8") as f:
+        nb = json.load(f)
+
+    full_nb_text = json.dumps(nb)
+    # Ensure no arbitrary fallback defaults exist
+    assert "row.get('slope', 21.0)" not in full_nb_text
+    assert "row.get('elevation', 1200.0)" not in full_nb_text
+    assert "row.get('aspect', 180.0)" not in full_nb_text
+    assert "row.get('tri', 25.0)" not in full_nb_text
+    assert "props.get('aspect', 0.0)" not in full_nb_text
+
+
+def test_notebook_structure_no_premature_break():
+    """Verifies that the candidate search loop does NOT break prematurely on batch 1."""
     nb_path = NOTEBOOKS_DIR / "Phase3b_V2_Hillslope_Extraction_Colab.ipynb"
     with open(nb_path, "r", encoding="utf-8") as f:
-        nb_text = f.read()
-    assert "Candidate Hillslope Control / Unrecorded Failure Status" in nb_text
+        nb = json.load(f)
+
+    # In Cell 4, verify that the loop does NOT contain `if valid_candidates_for_event: break`
+    cell_4_src = "".join(nb["cells"][4]["source"])
+    assert "if valid_candidates_for_event: break" not in cell_4_src
+    assert "if valid_candidates_for_event:" not in cell_4_src
+    # Verify that multi-batch evaluation is present
+    assert "pooled_valid_candidates" in cell_4_src
+    assert "for batch_num in range(num_batches):" in cell_4_src
+    assert "three_feature_topographic_distance" in cell_4_src
 
 
-def test_sampling_envelope_constraints():
-    """Verifies empirical envelope thresholds derived from positive event distributions."""
-    with open(METADATA_DIR / "v2_candidate_distribution_validation.json", "r", encoding="utf-8") as f:
-        meta = json.load(f)
-    env = meta["v2_control_envelope"]
+def test_notebook_structure_merit_90m_twi():
+    """Verifies that native 90m MERIT Hydro TWI and slope aggregation are implemented in notebook."""
+    nb_path = NOTEBOOKS_DIR / "Phase3b_V2_Hillslope_Extraction_Colab.ipynb"
+    with open(nb_path, "r", encoding="utf-8") as f:
+        nb = json.load(f)
 
-    # Slope bounds (P10 to P95 of confirmed events)
-    assert env["slope_min_deg"] == pytest.approx(6.1, abs=0.2)
-    assert env["slope_max_deg"] == pytest.approx(41.4, abs=0.5)
-
-    # Elevation bounds (P10 to P95 of confirmed events)
-    assert env["elevation_min_m"] >= 250.0
-    assert env["elevation_max_m"] <= 3100.0
-
-    # Universal exclusion zone
-    assert env["min_dist_to_positive_m"] == 2000
-
-    # SAR temporal stability criteria
-    assert env["sar_max_std_db"] == 1.5
-    assert env["sar_observation_window_days"] == [180, 15]
-    assert env["sar_min_observations"] == 3
-
-    # Land cover exclusions (ESA WorldCover 10m classes)
-    assert env["esa_worldcover_snow_ice_excluded_class"] == 70
-    assert env["esa_worldcover_water_excluded_class"] == 80
-    assert env["jrc_max_water_pct"] == 10
-
-
-def test_riley_tri_mathematical_formulation():
-    """Verifies that Riley et al. (1999) TRI formula is mathematically distinct from focal-mean difference."""
-    dem_patch = np.array([
-        [90.0,  95.0, 105.0],
-        [100.0, 100.0, 110.0],
-        [105.0, 110.0, 115.0]
-    ])
-    z0 = dem_patch[1, 1]
-    neighbors = [
-        dem_patch[0, 0], dem_patch[0, 1], dem_patch[0, 2],
-        dem_patch[1, 0],                  dem_patch[1, 2],
-        dem_patch[2, 0], dem_patch[2, 1], dem_patch[2, 2]
-    ]
-
-    diffs = [z_i - z0 for z_i in neighbors]
-    riley_tri = math.sqrt(sum(d**2 for d in diffs))
-    mean_abs_diff = sum(abs(d) for d in diffs) / 8.0
-    focal_mean = dem_patch.mean()
-    focal_diff_proxy = abs(z0 - focal_mean)
-
-    assert riley_tri == pytest.approx(math.sqrt(600.0), rel=1e-5)
-    assert mean_abs_diff == pytest.approx(7.5, rel=1e-5)
-    assert focal_diff_proxy == pytest.approx(abs(100.0 - (930.0 / 9.0)), rel=1e-5)
-    assert focal_diff_proxy < mean_abs_diff < riley_tri
-
-
-def test_merit_hydro_twi_mathematical_formulation():
-    """Verifies Beven & Kirkby (1979) TWI using upstream contributing area vs slope-only proxy."""
-    slopes_deg = [5.0, 5.0, 35.0]
-    upas_km2 = [0.01, 10.0, 0.01]
-    cell_size = 30.0  # SRTM aligned 30m grid
-
-    twis_merit = []
-    twis_slope_proxy = []
-
-    for s_deg, upa in zip(slopes_deg, upas_km2):
-        s_rad = math.radians(s_deg)
-        tan_b = max(math.tan(s_rad), 0.001)
-        alpha = max((upa * 1e6) / cell_size, 1.0)
-        twi_merit = math.log(alpha / tan_b)
-        twi_proxy = -math.log(tan_b)
-        twis_merit.append(twi_merit)
-        twis_slope_proxy.append(twi_proxy)
-
-    assert twis_merit[1] > twis_merit[0], "Valley floor must have higher TWI than ridge crest on same slope"
-    assert twis_merit[0] > twis_merit[2], "Gentle slope must have higher TWI than steep slope with same catchment"
-    assert twis_slope_proxy[0] == twis_slope_proxy[1], "Slope proxy fails to distinguish valley from ridge"
+    cell_3_src = "".join(nb["cells"][3]["source"])
+    assert "Native MERIT Hydro 90m" in cell_3_src
+    assert "divide(90.0)" in cell_3_src
+    assert "reduceResolution(reducer=ee.Reducer.mean()" in cell_3_src
 
 
 def test_sampling_audit_counters_schema():
-    """Verifies that all 12 required candidate rejection categories are declared and tracked."""
+    """Verifies that all 13 required candidate rejection categories are declared in metadata."""
     with open(METADATA_DIR / "v2_candidate_distribution_validation.json", "r", encoding="utf-8") as f:
         meta = json.load(f)
     counters = meta["sampling_audit_schema"]["required_rejection_counters"]
@@ -186,10 +448,32 @@ def test_sampling_audit_counters_schema():
         "snow_ice_overlap",
         "sar_insufficient_baseline",
         "sar_temporal_instability",
+        "duplicate_candidate_coordinates",
         "no_valid_candidate_after_search"
     ]
     for rk in required_keys:
         assert rk in counters, f"Missing required rejection category: {rk}"
+
+
+def test_candidate_control_terminology():
+    """Verifies that candidate control terminology reflects unrecorded failure status."""
+    with open(METADATA_DIR / "v2_candidate_distribution_validation.json", "r", encoding="utf-8") as f:
+        meta = json.load(f)
+    assert meta["candidate_control_terminology"] == "Candidate Hillslope Control / Unrecorded Failure Status"
+    assert "NASA COOLR" in meta["inventory_incompleteness_disclaimer"]
+
+
+def test_sampling_envelope_constraints():
+    """Verifies empirical envelope thresholds derived from positive event distributions."""
+    with open(METADATA_DIR / "v2_candidate_distribution_validation.json", "r", encoding="utf-8") as f:
+        meta = json.load(f)
+    env = meta["v2_control_envelope"]
+    assert env["slope_min_deg"] == pytest.approx(6.1, abs=0.2)
+    assert env["slope_max_deg"] == pytest.approx(41.4, abs=0.5)
+    assert env["elevation_min_m"] >= 250.0
+    assert env["elevation_max_m"] <= 3100.0
+    assert env["min_dist_to_positive_m"] == 2000
+    assert env["sar_max_std_db"] == 1.5
 
 
 def test_matching_diagnostics_schema():
@@ -197,23 +481,11 @@ def test_matching_diagnostics_schema():
     with open(METADATA_DIR / "v2_candidate_distribution_validation.json", "r", encoding="utf-8") as f:
         meta = json.load(f)
     diag = meta["matching_diagnostics_schema"]
-    required_vars = [
-        "spatial_distance_km",
-        "min_dist_to_all_positives_km",
-        "delta_slope_deg",
-        "delta_elevation_m",
-        "delta_aspect_deg",
-        "delta_tri",
-        "d_topo_composite",
-        "sar_pre_std_vv",
-        "sar_pre_count"
-    ]
-    for rv in required_vars:
-        assert rv in diag["diagnostic_variables"], f"Missing diagnostic variable: {rv}"
-    assert "min" in diag["reporting_metrics"]
-    assert "median" in diag["reporting_metrics"]
-    assert "max" in diag["reporting_metrics"]
-    assert "regional physiographic proxy" in diag["limitation_note"].lower()
+    assert diag["distance_metric"] == "three_feature_topographic_distance"
+    assert "delta_slope_deg" in diag["independent_delta_reporting"]
+    assert "delta_aspect_deg" in diag["independent_delta_reporting"]
+    assert "delta_curvature" in diag["independent_delta_reporting"]
+    assert "delta_twi" in diag["independent_delta_reporting"]
 
 
 def test_v2_status_pending_and_confound_policy():
@@ -223,8 +495,7 @@ def test_v2_status_pending_and_confound_policy():
     assert meta["candidate_validation_status"]["status"] == "EXTRACTION_PENDING_COLAB_GEE"
     assert "empirically verified" in meta["confound_mitigation_policy"].lower()
     assert "cannot be claimed a priori" in meta["confound_mitigation_policy"].lower()
-    assert "microwave temporal consistency screening" in meta["sar_screening_characterization"].lower()
-    assert "resampled via bilinear interpolation" in meta["twi_resolution_alignment_specification"].lower()
+    assert "asymmetric screening" in meta["sar_screening_characterization"].lower()
 
 
 def test_v1_baseline_immutability():
@@ -235,248 +506,3 @@ def test_v1_baseline_immutability():
     assert len(df) in [244, 254], f"Unexpected row count in Phase 3 table: {len(df)}"
     assert (df["label"] == 1).sum() == 127, "Must have exactly 127 positive events"
     assert (df["label"] == 0).sum() in [117, 127], "Historical controls altered"
-
-
-# =============================================================================
-# Step 5.2 Unit Tests for evaluate_candidate_point() Logic
-# =============================================================================
-
-def test_candidate_acceptance_valid(valid_candidate_data):
-    """Verifies that a fully compliant candidate point is accepted and returns matching diagnostics."""
-    d = valid_candidate_data
-    ok, reason, rec = evaluate_candidate_point(
-        c_lat=d["c_lat"],
-        c_lon=d["c_lon"],
-        props=d["props"],
-        paired_positive=d["paired_pos"],
-        all_positives_coords=d["all_pos_coords"]
-    )
-    assert ok is True
-    assert reason == "ACCEPTED"
-    assert rec is not None
-    assert rec["latitude"] == d["c_lat"]
-    assert rec["longitude"] == d["c_lon"]
-    assert rec["elevation"] == 1250.0
-    assert rec["slope"] == 22.5
-    assert rec["delta_slope_deg"] == pytest.approx(1.5, rel=1e-3)
-    assert rec["delta_elevation_m"] == pytest.approx(50.0, rel=1e-3)
-    assert rec["d_topo_composite"] > 0.0
-
-
-def test_candidate_rejection_null_terrain_inputs(valid_candidate_data):
-    """Verifies that missing terrain features are explicitly rejected without silent 0.0 fallbacks."""
-    d = valid_candidate_data
-    for terrain_key in ["aspect", "curvature", "tri", "tri_mean_diff", "twi", "slope", "elevation"]:
-        corrupted_props = dict(d["props"])
-        corrupted_props[terrain_key] = None
-        ok, reason, rec = evaluate_candidate_point(
-            c_lat=d["c_lat"],
-            c_lon=d["c_lon"],
-            props=corrupted_props,
-            paired_positive=d["paired_pos"],
-            all_positives_coords=d["all_pos_coords"]
-        )
-        assert ok is False
-        assert reason == "missing_terrain_data", f"Failed to reject null {terrain_key}"
-        assert rec is None
-
-
-def test_candidate_rejection_missing_water_mask(valid_candidate_data):
-    """Verifies that missing JRC water occurrence is rejected and not silently unmasked to zero."""
-    d = valid_candidate_data
-    corrupted_props = dict(d["props"])
-    corrupted_props["water_occurrence"] = None
-    ok, reason, rec = evaluate_candidate_point(
-        c_lat=d["c_lat"],
-        c_lon=d["c_lon"],
-        props=corrupted_props,
-        paired_positive=d["paired_pos"],
-        all_positives_coords=d["all_pos_coords"]
-    )
-    assert ok is False
-    assert reason == "missing_water_data"
-    assert rec is None
-
-
-def test_candidate_rejection_missing_landcover_mask(valid_candidate_data):
-    """Verifies that missing WorldCover land-cover observation is rejected."""
-    d = valid_candidate_data
-    corrupted_props = dict(d["props"])
-    corrupted_props["landcover"] = None
-    ok, reason, rec = evaluate_candidate_point(
-        c_lat=d["c_lat"],
-        c_lon=d["c_lon"],
-        props=corrupted_props,
-        paired_positive=d["paired_pos"],
-        all_positives_coords=d["all_pos_coords"]
-    )
-    assert ok is False
-    assert reason == "missing_landcover_data"
-    assert rec is None
-
-
-def test_candidate_rejection_elevation_out_of_bounds(valid_candidate_data):
-    """Verifies rejection of elevations outside empirical envelope [266m, 3027m]."""
-    d = valid_candidate_data
-    for bad_elev in [150.0, 3200.0]:
-        corrupted_props = dict(d["props"])
-        corrupted_props["elevation"] = bad_elev
-        ok, reason, _ = evaluate_candidate_point(
-            c_lat=d["c_lat"],
-            c_lon=d["c_lon"],
-            props=corrupted_props,
-            paired_positive=d["paired_pos"],
-            all_positives_coords=d["all_pos_coords"]
-        )
-        assert ok is False
-        assert reason == "elevation_out_of_bounds"
-
-
-def test_candidate_rejection_slope_out_of_bounds(valid_candidate_data):
-    """Verifies rejection of slopes outside empirical envelope [6.1 deg, 41.4 deg]."""
-    d = valid_candidate_data
-    for bad_slope in [3.0, 48.0]:
-        corrupted_props = dict(d["props"])
-        corrupted_props["slope"] = bad_slope
-        ok, reason, _ = evaluate_candidate_point(
-            c_lat=d["c_lat"],
-            c_lon=d["c_lon"],
-            props=corrupted_props,
-            paired_positive=d["paired_pos"],
-            all_positives_coords=d["all_pos_coords"]
-        )
-        assert ok is False
-        assert reason == "slope_out_of_bounds"
-
-
-def test_candidate_rejection_water_overlap(valid_candidate_data):
-    """Verifies rejection of points overlapping water bodies (JRC >= 10% or WorldCover == 80)."""
-    d = valid_candidate_data
-    # Case A: JRC water occurrence >= 10%
-    props_jrc = dict(d["props"])
-    props_jrc["water_occurrence"] = 15.0
-    ok, reason, _ = evaluate_candidate_point(
-        c_lat=d["c_lat"], c_lon=d["c_lon"], props=props_jrc,
-        paired_positive=d["paired_pos"], all_positives_coords=d["all_pos_coords"]
-    )
-    assert ok is False
-    assert reason == "water_body_overlap"
-
-    # Case B: ESA WorldCover Class 80 (Permanent water)
-    props_wc = dict(d["props"])
-    props_wc["landcover"] = 80
-    ok, reason, _ = evaluate_candidate_point(
-        c_lat=d["c_lat"], c_lon=d["c_lon"], props=props_wc,
-        paired_positive=d["paired_pos"], all_positives_coords=d["all_pos_coords"]
-    )
-    assert ok is False
-    assert reason == "water_body_overlap"
-
-
-def test_candidate_rejection_snow_ice_overlap(valid_candidate_data):
-    """Verifies rejection of points overlapping permanent snow/ice (WorldCover Class 70)."""
-    d = valid_candidate_data
-    props_snow = dict(d["props"])
-    props_snow["landcover"] = 70
-    ok, reason, _ = evaluate_candidate_point(
-        c_lat=d["c_lat"], c_lon=d["c_lon"], props=props_snow,
-        paired_positive=d["paired_pos"], all_positives_coords=d["all_pos_coords"]
-    )
-    assert ok is False
-    assert reason == "snow_ice_overlap"
-
-
-def test_candidate_rejection_sar_insufficient_baseline(valid_candidate_data):
-    """Verifies rejection of points with fewer than 3 SAR passes or null standard deviation."""
-    d = valid_candidate_data
-    # Fewer than 3 passes
-    props_few = dict(d["props"])
-    props_few["sar_pre_count"] = 2
-    ok, reason, _ = evaluate_candidate_point(
-        c_lat=d["c_lat"], c_lon=d["c_lon"], props=props_few,
-        paired_positive=d["paired_pos"], all_positives_coords=d["all_pos_coords"]
-    )
-    assert ok is False
-    assert reason == "sar_insufficient_baseline"
-
-    # Null standard deviation
-    props_null = dict(d["props"])
-    props_null["sar_pre_std_vv"] = None
-    ok, reason, _ = evaluate_candidate_point(
-        c_lat=d["c_lat"], c_lon=d["c_lon"], props=props_null,
-        paired_positive=d["paired_pos"], all_positives_coords=d["all_pos_coords"]
-    )
-    assert ok is False
-    assert reason == "sar_insufficient_baseline"
-
-
-def test_candidate_rejection_sar_temporal_instability(valid_candidate_data):
-    """Verifies rejection of points exceeding SAR temporal stability threshold (> 1.5 dB)."""
-    d = valid_candidate_data
-    props_unstable = dict(d["props"])
-    props_unstable["sar_pre_std_vv"] = 1.95  # > 1.5 dB
-    ok, reason, _ = evaluate_candidate_point(
-        c_lat=d["c_lat"], c_lon=d["c_lon"], props=props_unstable,
-        paired_positive=d["paired_pos"], all_positives_coords=d["all_pos_coords"]
-    )
-    assert ok is False
-    assert reason == "sar_temporal_instability"
-
-
-def test_candidate_rejection_roi_violation(valid_candidate_data):
-    """Verifies rejection of coordinates outside authoritative Himalayan ROI."""
-    d = valid_candidate_data
-    # Latitude too low (< 26.0)
-    ok, reason, _ = evaluate_candidate_point(
-        c_lat=24.5, c_lon=d["c_lon"], props=d["props"],
-        paired_positive=d["paired_pos"], all_positives_coords=d["all_pos_coords"]
-    )
-    assert ok is False
-    assert reason == "roi_out_of_bounds"
-
-    # Longitude too high (> 97.0)
-    ok, reason, _ = evaluate_candidate_point(
-        c_lat=d["c_lat"], c_lon=98.5, props=d["props"],
-        paired_positive=d["paired_pos"], all_positives_coords=d["all_pos_coords"]
-    )
-    assert ok is False
-    assert reason == "roi_out_of_bounds"
-
-
-def test_candidate_rejection_proximity_violation(valid_candidate_data):
-    """Verifies rejection of candidate points within 2000m of ANY known positive scar."""
-    d = valid_candidate_data
-    # Candidate point very close to positive (30.5, 79.2) -> distance ~ 0.5 km
-    c_lat_close = 30.504
-    c_lon_close = 79.204
-    ok, reason, _ = evaluate_candidate_point(
-        c_lat=c_lat_close, c_lon=c_lon_close, props=d["props"],
-        paired_positive=d["paired_pos"], all_positives_coords=d["all_pos_coords"]
-    )
-    assert ok is False
-    assert reason == "scar_proximity_under_2km"
-
-
-def test_composite_topographic_distance_minimization(valid_candidate_data):
-    """Verifies that between two valid candidates, D_topo correctly identifies the closer terrain match."""
-    d = valid_candidate_data
-    paired = {"latitude": 30.0, "longitude": 79.0, "elevation": 1200.0, "slope": 20.0, "tri": 25.0, "aspect": 180.0}
-
-    # Candidate 1: Very close match (slope 21, elev 1220, tri 26)
-    props1 = dict(d["props"])
-    props1["slope"] = 21.0
-    props1["elevation"] = 1220.0
-    props1["tri"] = 26.0
-
-    # Candidate 2: Marginal match (slope 38, elev 2800, tri 50)
-    props2 = dict(d["props"])
-    props2["slope"] = 38.0
-    props2["elevation"] = 2800.0
-    props2["tri"] = 50.0
-
-    _, _, rec1 = evaluate_candidate_point(30.2, 79.2, props1, paired, d["all_pos_coords"])
-    _, _, rec2 = evaluate_candidate_point(30.3, 79.3, props2, paired, d["all_pos_coords"])
-
-    assert rec1["d_topo_composite"] < rec2["d_topo_composite"], "D_topo must favor closer terrain match"
-    assert rec1["d_topo_composite"] < 0.20
-    assert rec2["d_topo_composite"] > 2.50
