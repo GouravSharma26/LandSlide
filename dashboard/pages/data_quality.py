@@ -27,19 +27,6 @@ def render(filters: Dict[str, Any]) -> None:
         unsafe_allow_html=True,
     )
 
-    # Operational Disclaimer
-    st.markdown(
-        """
-        <div class="alert-box alert-danger">
-            <span style="font-size: 1.3rem;">🛑</span>
-            <div>
-                <b>Research Prototype Disclaimer:</b> This software is an academic geospatial ML research system. It is <b>NOT an operational real-time early-warning system</b>. Do not use this tool for civil emergency alerts or evacuation decisions.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
     # Load artifacts
     funnel_df = load_preprocessing_funnel()
     missing_df = load_feature_missingness()
@@ -48,10 +35,10 @@ def render(filters: Dict[str, Any]) -> None:
 
     # Data Quality KPIs
     render_kpi_row([
-        {"label": "Rainfall Completeness", "value": "100.0%", "subtext": "CHIRPS daily (0 nulls across 254 pts)", "highlight_color": "cyan", "icon": "🌧️"},
-        {"label": "SAR Completeness", "value": "97.2%", "subtext": "Sentinel-1 IW GRD (5–7 swath edge nulls)", "highlight_color": "cyan", "icon": "🛰️"},
-        {"label": "Optical Missingness", "value": "31.5%", "subtext": "Monsoon cloud obscuration (80 nulls)", "highlight_color": "danger", "icon": "☁️"},
-        {"label": "Control Quality", "value": "Version 1.0 (Flat)", "subtext": "Version 2.0 pending Colab GEE extraction", "highlight_color": "purple", "icon": "⚖️"},
+        {"label": "Rainfall Completeness", "value": "100.0%", "subtext": "CHIRPS daily (0 nulls across 254 pts)", "highlight_color": "cyan"},
+        {"label": "SAR Completeness", "value": "97.2%", "subtext": "Sentinel-1 IW GRD (5–7 swath edge nulls)", "highlight_color": "cyan"},
+        {"label": "Optical Missingness", "value": "31.5%", "subtext": "Monsoon cloud obscuration (80 nulls)", "highlight_color": "danger"},
+        {"label": "Control Quality", "value": "Version 1.0 (Flat)", "subtext": "Version 2.0 pending Colab GEE extraction", "highlight_color": "purple"},
     ])
 
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
@@ -148,7 +135,7 @@ def render(filters: Dict[str, Any]) -> None:
     with d1:
         if not funnel_df.empty:
             st.download_button(
-                "📥 Download Preprocessing Funnel CSV",
+                "Download Preprocessing Funnel CSV",
                 funnel_df.to_csv(index=False),
                 "himalayan_preprocessing_funnel.csv",
                 "text/csv",
@@ -157,7 +144,7 @@ def render(filters: Dict[str, Any]) -> None:
     with d2:
         if not missing_df.empty:
             st.download_button(
-                "📥 Download Missingness Audit CSV",
+                "Download Missingness Audit CSV",
                 missing_df.to_csv(index=False),
                 "himalayan_feature_missingness.csv",
                 "text/csv",

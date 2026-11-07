@@ -628,7 +628,7 @@ def render_fold_metrics_bar_chart(fold_df: pd.DataFrame, title: str = "Fold-Wise
     fig.add_annotation(
         x="Fold 4",
         y=0.15,
-        text="⚠️ Single-Class Test Partition<br>(N=37 neg, 0 pos in Kashmir cluster)",
+        text="Single-Class Test Partition<br>(N=37 neg, 0 pos in Kashmir cluster)",
         showarrow=True,
         arrowhead=2,
         arrowcolor=THEME_COLORS["warning"],

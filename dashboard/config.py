@@ -127,14 +127,20 @@ THEME_COLORS = {
     "background": "#0E1117",
     "card_bg": "#1E293B",
     "card_border": "#334155",
-    "primary": "#00F0FF",       # Electric Cyan
-    "secondary": "#38BDF8",     # Sky Blue
-    "accent_purple": "#A855F7", # Deep Purple
-    "positive": "#EF4444",      # Crimson Red (Landslide Hazard)
-    "negative": "#10B981",      # Emerald Green (Stable Control)
-    "warning": "#F59E0B",       # Amber Warning
-    "text_main": "#F8FAFC",
-    "text_muted": "#94A3B8",
+    "primary": "#00F0FF",         # Electric Cyan
+    "secondary": "#38BDF8",       # Sky Blue
+    "accent_blue": "#38BDF8",     # Sky Blue alias
+    "accent_purple": "#A855F7",   # Deep Purple
+    "positive": "#EF4444",        # Crimson Red (Landslide Hazard)
+    "danger": "#EF4444",          # Crimson Red alias for hazard/positive
+    "negative": "#10B981",        # Emerald Green (Stable Control)
+    "success": "#10B981",         # Emerald Green alias for control
+    "warning": "#F59E0B",         # Amber Warning
+    "text_main": "#F8FAFC",       # Primary text
+    "text_primary": "#F8FAFC",    # Primary text alias
+    "text_muted": "#94A3B8",      # Secondary text
+    "text_secondary": "#94A3B8",  # Secondary text alias
+    "grid_color": "rgba(255, 255, 255, 0.07)", # Chart grid lines
 }
 
 # Scientific Status Badges

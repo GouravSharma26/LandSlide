@@ -90,28 +90,24 @@ def render(filters: Dict[str, Any]) -> None:
             "value": raw_count,
             "subtext": "Global NASA COOLR catalog (1988–2021)",
             "highlight_color": "blue",
-            "icon": "📥",
         },
         {
             "label": "Cleaned Himalayan Points",
             "value": cleaned_count,
             "subtext": "Quality-screened N=254 paired dataset",
             "highlight_color": "cyan",
-            "icon": "🎯",
         },
         {
             "label": "Confirmed Rainfall Events",
             "value": pos_count,
             "subtext": "2017–2020 Sentinel active baseline",
             "highlight_color": "purple",
-            "icon": "🏔️",
         },
         {
             "label": "Diagnostic Controls (V1.0)",
             "value": neg_count,
             "subtext": "Unstratified baseline controls (slope < 5°)",
             "highlight_color": "cyan",
-            "icon": "🛡️",
         },
     ]
     render_kpi_row(kpis_row1)
@@ -125,28 +121,24 @@ def render(filters: Dict[str, Any]) -> None:
             "value": best_det_auroc,
             "subtext": "Workflow A (100km purged spatial CV)",
             "highlight_color": "purple",
-            "icon": "⚡",
         },
         {
             "label": "Susceptibility Peak AUROC",
             "value": best_susc_auroc,
             "subtext": "Workflow B Core (Strictly pre-event)",
             "highlight_color": "cyan",
-            "icon": "🔥",
         },
         {
             "label": "Regional Susceptibility Grid",
             "value": f"{grid_cells} cells",
             "subtext": "0.5° macro resolution (~55 km lattice)",
             "highlight_color": "blue",
-            "icon": "🗺️",
         },
         {
             "label": "Spatial Purging Standard",
             "value": f"{filters.get('purge_distance', '100 km')}",
             "subtext": "Outer test-train geographic separation",
             "highlight_color": "cyan",
-            "icon": "📏",
         },
     ]
     render_kpi_row(kpis_row2)

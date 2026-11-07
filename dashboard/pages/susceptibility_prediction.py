@@ -37,7 +37,7 @@ def render(filters: Dict[str, Any]) -> None:
         """
         <div style="background: rgba(0, 240, 255, 0.08); border-left: 4px solid #00F0FF; border-radius: 4px; padding: 12px 16px; margin-bottom: 20px;">
             <div style="font-weight: 700; color: #E0F2FE; font-size: 0.88rem; margin-bottom: 4px;">
-                🛡️ Strictly Pre-Event Predictors & Rainfall Conditioning
+                Strictly Pre-Event Predictors & Rainfall Conditioning
             </div>
             <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.5;">
                 • <strong>Strict Temporal Leakage Ban:</strong> This workflow bans all post-event observations (VH/VV post, dVH, dVV), event-day rainfall (rain_1d, 7d), inventory labels, and coordinates (latitude/longitude).<br>
@@ -101,10 +101,10 @@ def render(filters: Dict[str, Any]) -> None:
     xgb_pr = float(xgb_row["prauc"].values[0]) if not xgb_row.empty else 0.978
 
     render_kpi_row([
-        {"label": f"RF AUROC ({cfg_key.split()[0]})", "value": f"{rf_auc:.3f}", "subtext": "100km purged spatial CV", "highlight_color": "cyan", "icon": "🌲"},
-        {"label": f"RF PR-AUC ({cfg_key.split()[0]})", "value": f"{rf_pr:.3f}", "subtext": "Precision-recall integral", "highlight_color": "purple", "icon": "📈"},
-        {"label": f"XGBoost AUROC ({cfg_key.split()[0]})", "value": f"{xgb_auc:.3f}", "subtext": "Directional routing for missingness", "highlight_color": "cyan", "icon": "⚡"},
-        {"label": "Purge Standard", "value": "100 km", "subtext": "Zero train within 100km of test", "highlight_color": "blue", "icon": "📏"},
+        {"label": f"RF AUROC ({cfg_key.split()[0]})", "value": f"{rf_auc:.3f}", "subtext": "100km purged spatial CV", "highlight_color": "cyan"},
+        {"label": f"RF PR-AUC ({cfg_key.split()[0]})", "value": f"{rf_pr:.3f}", "subtext": "Precision-recall integral", "highlight_color": "purple"},
+        {"label": f"XGBoost AUROC ({cfg_key.split()[0]})", "value": f"{xgb_auc:.3f}", "subtext": "Directional routing for missingness", "highlight_color": "cyan"},
+        {"label": "Purge Standard", "value": "100 km", "subtext": "Zero train within 100km of test", "highlight_color": "blue"},
     ])
 
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
@@ -177,7 +177,7 @@ def render(filters: Dict[str, Any]) -> None:
     d1, d2 = st.columns(2)
     with d1:
         st.download_button(
-            "📥 Download Susceptibility Predictions CSV",
+            "Download Susceptibility Predictions CSV",
             preds_df.to_csv(index=False),
             "workflow_b_susceptibility_predictions.csv",
             "text/csv",
@@ -186,7 +186,7 @@ def render(filters: Dict[str, Any]) -> None:
     with d2:
         if not grid_df.empty:
             st.download_button(
-                "📥 Download 0.5° Regional Grid CSV (765 Cells)",
+                "Download 0.5° Regional Grid CSV (765 Cells)",
                 grid_df.to_csv(index=False),
                 "himalayan_susceptibility_grid_0.5deg.csv",
                 "text/csv",

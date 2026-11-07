@@ -63,7 +63,7 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown(
         """
         <div class="content-card">
-            <div class="card-title">🗺️ Geospatial Layer & Visualization Controls</div>
+            <div class="card-title">Geospatial Layer & Visualization Controls</div>
             <div class="card-description">Toggle layers, choose render mode, and filter observation points across the Himalayan mountain arc.</div>
         </div>
         """,
@@ -111,10 +111,10 @@ def render(filters: Dict[str, Any]) -> None:
     grid_cells_visible = len(df_grid_tagged)
 
     geo_kpis = [
-        {"label": "Active Region", "value": selected_region.split("(")[0].strip(), "highlight_color": "blue", "icon": "📍"},
-        {"label": "Visible Positives", "value": f"{pos_visible}", "subtext": "Historical ground failure points", "highlight_color": "purple", "icon": "🔴"},
-        {"label": "Visible Controls", "value": f"{neg_visible}", "subtext": "Unstratified flat-terrain controls", "highlight_color": "cyan", "icon": "🟢"},
-        {"label": "Grid Cells (0.5°)", "value": f"{grid_cells_visible}", "subtext": "Synoptic climate-terrain cells", "highlight_color": "blue", "icon": "🗺️"},
+        {"label": "Active Region", "value": selected_region.split("(")[0].strip(), "highlight_color": "blue"},
+        {"label": "Visible Positives", "value": f"{pos_visible}", "subtext": "Historical ground failure points", "highlight_color": "purple"},
+        {"label": "Visible Controls", "value": f"{neg_visible}", "subtext": "Unstratified flat-terrain controls", "highlight_color": "cyan"},
+        {"label": "Grid Cells (0.5°)", "value": f"{grid_cells_visible}", "subtext": "Synoptic climate-terrain cells", "highlight_color": "blue"},
     ]
     render_kpi_row(geo_kpis)
 
@@ -144,7 +144,7 @@ def render(filters: Dict[str, Any]) -> None:
         st.pydeck_chart(deck)
 
     # Data Table Preview
-    with st.expander("🔍 Inspect Underlying Spatial Coordinates Table", expanded=False):
+    with st.expander("Inspect Underlying Spatial Coordinates Table", expanded=False):
         st.dataframe(
             df_p2_tagged[["latitude", "longitude", "event_date", "Location Accuracy", "Landslide Trigger", "label", "region_subzone"]].head(50),
             use_container_width=True,

@@ -35,7 +35,6 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown(
         """
         <div class="alert-box alert-warning">
-            <span style="font-size: 1.25rem;">⚠️</span>
             <div>
                 <b>Missingness & Multicollinearity Notice:</b> Sentinel-2 optical indices suffer from <b>31.5% null values (80/254 points)</b> due to heavy monsoon cloud cover. In contrast, all-weather Sentinel-1 C-band SAR and CHIRPS precipitation have &gt;97% completeness. Variance Inflation Factors (VIF) reflect severe collinearity among SAR polarizations, which is safely handled by tree ensembles through fold-isolated feature routing.
             </div>
@@ -46,11 +45,11 @@ def render(filters: Dict[str, Any]) -> None:
 
     # Domain Tabs
     domain_tabs = st.tabs([
-        "🌧️ Rainfall & Hydrology",
-        "⛰️ Topographic Derivatives",
-        "🛰️ SAR Backscatter (Sentinel-1)",
-        "🌿 Optical Indices (Sentinel-2)",
-        "🔥 Correlation & VIF Analysis",
+        "Rainfall & Hydrology",
+        "Topographic Derivatives",
+        "SAR Backscatter (Sentinel-1)",
+        "Optical Indices (Sentinel-2)",
+        "Correlation & VIF Analysis",
     ])
 
     with domain_tabs[0]:

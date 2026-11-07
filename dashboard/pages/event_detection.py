@@ -40,7 +40,7 @@ def render(filters: Dict[str, Any]) -> None:
         """
         <div style="background: rgba(168, 85, 247, 0.08); border-left: 4px solid #A855F7; border-radius: 4px; padding: 12px 16px; margin-bottom: 20px;">
             <div style="font-weight: 700; color: #E9D5FF; font-size: 0.88rem; margin-bottom: 4px;">
-                ⚠️ Positional Scale Mismatch & Scope Classification: Experimental Point-Zone Disturbance Assessment
+                Positional Scale Mismatch & Scope Classification: Experimental Point-Zone Disturbance Assessment
             </div>
             <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.5;">
                 • <strong>Catalog Coordinate Uncertainty:</strong> 57.5% of NASA COOLR events (73/127) are documented with <strong>±5 km positional uncertainty</strong>. Only 10 points are "Known exactly".<br>
@@ -73,10 +73,10 @@ def render(filters: Dict[str, Any]) -> None:
     xgb_prauc = float(xgb_purged["prauc"].values[0]) if not xgb_purged.empty else 0.980
 
     render_kpi_row([
-        {"label": "RF AUROC (100km Purged)", "value": f"{rf_auc:.3f}", "subtext": "Out-of-fold pooled discrimination", "highlight_color": "purple", "icon": "🌲"},
-        {"label": "RF PR-AUC (100km Purged)", "value": f"{rf_prauc:.3f}", "subtext": "Precision-recall integral", "highlight_color": "cyan", "icon": "📈"},
-        {"label": "XGBoost AUROC", "value": f"{xgb_auc:.3f}", "subtext": "Directional routing for missing values", "highlight_color": "purple", "icon": "⚡"},
-        {"label": "Spatial Purge Standard", "value": "100 km", "subtext": "Zero train points within 100km of test", "highlight_color": "blue", "icon": "📏"},
+        {"label": "RF AUROC (100km Purged)", "value": f"{rf_auc:.3f}", "subtext": "Out-of-fold pooled discrimination", "highlight_color": "purple"},
+        {"label": "RF PR-AUC (100km Purged)", "value": f"{rf_prauc:.3f}", "subtext": "Precision-recall integral", "highlight_color": "cyan"},
+        {"label": "XGBoost AUROC", "value": f"{xgb_auc:.3f}", "subtext": "Directional routing for missing values", "highlight_color": "purple"},
+        {"label": "Spatial Purge Standard", "value": "100 km", "subtext": "Zero train points within 100km of test", "highlight_color": "blue"},
     ])
 
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
@@ -218,7 +218,7 @@ def render(filters: Dict[str, Any]) -> None:
 
     # Download Button
     st.download_button(
-        "📥 Download Detection Predictions CSV (with calibrated probabilities)",
+        "Download Detection Predictions CSV (with calibrated probabilities)",
         preds_df.to_csv(index=False),
         "workflow_a_detection_predictions.csv",
         "text/csv",

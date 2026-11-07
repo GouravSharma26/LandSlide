@@ -36,7 +36,7 @@ def render_sidebar() -> Dict[str, Any]:
 
         st.markdown("<hr style='border: none; border-top: 1px solid #1E293B; margin: 0.6rem 0;'>", unsafe_allow_html=True)
 
-        # 8 Research Sections Navigation
+        # 7 Research Sections Navigation
         pages = [
             "Executive Overview",
             "Geographic Explorer",
@@ -45,27 +45,15 @@ def render_sidebar() -> Dict[str, Any]:
             "Event Detection",
             "Susceptibility Prediction",
             "Explainability & Uncertainty",
-            "Research Methodology & Governance",
         ]
 
-        page_icons = {
-            "Executive Overview": "📊",
-            "Geographic Explorer": "🗺️",
-            "Data Catalog & Quality": "🛡️",
-            "Environmental Analysis": "🛰️",
-            "Event Detection": "⚡",
-            "Susceptibility Prediction": "🔥",
-            "Explainability & Uncertainty": "🧠",
-            "Research Methodology & Governance": "📜",
-        }
-
-        if "selected_page" not in st.session_state:
+        if "selected_page" not in st.session_state or st.session_state["selected_page"] not in pages:
             st.session_state["selected_page"] = pages[0]
 
         selected_page = st.radio(
             "Navigation",
             pages,
-            format_func=lambda p: f"{page_icons.get(p, '•')}  {p}",
+            format_func=lambda p: f"{pages.index(p) + 1}.  {p}",
             label_visibility="collapsed",
             key="nav_radio",
         )

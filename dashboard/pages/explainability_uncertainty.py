@@ -39,10 +39,10 @@ def render(filters: Dict[str, Any]) -> None:
 
     # Section KPIs
     render_kpi_row([
-        {"label": "Top Detection Driver", "value": "Slope (°)", "subtext": "XGB Mean |SHAP| = 3.827", "highlight_color": "purple", "icon": "⛰️"},
-        {"label": "Top Susceptibility Driver", "value": "Slope (°)", "subtext": "XGB Mean |SHAP| = 2.931", "highlight_color": "cyan", "icon": "📐"},
-        {"label": "Secondary Susc. Driver", "value": "TRI (m)", "subtext": "Terrain Ruggedness Index", "highlight_color": "cyan", "icon": "📊"},
-        {"label": "Purging Range Evaluated", "value": "437.8 km", "subtext": "Empirical semivariogram range", "highlight_color": "blue", "icon": "📏"},
+        {"label": "Top Detection Driver", "value": "Slope (°)", "subtext": "XGB Mean |SHAP| = 3.827", "highlight_color": "purple"},
+        {"label": "Top Susceptibility Driver", "value": "Slope (°)", "subtext": "XGB Mean |SHAP| = 2.931", "highlight_color": "cyan"},
+        {"label": "Secondary Susc. Driver", "value": "TRI (m)", "subtext": "Terrain Ruggedness Index", "highlight_color": "cyan"},
+        {"label": "Purging Range Evaluated", "value": "437.8 km", "subtext": "Empirical semivariogram range", "highlight_color": "blue"},
     ])
 
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
@@ -56,7 +56,7 @@ def render(filters: Dict[str, Any]) -> None:
         """
     )
 
-    tab_shap_det, tab_shap_susc = st.tabs(["⚡ Workflow A: Detection Features", "🔥 Workflow B: Susceptibility Core Features"])
+    tab_shap_det, tab_shap_susc = st.tabs(["Workflow A: Detection Features", "Workflow B: Susceptibility Core Features"])
 
     with tab_shap_det:
         if not det_shap.empty:

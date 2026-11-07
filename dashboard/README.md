@@ -22,7 +22,7 @@ Access the application locally at `http://localhost:8501`.
 
 ## Dashboard Architecture
 
-The dashboard is organized into eight analytical sections accessible through the sidebar navigation:
+The dashboard is organized into seven analytical sections accessible through the sidebar navigation:
 
 1. **Executive Overview (`dashboard/pages/overview.py`):**
    - High-level KPIs: Raw NASA catalog reports (14,750), cleaned paired points (254), catalogued rainfall events meeting criteria (127), and 0.5° regional grid cells (765).
@@ -57,12 +57,6 @@ The dashboard is organized into eight analytical sections accessible through the
    - Global TreeSHAP feature attributions for Random Forest and XGBoost.
    - Explanation of radar change attribution in the presence of $\pm 5\text{ km}$ catalog location uncertainty.
    - Spatial purging sensitivity curves across buffer distances ($0, 50, 100, 200, 437.8\text{ km}$).
-
-8. **Research Methodology & Governance (`dashboard/pages/methodology_governance.py`):**
-   - Mathematical formulations of both modeling workflows.
-   - Prohibited-feature matrix enforcing zero temporal and spatial leakage.
-   - Spatial 5-fold cross-validation architecture diagram with 100 km buffer purging.
-   - Downloadable experiment provenance metadata (`experiment_metadata.json`).
 
 ---
 

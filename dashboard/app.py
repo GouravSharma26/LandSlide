@@ -23,13 +23,11 @@ from dashboard.pages import (
     event_detection,
     susceptibility_prediction,
     explainability_uncertainty,
-    methodology_governance,
 )
 
 # Set page configuration
 st.set_page_config(
     page_title="Himalayan Landslide Intelligence",
-    page_icon="🏔️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -52,7 +50,7 @@ def main():
     filters = render_sidebar()
     selected_page = filters["page"]
 
-    # 8-Section Router Table
+    # 7-Section Router Table
     page_routers = {
         "Executive Overview": overview.render,
         "Geographic Explorer": geographic_explorer.render,
@@ -61,7 +59,6 @@ def main():
         "Event Detection": event_detection.render,
         "Susceptibility Prediction": susceptibility_prediction.render,
         "Explainability & Uncertainty": explainability_uncertainty.render,
-        "Research Methodology & Governance": methodology_governance.render,
     }
 
     render_fn = page_routers.get(selected_page)

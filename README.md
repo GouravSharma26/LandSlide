@@ -79,7 +79,7 @@ The following metrics reflect the authoritative artifact build (`artifacts/metad
 
 ## Interactive Dashboard Structure
 
-The research dashboard is organized into eight analytical sections:
+The research dashboard is organized into seven analytical sections:
 
 1. **Executive Overview (`dashboard/pages/overview.py`):** Key metrics, annual event distribution (2017–2020), monthly monsoon seasonality, and workflow status cards.
 2. **Geographic Explorer (`dashboard/pages/geographic_explorer.py`):** Interactive Mapbox and PyDeck views of positive events, controls, and regional macro-grid overlays.
@@ -88,7 +88,6 @@ The research dashboard is organized into eight analytical sections:
 5. **Event Detection (`dashboard/pages/event_detection.py`):** Fold-wise AUROC/PR-AUC reporting, threshold slider with confusion matrix, out-of-fold curves, and differential radar diagnostic plots.
 6. **Susceptibility Prediction (`dashboard/pages/susceptibility_prediction.py`):** Comparison of Core, Optical-Enhanced, and Reduced models, alongside the 0.5° regional lattice explorer and model disagreement analysis.
 7. **Explainability & Uncertainty (`dashboard/pages/explainability_uncertainty.py`):** TreeSHAP feature attributions and spatial purging sensitivity curves ($0, 50, 100, 200, 437.8\text{ km}$).
-8. **Research Methodology & Governance (`dashboard/pages/methodology_governance.py`):** Mathematical formulations, prohibited-feature contracts, spatial CV diagrams, limitations, and experiment metadata download.
 
 ---
 
