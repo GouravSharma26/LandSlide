@@ -42,8 +42,6 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     confusion_matrix,
-    roc_curve,
-    precision_recall_curve,
 )
 from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold, RandomizedSearchCV
 from sklearn.pipeline import Pipeline

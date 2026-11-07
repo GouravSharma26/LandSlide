@@ -2,7 +2,6 @@
 
 from typing import Dict, Any, Optional
 import plotly.graph_objects as go
-import plotly.express as px
 from dashboard.config import THEME_COLORS
 
 

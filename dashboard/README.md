@@ -1,95 +1,74 @@
-# Himalayan Landslide Intelligence Dashboard
+# Himalayan Landslide Intelligence Research Dashboard
 
-A modern, high-fidelity geospatial intelligence platform for rainfall-triggered landslide detection, spatial cross-validation evaluation, and regional susceptibility analytics across the Himalayan mountain belt.
-
----
-
-## 🏔️ Overview
-
-The **Himalayan Landslide Intelligence Dashboard** is a full-featured interactive analytics platform built with Streamlit, Plotly, PyDeck, Scikit-learn, XGBoost, and SHAP. It visualizes data from NASA's Global Landslide Catalog (COOLR), ESA Sentinel-1 SAR (IW GRD), ESA Sentinel-2 MSI surface reflectance, CHIRPS daily precipitation, and USGS SRTM 30m digital elevation derivatives across the Himalayan belt ($26.0^\circ\text{N} - 35.0^\circ\text{N}$, $74.0^\circ\text{E} - 97.0^\circ\text{E}$).
+An interactive visualization and analytics platform built with Streamlit, Plotly, PyDeck, Scikit-learn, XGBoost, and SHAP to support geospatial research on rainfall-triggered landslides across the Himalayan mountain belt ($26.0^\circ\text{N} - 35.5^\circ\text{N}$, $74.0^\circ\text{E} - 97.0^\circ\text{E}$).
 
 ---
 
-## 🚀 Quickstart
+## Quickstart
 
-### 1. Requirements & Prerequisites
-- Python 3.11+
-- Virtual environment (recommended)
-
-### 2. Installation
-Install project dependencies from `dashboard/requirements.txt`:
-
+### Installation
+From the project root:
 ```bash
 pip install -r dashboard/requirements.txt
 ```
 
-### 3. Launch Application
-Run the dashboard locally from the workspace root:
-
+### Launch the Dashboard
 ```bash
 streamlit run dashboard/app.py
 ```
-
-The application will be accessible at `http://localhost:8501`.
-
----
-
-## 🧭 Dashboard Architecture & Pages
-
-The application is structured into seven modular analytical views accessible via the dark navy sidebar:
-
-1. **Executive Overview (`pages/overview.py`):**
-   - High-level KPIs: Raw reports (14,750), cleaned observations (254), model AUROC (0.976), 0.5° grid cells (765), and date ranges.
-   - Annual event trends, monthly monsoon sensitivity charts, trigger distribution, and benchmark model comparison scorecards.
-
-2. **Geographic Explorer (`pages/geographic_explorer.py`):**
-   - Interactive spatial mapping using Plotly Mapbox and PyDeck 3D column layers.
-   - Landslide positive events vs. hard control negatives with hover tooltips and regional subzone filtering.
-
-3. **Landslide Data Explorer (`pages/data_explorer.py`):**
-   - Interactive search and query engine over NASA COOLR reports and cleaned observations.
-   - Multi-attribute filtering (trigger, accuracy, source catalog) and CSV download capabilities.
-
-4. **Environmental Analysis (`pages/environmental_analysis.py`):**
-   - Multisource feature distributions across 4 key earth observation domains:
-     - *Precipitation:* CHIRPS 1-day, 7-day, 30-day cumulative rainfall and Antecedent Precipitation Index (API).
-     - *Topography:* SRTM 30m Elevation, Slope, Aspect, Curvature, TRI, and TWI.
-     - *SAR Radar:* Sentinel-1 VV/VH backscatter and pre/post differential backscatter ($\Delta\text{VV}$, $\Delta\text{VH}$).
-     - *Optical:* Sentinel-2 surface reflectance NDVI, NDWI, and Bare Soil Index (BSI).
-   - Interactive Pearson correlation heatmap and transparent missingness visualization.
-
-5. **Machine Learning Performance (`pages/model_performance.py`):**
-   - Spatial 5-fold cross-validation benchmarking (Azimuthal Equidistant KMeans clustered folds).
-   - Out-of-fold ROC curves, Precision-Recall curves, confusion matrices with adjustable decision thresholds.
-   - Global feature importance (Random Forest MDI vs. XGBoost Gain) and TreeExplainer SHAP attribution.
-
-6. **Susceptibility Analysis (`pages/susceptibility_analysis.py`):**
-   - Macro-scale $0.5^\circ \times 0.5^\circ$ (~55 km) regional susceptibility grid.
-   - Dual model outputs (RF and XGBoost) and ensemble susceptibility score.
-   - Spatial uncertainty diagnostics: RF tree standard deviation and inter-model disagreement ($|\text{RF} - \text{XGB}|$).
-   - Susceptibility zonation classification (Very Low to Very High).
-
-7. **Data Quality & Methodology (`pages/data_quality.py`):**
-   - Transparent missingness audit (documenting 31.5% optical monsoon cloud obscuration).
-   - Step-by-step cleaning funnel from 14,750 raw records down to 127 positive events.
-   - Honest documentation of the negative-sampling terrain confound and sample size limitations.
-   - Operational safety disclaimer (not a real-time warning system).
+Access the application locally at `http://localhost:8501`.
 
 ---
 
-## 🧪 Automated Testing
+## Dashboard Architecture
 
-Execute the test suite to verify data loading, bounding box constraints, schema validation, and metric consistency:
+The dashboard is organized into eight analytical sections accessible through the sidebar navigation:
 
-```bash
-pytest tests/ -v
-```
+1. **Executive Overview (`dashboard/pages/overview.py`):**
+   - High-level KPIs: Raw NASA catalog reports (14,750), cleaned paired points (254), catalogued rainfall events meeting criteria (127), and 0.5° regional grid cells (765).
+   - Temporal event trends (2017–2020), monsoon seasonality distribution, reported trigger breakdown, and dual-workflow summary.
+
+2. **Geographic Explorer (`dashboard/pages/geographic_explorer.py`):**
+   - Interactive spatial visualization with Plotly Mapbox and PyDeck 3D column layers.
+   - Spatial distribution of catalogued events versus diagnostic negative controls, with physiographic subregion filtering.
+   - Macro-regional 0.5° susceptibility grid overlay toggle.
+
+3. **Data Catalog & Quality (`dashboard/pages/data_quality.py`):**
+   - 7-stage preprocessing funnel from 14,750 raw global reports to 127 catalogued Himalayan events.
+   - Feature missingness audit documenting the 31.5% optical null rate during the monsoon season.
+   - Version 1.0 versus Version 2.0 lineage comparison and two-sample Kolmogorov-Smirnov test confirming V1 flat-terrain bias ($p < 10^{-50}$).
+
+4. **Environmental Analysis (`dashboard/pages/environmental_analysis.py`):**
+   - Multisource feature distributions across precipitation (CHIRPS), topography (SRTM), SAR backscatter (Sentinel-1), and optical indices (Sentinel-2).
+   - Correlation heatmaps and descriptive Variance Inflation Factor (VIF) tables.
+
+5. **Event Detection (`dashboard/pages/event_detection.py`):**
+   - Workflow A: Experimental Point-Zone Disturbance Assessment.
+   - Fold-wise metric reporting with explicit disclosure of Fold 4 (Kashmir cluster containing 0 positive test instances, resulting in undefined fold AUROC/PR-AUC).
+   - Interactive decision threshold slider, confusion matrix, and out-of-fold ROC/PR curves.
+   - Differential radar change diagnostics ($\Delta\text{VH}$ vs $\Delta\text{VV}$).
+
+6. **Susceptibility Prediction (`dashboard/pages/susceptibility_prediction.py`):**
+   - Workflow B: Rainfall-Conditioned Susceptibility Diagnostic Baseline.
+   - Comparison across Cloud-Independent Core (10 features), Optical-Enhanced (13 features), and Reduced (8 features, slope and TRI excluded) configurations.
+   - Macro-regional 0.5° lattice explorer (765 cells, September 2026 synoptic late-monsoon window) and inter-model disagreement analysis ($|\text{RF} - \text{XGB}|$).
+
+7. **Explainability & Uncertainty (`dashboard/pages/explainability_uncertainty.py`):**
+   - Global TreeSHAP feature attributions for Random Forest and XGBoost.
+   - Explanation of radar change attribution in the presence of $\pm 5\text{ km}$ catalog location uncertainty.
+   - Spatial purging sensitivity curves across buffer distances ($0, 50, 100, 200, 437.8\text{ km}$).
+
+8. **Research Methodology & Governance (`dashboard/pages/methodology_governance.py`):**
+   - Mathematical formulations of both modeling workflows.
+   - Prohibited-feature matrix enforcing zero temporal and spatial leakage.
+   - Spatial 5-fold cross-validation architecture diagram with 100 km buffer purging.
+   - Downloadable experiment provenance metadata (`experiment_metadata.json`).
 
 ---
 
-## 🛡️ Scientific Integrity & Provenance
+## Scientific Governance and Limitations
 
-- **Terrain Confound:** In Phase 2, negative samples were constrained to slope $< 5^\circ$. Consequently, models easily differentiate steep terrain from flat terrain. The *Reduced Feature Set* (excluding slope and TRI) is presented as the primary benchmark.
-- **Resolution Honesty:** The regional susceptibility grid is evaluated at $0.5^\circ$ (~55 km resolution) across 765 valid cells, suitable for macro-basin prioritization, not 30m slope-scale site hazard mapping.
-- **Zero Fabrication:** All metrics, coordinates, predictions, and feature distributions are computed directly from the project's source datasets. Missing data is never silently filled with synthetic values.
-
+- **Workflow A:** Evaluates point-zone disturbance proxies, not verified landslide scars, due to catalog coordinate error (57.5% within $\pm 5\text{ km}$).
+- **Workflow B:** Evaluated against Version 1.0 diagnostic controls (mean slope $1.43^\circ$); metrics reflect mountain-versus-plains contrast. It is not an operational slope-stability model.
+- **Version 2.0 Status:** Candidate hillslope-control protocol is designed and tested via script and Colab notebook; genuine extraction remains `EXTRACTION_PENDING_COLAB_GEE`.
+- **0.5-Degree Grid:** Represents a synoptic macro-regional climate-terrain illustration for September 2026; it is not suitable for localized engineering hazard assessments.

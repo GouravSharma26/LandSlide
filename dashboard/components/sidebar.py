@@ -1,8 +1,8 @@
 """Sidebar navigation and global research filter panel."""
 
 import streamlit as st
-from typing import Dict, Any, List
-from dashboard.config import ASSETS_DIR, THEME_COLORS, STATUS_BADGES
+from typing import Dict, Any
+from dashboard.config import ASSETS_DIR, THEME_COLORS
 
 
 def render_sidebar() -> Dict[str, Any]:

@@ -1,13 +1,12 @@
 """Geospatial mapping components using Plotly Mapbox and PyDeck."""
 
-from typing import Optional, List, Dict, Any
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import pydeck as pdk
 
-from dashboard.config import HIMALAYAN_CENTER, THEME_COLORS, ROI_BOUNDS
+from dashboard.config import HIMALAYAN_CENTER, THEME_COLORS
 
 
 def render_observation_map(

@@ -1,10 +1,9 @@
 """Reusable Plotly charts styled for dark navy dashboard aesthetic."""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 from sklearn.metrics import roc_curve, precision_recall_curve, roc_auc_score, average_precision_score
 
 from dashboard.config import THEME_COLORS

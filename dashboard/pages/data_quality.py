@@ -12,7 +12,6 @@ from dashboard.utils.data_loader import (
 )
 from dashboard.components.kpi_cards import render_kpi_row
 from dashboard.components.charts import render_missingness_chart
-from dashboard.config import THEME_COLORS
 
 
 def render(filters: Dict[str, Any]) -> None:

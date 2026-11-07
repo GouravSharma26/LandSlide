@@ -1,7 +1,6 @@
 """Page 5: Workflow A — Landslide Event Detection (Experimental Point-Zone Disturbance Assessment)."""
 
 import streamlit as st
-import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
@@ -18,7 +17,7 @@ from dashboard.utils.data_loader import (
 from dashboard.components.kpi_cards import render_kpi_row
 from dashboard.components.charts import render_fold_metrics_bar_chart
 from dashboard.utils.visualization import apply_custom_theme
-from sklearn.metrics import roc_curve, precision_recall_curve, roc_auc_score, average_precision_score
+from sklearn.metrics import roc_curve, precision_recall_curve
 
 
 def render(filters: Dict[str, Any]) -> None:
@@ -191,7 +190,7 @@ def render(filters: Dict[str, Any]) -> None:
     # 4. SAR Disturbance Diagnostic Scatter Plot
     st.markdown("### 4. Differential SAR Backscatter Disturbance Diagnostic")
     st.markdown(
-        """
+        r"""
         Evaluating cross-polarization delta ($\Delta\text{VH}$) against co-polarization delta ($\Delta\text{VV}$).
         Ground failures typically induce surface roughening or dielectric change, altering backscatter.
         However, due to catalog coordinate uncertainty, single-pixel deltas show modest separation:

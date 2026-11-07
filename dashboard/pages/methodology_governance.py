@@ -5,7 +5,6 @@ import streamlit as st
 import pandas as pd
 from typing import Dict, Any
 
-from dashboard.config import THEME_COLORS
 from dashboard.utils.data_loader import (
     load_feature_schema,
     load_experiment_metadata,

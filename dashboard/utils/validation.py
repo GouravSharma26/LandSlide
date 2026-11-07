@@ -2,7 +2,6 @@
 
 from typing import Dict, List, Tuple, Any
 import pandas as pd
-import numpy as np
 
 from dashboard.config import ROI_BOUNDS
 

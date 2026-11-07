@@ -13,7 +13,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 import streamlit as st
-from dashboard.config import ASSETS_DIR, THEME_COLORS
+from dashboard.config import ASSETS_DIR
 from dashboard.components.sidebar import render_sidebar
 from dashboard.pages import (
     overview,

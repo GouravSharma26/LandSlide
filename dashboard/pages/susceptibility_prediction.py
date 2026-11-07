@@ -1,10 +1,7 @@
 """Page 6: Workflow B — Landslide Susceptibility Prediction (Rainfall-Conditioned Diagnostic Baseline)."""
 
 import streamlit as st
-import pandas as pd
-import numpy as np
 import plotly.express as px
-import plotly.graph_objects as go
 from typing import Dict, Any
 
 from dashboard.config import THEME_COLORS

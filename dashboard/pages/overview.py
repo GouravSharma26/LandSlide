@@ -1,16 +1,13 @@
 """Page 1: Executive Overview & High-Level Research KPIs."""
 
 import streamlit as st
-import pandas as pd
 from typing import Dict, Any
 
-from dashboard.config import THEME_COLORS
 from dashboard.utils.data_loader import (
     load_raw_landslides,
     load_phase2_cleaned,
     load_detection_metrics,
     load_susceptibility_metrics,
-    load_dataset_summary,
     load_susceptibility_grid,
 )
 from dashboard.components.kpi_cards import render_kpi_row
@@ -58,7 +55,6 @@ def render(filters: Dict[str, Any]) -> None:
     )
 
     # Load artifacts
-    summary = load_dataset_summary()
     df_raw = load_raw_landslides()
     df_p2 = load_phase2_cleaned()
     det_metrics = load_detection_metrics()

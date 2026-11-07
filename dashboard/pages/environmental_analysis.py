@@ -1,22 +1,12 @@
 """Page 4: Environmental & Remote Sensing Feature Analysis."""
 
 import streamlit as st
-import pandas as pd
-import numpy as np
 import plotly.express as px
-import plotly.graph_objects as go
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from dashboard.utils.data_loader import load_phase3_features, load_vif_report, load_feature_correlation
-from dashboard.components.kpi_cards import render_kpi_row
 from dashboard.components.charts import render_correlation_heatmap
-from dashboard.config import (
-    THEME_COLORS,
-    TOPOGRAPHIC_FEATURES,
-    OPTICAL_FEATURES,
-    SAR_FEATURES,
-    RAINFALL_FEATURES,
-)
+from dashboard.config import THEME_COLORS
 from dashboard.utils.visualization import apply_custom_theme
 
 

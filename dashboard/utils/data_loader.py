@@ -6,18 +6,12 @@ and legacy diagnostic datasets with full error handling.
 
 import json
 import logging
-from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import pandas as pd
-import numpy as np
 import streamlit as st
 import joblib
 
 from dashboard.config import (
-    COMMON_DIR,
-    DETECTION_DIR,
-    SUSCEPTIBILITY_DIR,
-    METADATA_DIR,
     DATASET_SUMMARY_PATH,
     PREPROCESSING_FUNNEL_PATH,
     FEATURE_MISSINGNESS_PATH,
@@ -28,14 +22,12 @@ from dashboard.config import (
     DETECTION_FOLD_METRICS_PATH,
     DETECTION_PREDICTIONS_PATH,
     DETECTION_CONFUSION_MATRIX_PATH,
-    DETECTION_FEATURE_IMPORTANCE_PATH,
     DETECTION_SHAP_SUMMARY_PATH,
     DETECTION_MODELS_PATH,
     SUSCEPTIBILITY_FEATURE_TABLE_PATH,
     SUSCEPTIBILITY_METRICS_PATH,
     SUSCEPTIBILITY_FOLD_METRICS_PATH,
     SUSCEPTIBILITY_PREDICTIONS_PATH,
-    SUSCEPTIBILITY_FEATURE_IMPORTANCE_PATH,
     SUSCEPTIBILITY_SHAP_SUMMARY_PATH,
     SUSCEPTIBILITY_GRID_PATH,
     SUSCEPTIBILITY_MODELS_PATH,

@@ -1,8 +1,7 @@
 """Preprocessing and filtering helpers for Himalayan Landslide Intelligence."""
 
-from typing import Optional, List, Tuple
+from typing import Optional, List
 import pandas as pd
-import numpy as np
 
 from dashboard.config import ROI_BOUNDS
 

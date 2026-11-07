@@ -1,15 +1,13 @@
 """Page 2: Interactive Geographic Explorer covering the Himalayan region."""
 
 import streamlit as st
-import pandas as pd
 from typing import Dict, Any
 
 from dashboard.utils.data_loader import (
     load_phase2_cleaned,
     load_susceptibility_grid,
-    load_raw_landslides,
 )
-from dashboard.utils.preprocessing import filter_by_bounds, assign_regional_subzones
+from dashboard.utils.preprocessing import assign_regional_subzones
 from dashboard.components.maps import (
     render_observation_map,
     render_susceptibility_grid_map,
