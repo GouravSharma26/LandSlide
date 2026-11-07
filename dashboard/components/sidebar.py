@@ -20,14 +20,11 @@ def render_sidebar() -> Dict[str, Any]:
         st.markdown(
             f"""
             <div style="margin-bottom: 0.8rem;">
-                <div style="font-size: 0.68rem; font-weight: 700; color: {THEME_COLORS['primary']}; text-transform: uppercase; letter-spacing: 0.09em;">
-                    GEOSPATIAL AI RESEARCH
-                </div>
-                <div style="font-size: 1.12rem; font-weight: 800; color: #FFFFFF; line-height: 1.25;">
-                    HIMALAYAN LANDSLIDE
+                <div style="font-size: 1.05rem; font-weight: 700; color: #FFFFFF; line-height: 1.25;">
+                    Himalayan Landslides
                 </div>
                 <div style="font-size: 0.76rem; color: #94A3B8; margin-top: 2px;">
-                    Event Detection & Susceptibility Analytics
+                    Event Detection & Susceptibility
                 </div>
             </div>
             """,
@@ -38,13 +35,13 @@ def render_sidebar() -> Dict[str, Any]:
 
         # 7 Research Sections Navigation
         pages = [
-            "Executive Overview",
-            "Geographic Explorer",
-            "Data Catalog & Quality",
+            "Overview",
+            "Study Area",
+            "Data Quality",
             "Environmental Analysis",
             "Event Detection",
             "Susceptibility Prediction",
-            "Explainability & Uncertainty",
+            "Feature Importance",
         ]
 
         if "selected_page" not in st.session_state or st.session_state["selected_page"] not in pages:
@@ -64,7 +61,7 @@ def render_sidebar() -> Dict[str, Any]:
         st.markdown(
             f"""
             <div style="font-size: 0.70rem; font-weight: 700; color: {THEME_COLORS['secondary']}; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem;">
-                RESEARCH DOMAIN FILTERS
+                FILTERS
             </div>
             """,
             unsafe_allow_html=True,
@@ -106,27 +103,27 @@ def render_sidebar() -> Dict[str, Any]:
 
         st.markdown("<hr style='border: none; border-top: 1px solid #1E293B; margin: 1.0rem 0 0.6rem 0;'>", unsafe_allow_html=True)
 
-        # Scientific Provenance Badges
+        # Dataset and model status
         st.markdown(
             f"""
             <div style="font-size: 0.68rem; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;">
-                PROVENANCE STATUS
+                STATUS
             </div>
-            <div style="background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38BDF8; padding: 5px 8px; margin-bottom: 6px; border-radius: 2px;">
-                <div style="font-size: 0.72rem; font-weight: 700; color: #38BDF8;">Version 1.0</div>
-                <div style="font-size: 0.66rem; color: #CBD5E1;">Historical Diagnostic Baseline (N=254)</div>
+            <div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38BDF8; padding: 5px 8px; margin-bottom: 6px; border-radius: 2px;">
+                <div style="font-size: 0.72rem; font-weight: 600; color: #38BDF8;">Version 1.0</div>
+                <div style="font-size: 0.66rem; color: #CBD5E1;">Diagnostic baseline (N=254)</div>
             </div>
-            <div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; padding: 5px 8px; margin-bottom: 6px; border-radius: 2px;">
-                <div style="font-size: 0.72rem; font-weight: 700; color: #F59E0B;">Version 2.0</div>
-                <div style="font-size: 0.66rem; color: #CBD5E1;">EXTRACTION_PENDING_COLAB_GEE</div>
+            <div style="background: rgba(245, 158, 11, 0.08); border-left: 3px solid #F59E0B; padding: 5px 8px; margin-bottom: 6px; border-radius: 2px;">
+                <div style="font-size: 0.72rem; font-weight: 600; color: #F59E0B;">Version 2.0</div>
+                <div style="font-size: 0.66rem; color: #CBD5E1;">Extraction pending (Colab GEE)</div>
             </div>
-            <div style="background: rgba(168, 85, 247, 0.1); border-left: 3px solid #A855F7; padding: 5px 8px; margin-bottom: 6px; border-radius: 2px;">
-                <div style="font-size: 0.72rem; font-weight: 700; color: #A855F7;">Workflow A (Detection)</div>
-                <div style="font-size: 0.66rem; color: #CBD5E1;">Experimental Point-Zone Disturbance</div>
+            <div style="background: rgba(168, 85, 247, 0.08); border-left: 3px solid #A855F7; padding: 5px 8px; margin-bottom: 6px; border-radius: 2px;">
+                <div style="font-size: 0.72rem; font-weight: 600; color: #A855F7;">Workflow A</div>
+                <div style="font-size: 0.66rem; color: #CBD5E1;">Point-zone disturbance</div>
             </div>
-            <div style="background: rgba(0, 240, 255, 0.1); border-left: 3px solid #00F0FF; padding: 5px 8px; margin-bottom: 6px; border-radius: 2px;">
-                <div style="font-size: 0.72rem; font-weight: 700; color: #00F0FF;">Workflow B (Susceptibility)</div>
-                <div style="font-size: 0.66rem; color: #CBD5E1;">Rainfall-Conditioned Diagnostic</div>
+            <div style="background: rgba(0, 240, 255, 0.08); border-left: 3px solid #00F0FF; padding: 5px 8px; margin-bottom: 6px; border-radius: 2px;">
+                <div style="font-size: 0.72rem; font-weight: 600; color: #00F0FF;">Workflow B</div>
+                <div style="font-size: 0.66rem; color: #CBD5E1;">Rainfall-conditioned diagnostic</div>
             </div>
             """,
             unsafe_allow_html=True,

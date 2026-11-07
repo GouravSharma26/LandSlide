@@ -21,15 +21,12 @@ from sklearn.metrics import roc_curve, precision_recall_curve
 
 
 def render(filters: Dict[str, Any]) -> None:
-    """Renders Page 5: Landslide Event Detection (Workflow A)."""
+    """Renders Page 5: Event Detection (Workflow A)."""
     st.markdown(
         """
         <div class="header-container">
-            <div class="brand-badge" style="background: rgba(168, 85, 247, 0.2); color: #A855F7; border: 1px solid #A855F7;">
-                Workflow A: Diagnostic Event Detection
-            </div>
-            <h1 class="brand-title">LANDSLIDE EVENT DETECTION</h1>
-            <div class="brand-subtitle">Post-Hoc Disturbance Classification Using Pre/Post Sentinel-1 SAR & CHIRPS Trigger Rainfall</div>
+            <h1 class="brand-title">Event Detection (Workflow A)</h1>
+            <div class="brand-subtitle">Disturbance classification using Sentinel-1 SAR changes and event rainfall</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -40,12 +37,12 @@ def render(filters: Dict[str, Any]) -> None:
         """
         <div style="background: rgba(168, 85, 247, 0.08); border-left: 4px solid #A855F7; border-radius: 4px; padding: 12px 16px; margin-bottom: 20px;">
             <div style="font-weight: 700; color: #E9D5FF; font-size: 0.88rem; margin-bottom: 4px;">
-                Positional Scale Mismatch & Scope Classification: Experimental Point-Zone Disturbance Assessment
+                Point-Zone Disturbance Assessment
             </div>
             <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.5;">
-                • <strong>Catalog Coordinate Uncertainty:</strong> 57.5% of NASA COOLR events (73/127) are documented with <strong>±5 km positional uncertainty</strong>. Only 10 points are "Known exactly".<br>
-                • <strong>Single Pixel Vulnerability:</strong> A single 10m Sentinel-1 SAR pixel sampled at nominal coordinates frequently falls outside the actual ground failure scar. While 500m and 1,000m buffer reductions capture aggregated point-zone disturbance rather than scar delineations, they do not resolve or remediate the ±5 km catalog positional uncertainty.<br>
-                • <strong>Scientific Scope:</strong> This workflow is strictly classified as an <strong>Experimental Point-Zone Disturbance Assessment</strong>. It does <em>not</em> claim verified scar-level detection accuracy without high-precision polygon boundaries.
+                • <strong>Catalog Coordinate Uncertainty:</strong> 57.5% of NASA COOLR events (73/127) carry <strong>±5 km positional uncertainty</strong>.<br>
+                • <strong>Pixel Resolution:</strong> A 10m Sentinel-1 SAR pixel at nominal coordinates may fall outside the failure scar. While 500m and 1,000m buffer reductions capture aggregated point-zone disturbance, they do not resolve or remediate the ±5 km catalog location uncertainty.<br>
+                • <strong>Scope:</strong> This workflow evaluates <strong>point-zone disturbance proxies</strong>, not verified scar delineations.
             </div>
         </div>
         """,
@@ -81,20 +78,17 @@ def render(filters: Dict[str, Any]) -> None:
 
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
-    # 1. Outer Fold Transparency & Metrics Table
-    st.markdown("### 1. Spatial Outer Fold Performance & Transparency")
+    # 1. Outer Fold Performance & Metrics Table
+    st.markdown("### 1. Spatial Fold Performance")
     st.markdown(
         """
-        Validation is conducted across 5 geographic clusters.
-        In Fold 4 (northwestern Kashmir/Ladakh cluster), historical sampling contains $N=37$ negative points and $0$ positive events.
-        Consequently, fold-level AUROC and PR-AUC are mathematically undefined ($NaN$).
-        Rather than hiding or interpolating this metric, we report it with full scientific transparency:
+        Validation across 5 geographic clusters. In Fold 4 (Kashmir/Ladakh cluster), sampling contains $N=37$ negative points and $0$ positive events, so fold-level AUROC and PR-AUC are undefined ($NaN$).
         """
     )
 
     c_chart, c_tbl = st.columns([1.3, 1])
     with c_chart:
-        st.plotly_chart(render_fold_metrics_bar_chart(fold_metrics, title="Workflow A: Fold-Wise AUROC by Cluster"), use_container_width=True)
+        st.plotly_chart(render_fold_metrics_bar_chart(fold_metrics, title="Fold-Wise AUROC by Cluster"), use_container_width=True)
     with c_tbl:
         if not fold_metrics.empty:
             display_fold_cols = [
@@ -107,7 +101,7 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
 
     # 2. Confusion Diagnostics & Probability Threshold Viewer
-    st.markdown("### 2. Detection Probability Calibration & Confusion Matrix")
+    st.markdown("### 2. Decision Threshold & Confusion Matrix")
     c_th, c_cm = st.columns([1, 1.2])
 
     with c_th:
@@ -161,7 +155,7 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
 
     # 3. ROC and Precision-Recall Curves
-    st.markdown("### 3. Discrimination Diagnostics (ROC & PR Curves)")
+    st.markdown("### 3. Out-of-Fold ROC & PR Curves")
     c_roc, c_pr = st.columns(2)
 
     with c_roc:
@@ -172,7 +166,7 @@ def render(filters: Dict[str, Any]) -> None:
         fig_roc.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines", line=dict(color="rgba(255,255,255,0.3)", dash="dash"), name="Random Guess"))
         fig_roc.add_trace(go.Scatter(x=fpr_rf, y=tpr_rf, mode="lines", line=dict(color=THEME_COLORS["primary"], width=2.5), name=f"Random Forest (AUC={rf_auc:.3f})"))
         fig_roc.add_trace(go.Scatter(x=fpr_xgb, y=tpr_xgb, mode="lines", line=dict(color=THEME_COLORS["accent_purple"], width=2.5), name=f"XGBoost (AUC={xgb_auc:.3f})"))
-        fig_roc = apply_custom_theme(fig_roc, title="Out-of-Fold ROC Curves (100km Purged)", x_title="False Positive Rate", y_title="True Positive Rate", height=360)
+        fig_roc = apply_custom_theme(fig_roc, title="Out-of-Fold ROC Curves", x_title="False Positive Rate", y_title="True Positive Rate", height=360)
         st.plotly_chart(fig_roc, use_container_width=True)
 
     with c_pr:
@@ -182,18 +176,18 @@ def render(filters: Dict[str, Any]) -> None:
         fig_pr = go.Figure()
         fig_pr.add_trace(go.Scatter(x=rec_rf, y=prec_rf, mode="lines", line=dict(color=THEME_COLORS["primary"], width=2.5), name=f"Random Forest (PR-AUC={rf_prauc:.3f})"))
         fig_pr.add_trace(go.Scatter(x=rec_xgb, y=prec_xgb, mode="lines", line=dict(color=THEME_COLORS["accent_purple"], width=2.5), name=f"XGBoost (PR-AUC={xgb_prauc:.3f})"))
-        fig_pr = apply_custom_theme(fig_pr, title="Precision-Recall Curves (100km Purged)", x_title="Recall", y_title="Precision", height=360)
+        fig_pr = apply_custom_theme(fig_pr, title="Precision-Recall Curves", x_title="Recall", y_title="Precision", height=360)
         st.plotly_chart(fig_pr, use_container_width=True)
 
     st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
 
     # 4. SAR Disturbance Diagnostic Scatter Plot
-    st.markdown("### 4. Differential SAR Backscatter Disturbance Diagnostic")
+    st.markdown("### 4. Differential SAR Backscatter Diagnostics")
     st.markdown(
         r"""
-        Evaluating cross-polarization delta ($\Delta\text{VH}$) against co-polarization delta ($\Delta\text{VV}$).
-        Ground failures typically induce surface roughening or dielectric change, altering backscatter.
-        However, due to catalog coordinate uncertainty, single-pixel deltas show modest separation:
+        Cross-polarization delta ($\Delta\text{VH}$) versus co-polarization delta ($\Delta\text{VV}$).
+        Ground failures alter backscatter through surface roughening or dielectric changes.
+        Under catalog coordinate uncertainty, single-pixel deltas show modest separation:
         """
     )
 
@@ -209,7 +203,7 @@ def render(filters: Dict[str, Any]) -> None:
         )
         fig_sar_scatter = apply_custom_theme(
             fig_sar_scatter,
-            title="Radar Disturbance Signature: Delta VH vs Delta VV",
+            title="Radar Disturbance: dVH vs dVV",
             x_title="Delta VH (dB) [Post - Pre]",
             y_title="Delta VV (dB) [Post - Pre]",
             height=400,

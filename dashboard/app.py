@@ -27,7 +27,7 @@ from dashboard.pages import (
 
 # Set page configuration
 st.set_page_config(
-    page_title="Himalayan Landslide Intelligence",
+    page_title="Himalayan Landslide Research",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -52,13 +52,13 @@ def main():
 
     # 7-Section Router Table
     page_routers = {
-        "Executive Overview": overview.render,
-        "Geographic Explorer": geographic_explorer.render,
-        "Data Catalog & Quality": data_quality.render,
+        "Overview": overview.render,
+        "Study Area": geographic_explorer.render,
+        "Data Quality": data_quality.render,
         "Environmental Analysis": environmental_analysis.render,
         "Event Detection": event_detection.render,
         "Susceptibility Prediction": susceptibility_prediction.render,
-        "Explainability & Uncertainty": explainability_uncertainty.render,
+        "Feature Importance": explainability_uncertainty.render,
     }
 
     render_fn = page_routers.get(selected_page)

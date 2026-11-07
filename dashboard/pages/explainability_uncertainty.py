@@ -17,15 +17,12 @@ from dashboard.utils.visualization import apply_custom_theme
 
 
 def render(filters: Dict[str, Any]) -> None:
-    """Renders Page 7: Explainability & Uncertainty."""
+    """Renders Page 7: Feature Importance & Uncertainty."""
     st.markdown(
         """
         <div class="header-container">
-            <div class="brand-badge" style="background: rgba(168, 85, 247, 0.2); color: #A855F7; border: 1px solid #A855F7;">
-                Interpretability & Spatial Audit
-            </div>
-            <h1 class="brand-title">EXPLAINABILITY & UNCERTAINTY</h1>
-            <div class="brand-subtitle">Global TreeSHAP Attributions, Spatial Purging Sensitivity & Model Disagreement Analysis</div>
+            <h1 class="brand-title">Feature Importance & Uncertainty</h1>
+            <div class="brand-subtitle">TreeSHAP feature attributions, spatial purging sensitivity, and model disagreement</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -47,8 +44,8 @@ def render(filters: Dict[str, Any]) -> None:
 
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
-    # 1. Global TreeSHAP Feature Attributions
-    st.markdown("### 1. Global TreeSHAP Feature Attributions")
+    # 1. Feature Importance (TreeSHAP)
+    st.markdown("### 1. Feature Importance (TreeSHAP)")
     st.markdown(
         """
         TreeSHAP decomposes the model output into additive feature contributions.
@@ -147,7 +144,7 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
 
     # 2. Spatial Purging Sensitivity Analysis
-    st.markdown("### 2. Spatial Purging Sensitivity Sweep (0 to 437.8 km)")
+    st.markdown("### 2. Spatial Purging Sensitivity")
     st.markdown(
         """
         To prevent spatial autocorrelation leakage, we evaluated model performance when strictly purging training samples located within varying buffer distances from test points:

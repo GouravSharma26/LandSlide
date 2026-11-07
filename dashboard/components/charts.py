@@ -95,7 +95,7 @@ def render_monthly_seasonality_chart(df: pd.DataFrame) -> go.Figure:
 
     return apply_custom_theme(
         fig,
-        title="Monthly Distribution (Monsoon Sensitivity)",
+        title="Monthly Landslide Distribution",
         x_title="Month",
         y_title="Observation Count",
         height=350,
@@ -142,7 +142,7 @@ def render_trigger_breakdown_chart(df: pd.DataFrame) -> go.Figure:
     )
     return apply_custom_theme(
         fig,
-        title="Primary Reported Landslide Triggers",
+        title="Landslide Triggers",
         height=350,
         show_legend=False,
     )
@@ -163,7 +163,7 @@ def render_model_comparison_bar_chart(metrics_df: pd.DataFrame) -> go.Figure:
     metrics_names = ["AUROC", "PR-AUC", "F1 Score"]
     rf_scores = [0.0, 0.0, 0.0]
     xgb_scores = [0.0, 0.0, 0.0]
-    chart_title = "Spatial Out-of-Fold Model Benchmark (100km Purged)"
+    chart_title = "Model Performance (100km Purged)"
     rf_label = "Random Forest"
     xgb_label = "XGBoost"
 
@@ -599,7 +599,7 @@ def render_missingness_chart(missing_summary_df: pd.DataFrame) -> go.Figure:
 
     return apply_custom_theme(
         fig,
-        title="Missing Values Rate by Variable (Phase 3 Feature Table)",
+        title="Missing Values by Feature",
         x_title="Missingness Percentage (%)",
         y_title="Variable Name",
         height=450,
@@ -658,7 +658,7 @@ def render_spatial_purging_sensitivity_chart(sens_df: pd.DataFrame) -> go.Figure
     )
 
     fig.update_layout(
-        title="Spatial Purging Sensitivity Sweep (0 to 437.8 km)",
+        title="Spatial Purging Sensitivity (0 to 437.8 km)",
         yaxis=dict(title="Out-of-Fold AUROC", range=[0.90, 1.01]),
         yaxis2=dict(
             title="Retained Training Samples (N)",
@@ -762,7 +762,7 @@ def render_susceptibility_histogram(grid_df: pd.DataFrame) -> go.Figure:
 
     return apply_custom_theme(
         fig,
-        title="Distribution of Susceptibility Probabilities (765 Cells, 0.5° Grid)",
+        title="Susceptibility Score Distribution (0.5° Grid)",
         x_title="Predicted Landslide Susceptibility Score [0.0 - 1.0]",
         y_title="Grid Cell Count",
         height=350

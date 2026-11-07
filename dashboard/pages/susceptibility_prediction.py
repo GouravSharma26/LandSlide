@@ -22,11 +22,8 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown(
         """
         <div class="header-container">
-            <div class="brand-badge" style="background: rgba(0, 240, 255, 0.15); color: #00F0FF; border: 1px solid #00F0FF;">
-                Workflow B: Pre-Event Susceptibility
-            </div>
-            <h1 class="brand-title">LANDSLIDE SUSCEPTIBILITY PREDICTION</h1>
-            <div class="brand-subtitle">Pre-Event Spatial Hazard Ranking Conditioned on Antecedent CHIRPS Precipitation & SRTM Topography</div>
+            <h1 class="brand-title">Susceptibility Prediction (Workflow B)</h1>
+            <div class="brand-subtitle">Pre-event hazard ranking based on SRTM topography, baseline SAR, and antecedent rainfall</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -37,12 +34,12 @@ def render(filters: Dict[str, Any]) -> None:
         """
         <div style="background: rgba(0, 240, 255, 0.08); border-left: 4px solid #00F0FF; border-radius: 4px; padding: 12px 16px; margin-bottom: 20px;">
             <div style="font-weight: 700; color: #E0F2FE; font-size: 0.88rem; margin-bottom: 4px;">
-                Strictly Pre-Event Predictors & Rainfall Conditioning
+                Pre-Event Predictors & Rainfall Conditioning
             </div>
             <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.5;">
-                • <strong>Strict Temporal Leakage Ban:</strong> This workflow bans all post-event observations (VH/VV post, dVH, dVV), event-day rainfall (rain_1d, 7d), inventory labels, and coordinates (latitude/longitude).<br>
+                • <strong>Temporal Restrictions:</strong> Prohibits post-event satellite observations (VH/VV post, dVH, dVV), event-day rainfall (rain_1d, 7d), inventory labels, and coordinates.<br>
                 • <strong>Rainfall Conditioning:</strong> Models condition on 30-day antecedent precipitation and Antecedent Precipitation Index (API, verified alpha=0.90) to capture pre-existing soil moisture saturation.<br>
-                • <strong>Baseline Diagnostic Status:</strong> Evaluated on Version 1.0 historical controls (slope &lt; 5°). Version 2.0 hillslope controls remain pending Colab GEE extraction.
+                • <strong>Baseline Diagnostic Status:</strong> Evaluated on Version 1.0 historical controls (slope &lt; 5°). Version 2.0 hillslope controls remain pending authenticated Colab GEE extraction.
             </div>
         </div>
         """,
@@ -61,7 +58,7 @@ def render(filters: Dict[str, Any]) -> None:
         return
 
     # Configuration Selector
-    st.markdown("### 1. Model Configuration Architecture")
+    st.markdown("### 1. Model Configurations")
     config_choice = st.radio(
         "Active Susceptibility Configuration",
         [
@@ -110,7 +107,7 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
     # 2. Configuration Comparison Table
-    st.markdown("### 2. Multi-Configuration Benchmark Comparison")
+    st.markdown("### 2. Configuration Comparison")
     st.markdown(
         """
         Comparing the three susceptibility configurations across the 100 km spatial purge standard:
@@ -122,7 +119,7 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown(
         """
         <div style="background: #1E293B; border-left: 3px solid #00F0FF; padding: 10px 14px; border-radius: 4px; font-size: 0.80rem; color: #CBD5E1; line-height: 1.5; margin-top: 8px;">
-            <strong>Scientific Insight:</strong> Adding optical indices (NDVI, NDWI, BSI) yields marginal AUROC change (+0.004 in RF; -0.0003 in XGBoost) while introducing 31.5% missingness. The <strong>Cloud-Independent Core Model</strong> is clearly the superior operational configuration for cloudy mountain environments.
+            <strong>Finding:</strong> Adding optical indices (NDVI, NDWI, BSI) yields marginal AUROC change (+0.004 in RF; -0.0003 in XGBoost) while introducing 31.5% missingness. The <strong>Cloud-Independent Core Model</strong> is the more reliable configuration for cloudy mountain environments.
         </div>
         """,
         unsafe_allow_html=True,
@@ -131,7 +128,7 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
 
     # 3. 0.5° Regional Susceptibility Grid Explorer
-    st.markdown("### 3. Regional Susceptibility Lattice Explorer (765 Cells, 0.5° Resolution)")
+    st.markdown("### 3. Regional Susceptibility Map (0.5° Grid)")
     st.markdown(
         """
         Evaluating macro-regional susceptibility across the 765 valid cells of the Himalayan mountain belt:

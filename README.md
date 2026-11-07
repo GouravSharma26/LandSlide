@@ -1,4 +1,4 @@
-# Himalayan Landslide Intelligence: Multi-Source Remote Sensing for Landslide Event Detection and Rainfall-Conditioned Susceptibility Analytics
+# Himalayan Landslide Research: Multi-Source Remote Sensing for Event Detection and Susceptibility Analytics
 
 An applied geospatial machine-learning research system for rainfall-triggered landslide analysis across the Himalayan mountain belt ($26.0^\circ\text{N} - 35.5^\circ\text{N}$, $74.0^\circ\text{E} - 97.0^\circ\text{E}$, $\sim 2.2\text{M km}^2$).
 
@@ -81,13 +81,13 @@ The following metrics reflect the authoritative artifact build (`artifacts/metad
 
 The research dashboard is organized into seven analytical sections:
 
-1. **Executive Overview (`dashboard/pages/overview.py`):** Key metrics, annual event distribution (2017–2020), monthly monsoon seasonality, and workflow status cards.
-2. **Geographic Explorer (`dashboard/pages/geographic_explorer.py`):** Interactive Mapbox and PyDeck views of positive events, controls, and regional macro-grid overlays.
-3. **Data Catalog & Quality (`dashboard/pages/data_quality.py`):** 7-stage inventory filtering funnel ($14,750 \rightarrow 127$), optical missingness audit, V1 flat-terrain Kolmogorov-Smirnov test ($p < 10^{-50}$), and V2 sampling specification.
+1. **Overview (`dashboard/pages/overview.py`):** Study area context, research workflows, temporal event distribution (2017–2020), monthly monsoon seasonality, and primary reported triggers.
+2. **Study Area (`dashboard/pages/geographic_explorer.py`):** Interactive spatial map of positive events, controls, and 0.5° macro-grid.
+3. **Data Quality (`dashboard/pages/data_quality.py`):** 7-stage preprocessing funnel ($14,750 \rightarrow 127$), missing values by feature with optical co-dependence explanation, and Version 1.0 vs Version 2.0 control sample comparison.
 4. **Environmental Analysis (`dashboard/pages/environmental_analysis.py`):** Feature distributions across precipitation, topography, SAR backscatter, and optical domains, with correlation heatmaps and Variance Inflation Factor (VIF) tables.
-5. **Event Detection (`dashboard/pages/event_detection.py`):** Fold-wise AUROC/PR-AUC reporting, threshold slider with confusion matrix, out-of-fold curves, and differential radar diagnostic plots.
+5. **Event Detection (`dashboard/pages/event_detection.py`):** Fold-wise AUROC/PR-AUC reporting with Fold 4 disclosure, decision threshold slider with confusion matrix, out-of-fold curves, and differential radar diagnostic plots.
 6. **Susceptibility Prediction (`dashboard/pages/susceptibility_prediction.py`):** Comparison of Core, Optical-Enhanced, and Reduced models, alongside the 0.5° regional lattice explorer and model disagreement analysis.
-7. **Explainability & Uncertainty (`dashboard/pages/explainability_uncertainty.py`):** TreeSHAP feature attributions and spatial purging sensitivity curves ($0, 50, 100, 200, 437.8\text{ km}$).
+7. **Feature Importance (`dashboard/pages/explainability_uncertainty.py`):** TreeSHAP feature attributions and spatial purging sensitivity curves ($0, 50, 100, 200, 437.8\text{ km}$).
 
 ---
 
@@ -99,7 +99,7 @@ The research dashboard is organized into seven analytical sections:
 
 ### Installation
 ```bash
-pip install -r dashboard/requirements.txt
+pip install -r requirements.txt
 ```
 
 ### Launch the Dashboard
@@ -112,21 +112,30 @@ The application will open at `http://localhost:8501`.
 ```bash
 python -m pytest tests/ -v
 ```
-All 50 unit, geomorphometric, governance, and schema tests must pass.
+All 51 unit, geomorphometric, governance, and schema tests must pass.
 
-### Rebuild Research Artifacts (Optional)
-To retrain models, rerun spatial cross-validation, and regenerate all serialized artifacts:
-```bash
-python scripts/build_research_artifacts.py
-```
+---
+
+## Streamlit Cloud Deployment
+
+This dashboard is pre-configured for one-click deployment on [Streamlit Community Cloud](https://streamlit.io/cloud):
+
+1. Sign in to [share.streamlit.io](https://share.streamlit.io/) with your GitHub account.
+2. Click **New app** and select:
+   - **Repository:** `GouravSharma26/LandSlide`
+   - **Branch:** `main`
+   - **Main file path:** `dashboard/app.py`
+3. Click **Deploy**.
+
+All required datasets and models are pre-packaged in `outputs/` and `artifacts/`. No external database, Google Earth Engine credentials, or private API keys are required for the web application.
 
 ---
 
 ## Automated Testing Suite
 
-The repository contains 50 automated tests in `tests/`:
+The repository contains 51 automated tests in `tests/`:
 - `tests/test_scientific_governance.py` (7 tests): Prohibited-feature enforcement, temporal leakage checks, spatial purge distances, fold balance, artifact schemas, and model deserialization.
 - `tests/test_v2_sampling_and_features.py` (28 tests): MERIT Hydro 90m TWI, slope aggregation, positive-event validation, multi-batch candidate optimization, coordinate deduplication, 13 rejection categories, and Colab notebook structure.
 - `tests/test_data_loader.py` (7 tests): Data loaders for raw reports, cleaned subsets, feature tables, metrics, predictions, regional grids, and models.
-- `tests/test_metrics.py` (4 tests): ROC curves, PR curves, confusion matrix calculations across decision thresholds, and susceptibility distribution statistics.
+- `tests/test_metrics.py` (5 tests): ROC curves, PR curves, confusion matrix calculations across decision thresholds, susceptibility distribution statistics, and model comparison bar chart schema regression test.
 - `tests/test_validation.py` (4 tests): Geographic coordinate bounds ($26.0^\circ-35.5^\circ\text{N}, 74.0^\circ-97.0^\circ\text{E}$), schema compliance, missingness summaries, and label balance.

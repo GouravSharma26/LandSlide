@@ -15,13 +15,12 @@ from dashboard.components.charts import render_missingness_chart
 
 
 def render(filters: Dict[str, Any]) -> None:
-    """Renders Page 3: Data Catalog & Quality."""
+    """Renders Page 3: Data Quality."""
     st.markdown(
         """
         <div class="header-container">
-            <div class="brand-badge">Catalog & Quality Audit</div>
-            <h1 class="brand-title">DATA CATALOG & SCIENTIFIC QUALITY</h1>
-            <div class="brand-subtitle">Transparent Assessment of Preprocessing Funnels, Missing Data Causes & Version 2.0 Hillslope Protocol</div>
+            <h1 class="brand-title">Data Quality</h1>
+            <div class="brand-subtitle">Preprocessing funnel, missing data summary, and control sample comparison</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -43,12 +42,12 @@ def render(filters: Dict[str, Any]) -> None:
 
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
-    # 1. 7-Stage Preprocessing Funnel
-    st.markdown("### 1. Seven-Stage Inventory Preprocessing Funnel")
+    # 1. Preprocessing Funnel
+    st.markdown("### 1. Preprocessing Funnel")
     st.markdown(
         """
         The raw NASA Global Landslide Catalog (COOLR) contains 14,750 global reports.
-        Through 7 systematic filtering stages, we isolated 127 catalogued rainfall-triggered landslide events meeting the stated filtering criteria across the Himalayan mountain belt:
+        Through 7 systematic filtering stages, 127 rainfall-triggered events meeting filtering criteria were isolated across the Himalayan arc:
         """
     )
 
@@ -72,11 +71,11 @@ def render(filters: Dict[str, Any]) -> None:
 
     st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
 
-    # 2. Missingness Audit & Physical Root Causes
-    st.markdown("### 2. Feature Missingness & Physical Root-Cause Audit")
+    # 2. Missing Values by Feature
+    st.markdown("### 2. Missing Values by Feature")
     st.markdown(
         """
-        Missing values in remote sensing are non-random. Here we audit exact null counts and physical mechanisms across all candidate features:
+        Missing values across candidate remote sensing features and their causes:
         """
     )
 
@@ -106,11 +105,11 @@ def render(filters: Dict[str, Any]) -> None:
 
     st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
 
-    # 3. Dataset Lineage: Version 1.0 vs Version 2.0
-    st.markdown("### 3. Dataset Lineage: Version 1.0 (Baseline) vs Version 2.0 (Hillslope Protocol)")
+    # 3. Control Sample Comparison: Version 1.0 vs Version 2.0
+    st.markdown("### 3. Control Sample Comparison: Version 1.0 vs Version 2.0")
     st.markdown(
         """
-        To address the severe flat-terrain negative control bias documented in Version 1.0, an empirically constrained Version 2.0 sampling protocol has been designed:
+        Comparison of Version 1.0 baseline controls against the Version 2.0 hillslope protocol:
         """
     )
 

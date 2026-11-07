@@ -17,24 +17,23 @@ from dashboard.components.kpi_cards import render_kpi_row
 
 
 def render(filters: Dict[str, Any]) -> None:
-    """Renders Page 2: Geographic Explorer."""
+    """Renders Page 2: Study Area & Maps."""
     st.markdown(
         """
         <div class="header-container">
-            <div class="brand-badge">Geospatial Explorer</div>
-            <h1 class="brand-title">HIMALAYAN SPATIAL INTELLIGENCE</h1>
-            <div class="brand-subtitle">Interactive Geospatial Mapping of Landslide Observations & 0.5° Susceptibility Lattice</div>
+            <h1 class="brand-title">Study Area & Maps</h1>
+            <div class="brand-subtitle">Landslide observation points, controls, and regional 0.5° macro-grid</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Scientific Resolution Notice
+    # Resolution Notice
     st.markdown(
         """
         <div style="background: rgba(30, 41, 59, 0.7); border-left: 3px solid #64748B; padding: 10px 14px; margin-bottom: 18px; border-radius: 4px;">
             <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.45;">
-                <strong style="color: #F8FAFC;">Resolution & Ground-Truth Disclosure:</strong> The regional susceptibility grid operates at <strong>0.5° macro resolution (~55 km cell width, 765 valid cells)</strong> conditioned on late-monsoon CHIRPS antecedent rainfall. It represents macro-regional climate-terrain hazard exposure and is classified as <strong>Illustrative</strong> (not an engineering slope stability map). Individual point markers carry the NASA catalog's ±5 km positional uncertainty.
+                <strong>Resolution:</strong> The regional susceptibility grid uses a 0.5° macro resolution (~55 km cell width, 765 valid cells) conditioned on late-monsoon CHIRPS antecedent rainfall. It illustrates macro-regional exposure rather than local slope stability. Observation points carry the catalog's ±5 km positional uncertainty.
             </div>
         </div>
         """,
@@ -63,8 +62,8 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown(
         """
         <div class="content-card">
-            <div class="card-title">Geospatial Layer & Visualization Controls</div>
-            <div class="card-description">Toggle layers, choose render mode, and filter observation points across the Himalayan mountain arc.</div>
+            <div class="card-title">Map Layers</div>
+            <div class="card-description">Select map layers and observation filters across the study region.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -144,7 +143,7 @@ def render(filters: Dict[str, Any]) -> None:
         st.pydeck_chart(deck)
 
     # Data Table Preview
-    with st.expander("Inspect Underlying Spatial Coordinates Table", expanded=False):
+    with st.expander("Coordinates Table", expanded=False):
         st.dataframe(
             df_p2_tagged[["latitude", "longitude", "event_date", "Location Accuracy", "Landslide Trigger", "label", "region_subzone"]].head(50),
             use_container_width=True,

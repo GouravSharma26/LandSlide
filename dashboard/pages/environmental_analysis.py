@@ -15,9 +15,8 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown(
         """
         <div class="header-container">
-            <div class="brand-badge">Environmental Analytics</div>
-            <h1 class="brand-title">MULTISOURCE SATELLITE & TERRAIN ANALYSIS</h1>
-            <div class="brand-subtitle">Physical Feature Distributions Across Topographic, Radar SAR, Spectral & Rainfall Domains</div>
+            <h1 class="brand-title">Environmental Analysis</h1>
+            <div class="brand-subtitle">Distributions across precipitation, topography, SAR backscatter, and optical indices</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -36,7 +35,7 @@ def render(filters: Dict[str, Any]) -> None:
         """
         <div class="alert-box alert-warning">
             <div>
-                <b>Missingness & Multicollinearity Notice:</b> Sentinel-2 optical indices suffer from <b>31.5% null values (80/254 points)</b> due to heavy monsoon cloud cover. In contrast, all-weather Sentinel-1 C-band SAR and CHIRPS precipitation have &gt;97% completeness. Variance Inflation Factors (VIF) reflect severe collinearity among SAR polarizations, which is safely handled by tree ensembles through fold-isolated feature routing.
+                <b>Data Characteristics:</b> Sentinel-2 optical indices have 31.5% missing values (80/254 points) due to monsoon cloud cover. Sentinel-1 SAR and CHIRPS precipitation have &gt;97% completeness. SAR polarizations show collinearity, which tree ensembles handle natively through fold-isolated feature routing.
             </div>
         </div>
         """,

@@ -20,34 +20,25 @@ from dashboard.components.charts import (
 
 
 def render(filters: Dict[str, Any]) -> None:
-    """Renders Page 1: Executive Overview."""
+    """Renders Page 1: Overview."""
     st.markdown(
         """
         <div class="header-container">
-            <div class="brand-badge">B.Tech Capstone Research System</div>
-            <h1 class="brand-title">HIMALAYAN LANDSLIDE INTELLIGENCE</h1>
-            <div class="brand-subtitle">Multi-Source Remote Sensing for Landslide Event Detection & Susceptibility Prediction</div>
+            <h1 class="brand-title">Himalayan Landslide Research</h1>
+            <div class="brand-subtitle">Multi-source remote sensing for event detection and susceptibility mapping</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Scientific Status Banner
+    # Context Card
     st.markdown(
         """
-        <div style="background: rgba(14, 165, 233, 0.08); border: 1px solid #0284C7; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <div>
-                    <span style="background: #0284C7; color: #FFFFFF; font-weight: 700; font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">Scientific Governance</span>
-                    <strong style="color: #F8FAFC; margin-left: 8px; font-size: 0.88rem;">Dual-Workflow Decoupled Architecture</strong>
-                </div>
-                <div style="font-size: 0.78rem; color: #94A3B8;">
-                    Domain: <span style="color: #38BDF8; font-weight: 600;">Himalayan Belt [26.0°N–35.5°N, 74.0°E–97.0°E] (~2.2M km²)</span>
-                </div>
-            </div>
-            <div style="font-size: 0.78rem; color: #CBD5E1; margin-top: 6px; line-height: 1.45;">
-                • <strong>Workflow A (Detection):</strong> Experimental Point-Zone Disturbance Assessment (Post-hoc satellite diagnostic; ±5 km catalog positional uncertainty limitation not remediated by local neighbourhood extraction).<br>
-                • <strong>Workflow B (Susceptibility):</strong> Rainfall-Conditioned Susceptibility — Diagnostic Baseline (Pre-event topography + SAR + CHIRPS 30-day rain / API; Version 2.0 candidate hillslope extraction remains pending authenticated Colab/GEE execution).
+        <div style="background: rgba(14, 165, 233, 0.06); border-left: 3px solid #0284C7; border-radius: 4px; padding: 10px 14px; margin-bottom: 20px;">
+            <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.5;">
+                <strong>Study Area:</strong> Himalayan mountain arc [26.0°N–35.5°N, 74.0°E–97.0°E]<br>
+                • <strong>Workflow A (Event Detection):</strong> Point-zone disturbance assessment using Sentinel-1 SAR and rainfall (catalog coordinate uncertainty: ±5 km).<br>
+                • <strong>Workflow B (Susceptibility):</strong> Pre-event terrain and rainfall conditioning diagnostic baseline (Version 2.0 candidate hillslope extraction pending authenticated Colab/GEE run).
             </div>
         </div>
         """,
@@ -146,23 +137,22 @@ def render(filters: Dict[str, Any]) -> None:
     st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
 
     # Dual Workflow Architecture Overview
-    st.markdown("### Research Architecture: Independent Dual Workflows")
+    st.markdown("### Research Workflows")
     col_wfa, col_wfb = st.columns(2)
 
     with col_wfa:
         st.markdown(
             """
-            <div style="background: #1E293B; border-top: 3px solid #A855F7; border-radius: 6px; padding: 16px; min-height: 230px;">
+            <div style="background: #1E293B; border-top: 3px solid #A855F7; border-radius: 6px; padding: 14px; min-height: 200px;">
                 <div style="font-size: 0.72rem; font-weight: 700; color: #A855F7; text-transform: uppercase;">WORKFLOW A</div>
-                <div style="font-size: 1.05rem; font-weight: 800; color: #FFFFFF; margin: 4px 0;">Landslide Event Detection</div>
-                <div style="font-size: 0.80rem; color: #94A3B8; margin-bottom: 12px;">
-                    <em>"Can satellite observations identify evidence of a recently occurred landslide?"</em>
+                <div style="font-size: 1.0rem; font-weight: 700; color: #FFFFFF; margin: 3px 0;">Landslide Event Detection</div>
+                <div style="font-size: 0.78rem; color: #94A3B8; margin-bottom: 8px;">
+                    Post-event disturbance classification
                 </div>
-                <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.5;">
-                    • <strong>Status:</strong> Experimental Point-Zone Disturbance Assessment.<br>
-                    • <strong>Allowed Inputs:</strong> Post-event Sentinel-1 (VH/VV post), SAR deltas (dVH, dVV), event rainfall (rain_1d, 7d, 30d, API), topography.<br>
-                    • <strong>Key Limitation:</strong> ±5 km catalog positional uncertainty means point pixels capture zone disturbance, not verified scars (500m/1000m buffer extractions do not remediate catalog location error).<br>
-                    • <strong>Prohibited:</strong> Temporal leakage bans future observations and spatial coordinate cheats.
+                <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.45;">
+                    • <strong>Features:</strong> Sentinel-1 SAR changes (dVH, dVV, VH/VV post), event rainfall (rain_1d, 7d, 30d, API), topography.<br>
+                    • <strong>Scope:</strong> Point-zone disturbance proxy; catalog coordinate error is ±5 km.<br>
+                    • <strong>Evaluation:</strong> 5-fold spatial cluster cross-validation with 100 km buffer purging.
                 </div>
             </div>
             """,
@@ -172,27 +162,26 @@ def render(filters: Dict[str, Any]) -> None:
     with col_wfb:
         st.markdown(
             """
-            <div style="background: #1E293B; border-top: 3px solid #00F0FF; border-radius: 6px; padding: 16px; min-height: 230px;">
+            <div style="background: #1E293B; border-top: 3px solid #00F0FF; border-radius: 6px; padding: 14px; min-height: 200px;">
                 <div style="font-size: 0.72rem; font-weight: 700; color: #00F0FF; text-transform: uppercase;">WORKFLOW B</div>
-                <div style="font-size: 1.05rem; font-weight: 800; color: #FFFFFF; margin: 4px 0;">Landslide Susceptibility Prediction</div>
-                <div style="font-size: 0.80rem; color: #94A3B8; margin-bottom: 12px;">
-                    <em>"Can pre-event terrain and environmental context identify hazard-prone hillslopes?"</em>
+                <div style="font-size: 1.0rem; font-weight: 700; color: #FFFFFF; margin: 3px 0;">Landslide Susceptibility Prediction</div>
+                <div style="font-size: 0.78rem; color: #94A3B8; margin-bottom: 8px;">
+                    Pre-event terrain & environmental hazard ranking
                 </div>
-                <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.5;">
-                    • <strong>Status:</strong> Rainfall-Conditioned Susceptibility (Diagnostic Baseline with flat-terrain controls; Version 2.0 candidate controls pending authenticated Colab/GEE execution).<br>
-                    • <strong>Allowed Inputs:</strong> Strictly pre-event SRTM topography, pre-event SAR baseline (VH/VV pre), 30-day antecedent rain, API (alpha=0.90).<br>
-                    • <strong>Strictly Prohibited:</strong> VH/VV post, dVH, dVV, rain_1d, rain_7d, event labels, coordinates.<br>
-                    • <strong>Configurations:</strong> Cloud-Independent Core (all-weather), Optical-Enhanced (31.5% monsoon nulls), Reduced (Terrain check).
+                <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.45;">
+                    • <strong>Features:</strong> Strictly pre-event SRTM topography, pre-event SAR baseline, 30-day antecedent rain, API.<br>
+                    • <strong>Status:</strong> Evaluated on Version 1.0 flat-terrain controls; Version 2.0 hillslope extraction pending.<br>
+                    • <strong>Rules:</strong> Strict ban on post-event imagery, event rainfall, and spatial coordinates.
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
     # Core Visualizations
-    st.markdown("### Temporal & Physical Inventory Analytics")
+    st.markdown("### Landslide Events")
     c1, c2 = st.columns(2)
     with c1:
         st.plotly_chart(render_yearly_distribution_chart(df_p2_filtered), use_container_width=True)

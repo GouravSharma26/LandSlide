@@ -24,42 +24,29 @@ section[data-testid="stSidebar"] h3 {
     color: #48E5C2 !important;
 }
 
-/* Header badge & title */
+/* Header title & subtitle */
 .header-container {
-    padding: 1.5rem 0 1rem 0;
-    margin-bottom: 1.5rem;
-    border-bottom: 1px solid rgba(72, 229, 194, 0.15);
+    padding: 1.0rem 0 0.8rem 0;
+    margin-bottom: 1.2rem;
+    border-bottom: 1px solid #1E293B;
 }
 
 .brand-badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    background: rgba(72, 229, 194, 0.12);
-    border: 1px solid rgba(72, 229, 194, 0.35);
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #48E5C2;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 0.5rem;
+    display: none;
 }
 
 .brand-title {
-    font-size: 2.2rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    background: linear-gradient(135deg, #FFFFFF 30%, #5BC0BE 70%, #6C63FF 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #F8FAFC;
     margin: 0;
-    line-height: 1.2;
+    line-height: 1.25;
 }
 
 .brand-subtitle {
-    font-size: 1.05rem;
+    font-size: 0.92rem;
     color: #94A3B8;
-    margin-top: 0.35rem;
+    margin-top: 0.3rem;
     font-weight: 400;
 }
 
@@ -224,19 +211,19 @@ section[data-testid="stSidebar"] h3 {
 
 /* Streamlit button custom */
 div.stButton > button:first-child {
-    background: linear-gradient(135deg, #48E5C2 0%, #3A86FF 100%);
-    color: #0B132B;
-    font-weight: 600;
-    border: none;
-    border-radius: 8px;
-    padding: 0.5rem 1.25rem;
+    background: #1E293B;
+    color: #F8FAFC;
+    font-weight: 500;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.45rem 1.1rem;
     transition: all 0.2s ease;
 }
 
 div.stButton > button:first-child:hover {
-    transform: scale(1.02);
-    box-shadow: 0 4px 16px rgba(72, 229, 194, 0.4);
-    color: #0B132B;
+    background: #334155;
+    border-color: #64748B;
+    color: #FFFFFF;
 }
 
 /* Code block fonts */
