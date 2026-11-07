@@ -46,8 +46,8 @@ def render(filters: Dict[str, Any]) -> None:
                 </div>
             </div>
             <div style="font-size: 0.78rem; color: #CBD5E1; margin-top: 6px; line-height: 1.45;">
-                • <strong>Workflow A (Detection):</strong> Experimental Point-Zone Disturbance Assessment (Post-hoc satellite diagnostic; ±5 km catalog positional uncertainty limitation).<br>
-                • <strong>Workflow B (Susceptibility):</strong> Rainfall-Conditioned Susceptibility — Diagnostic Baseline (Pre-event topography + SAR + CHIRPS 30-day rain / API).
+                • <strong>Workflow A (Detection):</strong> Experimental Point-Zone Disturbance Assessment (Post-hoc satellite diagnostic; ±5 km catalog positional uncertainty limitation not remediated by local neighbourhood extraction).<br>
+                • <strong>Workflow B (Susceptibility):</strong> Rainfall-Conditioned Susceptibility — Diagnostic Baseline (Pre-event topography + SAR + CHIRPS 30-day rain / API; Version 2.0 candidate hillslope extraction remains pending authenticated Colab/GEE execution).
             </div>
         </div>
         """,
@@ -161,7 +161,7 @@ def render(filters: Dict[str, Any]) -> None:
                 <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.5;">
                     • <strong>Status:</strong> Experimental Point-Zone Disturbance Assessment.<br>
                     • <strong>Allowed Inputs:</strong> Post-event Sentinel-1 (VH/VV post), SAR deltas (dVH, dVV), event rainfall (rain_1d, 7d, 30d, API), topography.<br>
-                    • <strong>Key Limitation:</strong> ±5 km catalog positional uncertainty means point pixels capture zone disturbance, not verified scars.<br>
+                    • <strong>Key Limitation:</strong> ±5 km catalog positional uncertainty means point pixels capture zone disturbance, not verified scars (500m/1000m buffer extractions do not remediate catalog location error).<br>
                     • <strong>Prohibited:</strong> Temporal leakage bans future observations and spatial coordinate cheats.
                 </div>
             </div>
@@ -179,7 +179,7 @@ def render(filters: Dict[str, Any]) -> None:
                     <em>"Can pre-event terrain and environmental context identify hazard-prone hillslopes?"</em>
                 </div>
                 <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.5;">
-                    • <strong>Status:</strong> Rainfall-Conditioned Susceptibility (Diagnostic Baseline).<br>
+                    • <strong>Status:</strong> Rainfall-Conditioned Susceptibility (Diagnostic Baseline with flat-terrain controls; Version 2.0 candidate controls pending authenticated Colab/GEE execution).<br>
                     • <strong>Allowed Inputs:</strong> Strictly pre-event SRTM topography, pre-event SAR baseline (VH/VV pre), 30-day antecedent rain, API (alpha=0.90).<br>
                     • <strong>Strictly Prohibited:</strong> VH/VV post, dVH, dVV, rain_1d, rain_7d, event labels, coordinates.<br>
                     • <strong>Configurations:</strong> Cloud-Independent Core (all-weather), Optical-Enhanced (31.5% monsoon nulls), Reduced (Terrain check).

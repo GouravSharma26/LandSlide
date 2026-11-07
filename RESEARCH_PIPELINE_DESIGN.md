@@ -64,7 +64,7 @@ $$\text{Filter: } \text{slope} < 5^\circ, \quad \text{distance to nearest positi
 - **Elevation Bimodality:** Negatives were drawn from flat areas within adaptive buffers, causing a bimodal split: flat Indo-Gangetic plains ($mean \approx 212\text{ m}$) and high Tibetan plateau flats ($mean \approx 4,800\text{ m}$), with an elevation standard deviation of $2,268\text{ m}$.
 
 ### 3.2. Revised Representative Hillslope Control Sampling Protocol (Version 2.0)
-To eliminate the terrain confound in susceptibility modeling, control points must represent **unfailed hillslopes** exposed to similar geophysical stresses:
+To eliminate the terrain confound in susceptibility modeling, control points must represent **candidate hillslope controls** (unrecorded failure status; genuine extraction pending authenticated Colab/GEE execution) exposed to similar geophysical stresses:
 
 1. **Topographic Domain Constraint:** Controls must reside within the active hillslope envelope:
    $$10^\circ \le \text{slope} \le 45^\circ$$

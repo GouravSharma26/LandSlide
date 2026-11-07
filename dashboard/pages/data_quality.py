@@ -81,10 +81,13 @@ def render(filters: Dict[str, Any]) -> None:
     )
 
     if not missing_df.empty:
+        # Deduplicate display entries while preserving all distinct source variables
+        missing_df = missing_df.drop_duplicates(subset=["feature"]).reset_index(drop=True)
         c3, c4 = st.columns([1.2, 1])
         with c3:
             # Transform missing_df to format expected by missingness chart
             chart_df = missing_df.rename(columns={"feature": "column", "missingness_pct": "missing_pct", "null_count": "missing_count"})
+            chart_df = chart_df.drop_duplicates(subset=["column"]).reset_index(drop=True)
             st.plotly_chart(render_missingness_chart(chart_df), use_container_width=True)
         with c4:
             st.dataframe(
@@ -94,23 +97,30 @@ def render(filters: Dict[str, Any]) -> None:
                 height=450,
             )
 
+        st.caption(
+            "Note on Optical Missingness: BSI, NDVI, NDWI, and spectral_window_days all report 31.5% missingness (80/254 points) "
+            "because all multispectral indices and the adaptive window duration metadata are co-dependent on Sentinel-2 scene availability. "
+            "When cloud obscuration precludes valid surface reflectance within 60 days, all four variables are simultaneously null. "
+            "They are distinct physical variables, not duplicate entries."
+        )
+
     st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
 
     # 3. Dataset Lineage: Version 1.0 vs Version 2.0
     st.markdown("### 3. Dataset Lineage: Version 1.0 (Baseline) vs Version 2.0 (Hillslope Protocol)")
     st.markdown(
         """
-        To eliminate the severe flat-terrain negative control bias documented in Version 1.0, an empirically constrained Version 2.0 sampling protocol has been designed:
+        To address the severe flat-terrain negative control bias documented in Version 1.0, an empirically constrained Version 2.0 sampling protocol has been designed:
         """
     )
 
     v1_v2_table = [
-        {"Parameter / Attribute": "Status", "Version 1.0 (Baseline)": "Historical Diagnostic Baseline (Flat-Terrain Controls; Not Validated Susceptibility)", "Version 2.0 (Hillslope Protocol)": "EXTRACTION_PENDING_COLAB_GEE (Extraction Pending)"},
+        {"Parameter / Attribute": "Status", "Version 1.0 (Baseline)": "Historical Diagnostic Baseline (Flat-Terrain Controls; Not Validated Susceptibility)", "Version 2.0 (Hillslope Protocol)": "EXTRACTION_PENDING_COLAB_GEE (Execution pending authenticated Colab/GEE run)"},
         {"Parameter / Attribute": "Sample Size", "Version 1.0 (Baseline)": "N=254 (127 pos, 127 neg)", "Version 2.0 (Hillslope Protocol)": "N=254 target (127 pos, 127 neg)"},
-        {"Parameter / Attribute": "Negative Control Slope", "Version 1.0 (Baseline)": "Mean 1.43° ± 4.34° (90% flat plains < 5°)", "Version 2.0 (Hillslope Protocol)": "Empirical envelope: 6.1° to 41.4° (unfailed hillslopes)"},
+        {"Parameter / Attribute": "Negative Control Slope", "Version 1.0 (Baseline)": "Mean 1.43° ± 4.34° (90% flat plains < 5°)", "Version 2.0 (Hillslope Protocol)": "Empirical envelope: 6.1° to 41.4° (candidate hillslope controls)"},
         {"Parameter / Attribute": "Elevation Range", "Version 1.0 (Baseline)": "14 m to 2,398 m", "Version 2.0 (Hillslope Protocol)": "266 m to 3,027 m (P10 to P95 of positive events)"},
         {"Parameter / Attribute": "Positive Exclusion Buffer", "Version 1.0 (Baseline)": "None", "Version 2.0 (Hillslope Protocol)": "> 2.0 km from all known scars"},
-        {"Parameter / Attribute": "Multi-Scale Neighborhoods", "Version 1.0 (Baseline)": "Single 10m pixel", "Version 2.0 (Hillslope Protocol)": "500m & 1000m buffer reductions (remediates +/-5km error)"},
+        {"Parameter / Attribute": "Multi-Scale Neighborhoods", "Version 1.0 (Baseline)": "Single 10m pixel", "Version 2.0 (Hillslope Protocol)": "500m & 1000m buffer reductions (point-zone disturbance; does not remediate ±5km error)"},
         {"Parameter / Attribute": "Earth Engine Script", "Version 1.0 (Baseline)": "Phase 3 notebook", "Version 2.0 (Hillslope Protocol)": "notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb"}
     ]
     st.dataframe(pd.DataFrame(v1_v2_table), use_container_width=True, hide_index=True)
@@ -120,7 +130,7 @@ def render(filters: Dict[str, Any]) -> None:
         st.markdown(
             f"""
             <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid #DC2626; border-radius: 4px; padding: 10px 14px; margin-top: 10px;">
-                <strong style="color: #EF4444;">Statistical Proof of Terrain Confound:</strong> Two-sample Kolmogorov-Smirnov tests confirm extreme divergence between positive events and Version 1.0 controls:<br>
+                <strong style="color: #EF4444;">Statistical Evidence of Terrain Distribution Differences:</strong> Two-sample Kolmogorov-Smirnov tests confirm extreme divergence between positive events and Version 1.0 controls:<br>
                 • Slope KS Statistic: <strong>{div.get('slope_ks_statistic', 0.92):.3f}</strong> (p-value: {div.get('slope_ks_pvalue', 0):.2e})<br>
                 • TRI KS Statistic: <strong>{div.get('tri_ks_statistic', 0.91):.3f}</strong> (p-value: {div.get('tri_ks_pvalue', 0):.2e})<br>
                 <em>This mathematically confirms that high accuracy on Version 1.0 is driven by distinguishing mountains from flat valley floors.</em>

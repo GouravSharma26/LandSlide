@@ -149,33 +149,111 @@ def render_trigger_breakdown_chart(df: pd.DataFrame) -> go.Figure:
 
 
 def render_model_comparison_bar_chart(metrics_df: pd.DataFrame) -> go.Figure:
-    """Renders grouped bar chart comparing RF vs XGBoost across AUROC, PR-AUC, and F1."""
-    if metrics_df.empty:
+    """Renders grouped bar chart comparing RF vs XGBoost across AUROC, PR-AUC, and F1.
+    
+    Robustly handles:
+    1. Standard tidy metrics schema (with 'model', 'auroc', 'prauc', 'f1_score_at_0.5' / 'f1')
+       from detection_metrics.csv or susceptibility_metrics.csv.
+    2. Legacy wide metrics schema (with 'rf_auroc', 'xgb_auroc', etc.).
+    """
+    if metrics_df is None or metrics_df.empty:
         fig = go.Figure()
         return apply_custom_theme(fig, title="Model Metrics Unavailable")
 
     metrics_names = ["AUROC", "PR-AUC", "F1 Score"]
-    
-    # We display the REDUCED feature set as primary, and full as secondary
-    red_row = metrics_df[metrics_df["feature_set"].str.contains("REDUCED", case=False, na=False)]
-    if red_row.empty:
-        red_row = metrics_df.iloc[-1:]
+    rf_scores = [0.0, 0.0, 0.0]
+    xgb_scores = [0.0, 0.0, 0.0]
+    chart_title = "Spatial Out-of-Fold Model Benchmark (100km Purged)"
+    rf_label = "Random Forest"
+    xgb_label = "XGBoost"
 
-    rf_scores = [
-        float(red_row["rf_auroc"].values[0]),
-        float(red_row["rf_prauc"].values[0]),
-        float(red_row["rf_f1"].values[0]),
-    ]
-    xgb_scores = [
-        float(red_row["xgb_auroc"].values[0]),
-        float(red_row["xgb_prauc"].values[0]),
-        float(red_row["xgb_f1"].values[0]),
-    ]
+    cols = set(metrics_df.columns)
+
+    # 1. Legacy wide schema (rf_auroc, xgb_auroc)
+    if "rf_auroc" in cols and "xgb_auroc" in cols:
+        target_df = metrics_df
+        if "feature_set" in cols:
+            red = metrics_df[metrics_df["feature_set"].str.contains("REDUCED", case=False, na=False)]
+            if not red.empty:
+                target_df = red
+        target_row = target_df.iloc[-1]
+
+        rf_auc = target_row.get("rf_auroc", 0.0)
+        rf_pr = target_row.get("rf_prauc", target_row.get("rf_pr_auc", 0.0))
+        rf_f1 = target_row.get("rf_f1", target_row.get("rf_f1_score_at_0.5", target_row.get("rf_f1_score", 0.0)))
+
+        xgb_auc = target_row.get("xgb_auroc", 0.0)
+        xgb_pr = target_row.get("xgb_prauc", target_row.get("xgb_pr_auc", 0.0))
+        xgb_f1 = target_row.get("xgb_f1", target_row.get("xgb_f1_score_at_0.5", target_row.get("xgb_f1_score", 0.0)))
+
+        rf_scores = [float(rf_auc or 0.0), float(rf_pr or 0.0), float(rf_f1 or 0.0)]
+        xgb_scores = [float(xgb_auc or 0.0), float(xgb_pr or 0.0), float(xgb_f1 or 0.0)]
+        rf_label = "Random Forest"
+        xgb_label = "XGBoost"
+
+    # 2. Standard tidy schema (detection_metrics / susceptibility_metrics)
+    elif "model" in cols:
+        df_work = metrics_df.copy()
+
+        # Prioritize 100km spatial purge standard if present
+        if "purge_distance_km" in df_work.columns:
+            purged = df_work[df_work["purge_distance_km"] == 100.0]
+            if not purged.empty:
+                df_work = purged
+
+        # If configuration exists (susceptibility), default to Core model
+        if "configuration" in df_work.columns:
+            core = df_work[df_work["configuration"].str.contains("Core", case=False, na=False)]
+            if not core.empty:
+                df_work = core
+                chart_title = "Susceptibility Core Model Benchmark (100km Purged)"
+
+        rf_mask = df_work["model"].str.contains(r"Random Forest|RF", case=False, na=False)
+        xgb_mask = df_work["model"].str.contains(r"XGBoost|XGB", case=False, na=False)
+
+        rf_row = df_work[rf_mask]
+        xgb_row = df_work[xgb_mask]
+
+        auc_col = next((c for c in ["auroc", "auc", "roc_auc"] if c in df_work.columns), "auroc")
+        pr_col = next((c for c in ["prauc", "pr_auc", "average_precision"] if c in df_work.columns), auc_col)
+        f1_col = next((c for c in ["f1_score_at_0.5", "f1", "f1_score"] if c in df_work.columns), auc_col)
+
+        if not rf_row.empty:
+            r = rf_row.iloc[0]
+            rf_scores = [
+                float(r.get(auc_col, 0.0) or 0.0),
+                float(r.get(pr_col, 0.0) or 0.0),
+                float(r.get(f1_col, 0.0) or 0.0),
+            ]
+            rf_label = "Random Forest (100km Purged)" if "purge_distance_km" in df_work.columns else "Random Forest"
+
+        if not xgb_row.empty:
+            x = xgb_row.iloc[0]
+            xgb_scores = [
+                float(x.get(auc_col, 0.0) or 0.0),
+                float(x.get(pr_col, 0.0) or 0.0),
+                float(x.get(f1_col, 0.0) or 0.0),
+            ]
+            xgb_label = "XGBoost (100km Purged)" if "purge_distance_km" in df_work.columns else "XGBoost"
+
+    else:
+        # Generic fallback for 2-row comparison
+        auc_col = next((c for c in ["auroc", "auc", "roc_auc"] if c in cols), None)
+        pr_col = next((c for c in ["prauc", "pr_auc", "average_precision"] if c in cols), auc_col)
+        f1_col = next((c for c in ["f1_score_at_0.5", "f1", "f1_score"] if c in cols), auc_col)
+
+        if auc_col and len(metrics_df) >= 2:
+            r0 = metrics_df.iloc[0]
+            r1 = metrics_df.iloc[1]
+            rf_scores = [float(r0.get(auc_col, 0.0) or 0.0), float(r0.get(pr_col, 0.0) or 0.0), float(r0.get(f1_col, 0.0) or 0.0)]
+            xgb_scores = [float(r1.get(auc_col, 0.0) or 0.0), float(r1.get(pr_col, 0.0) or 0.0), float(r1.get(f1_col, 0.0) or 0.0)]
+            rf_label = str(r0.get("model", "Model 1"))
+            xgb_label = str(r1.get("model", "Model 2"))
 
     fig = go.Figure(
         data=[
             go.Bar(
-                name="Random Forest (Reduced)",
+                name=rf_label,
                 x=metrics_names,
                 y=rf_scores,
                 marker_color=THEME_COLORS["secondary"],
@@ -183,7 +261,7 @@ def render_model_comparison_bar_chart(metrics_df: pd.DataFrame) -> go.Figure:
                 textposition="auto",
             ),
             go.Bar(
-                name="XGBoost (Reduced)",
+                name=xgb_label,
                 x=metrics_names,
                 y=xgb_scores,
                 marker_color=THEME_COLORS["primary"],
@@ -195,7 +273,7 @@ def render_model_comparison_bar_chart(metrics_df: pd.DataFrame) -> go.Figure:
     fig.update_layout(barmode="group", yaxis_range=[0.75, 1.02])
     return apply_custom_theme(
         fig,
-        title="Spatial Out-of-Fold Model Performance (Reduced Set)",
+        title=chart_title,
         x_title="Evaluation Metric",
         y_title="Score",
         height=350,
@@ -499,7 +577,7 @@ def render_missingness_chart(missing_summary_df: pd.DataFrame) -> go.Figure:
     if plot_df.empty:
         plot_df = missing_summary_df.head(10).copy()
 
-    plot_df = plot_df.sort_values(by="missing_pct", ascending=True)
+    plot_df = plot_df.drop_duplicates(subset=["column"]).sort_values(by="missing_pct", ascending=True).reset_index(drop=True)
 
     colors = [
         THEME_COLORS["danger"] if pct > 30 else THEME_COLORS["warning"] if pct > 5 else THEME_COLORS["primary"]

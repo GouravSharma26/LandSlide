@@ -44,7 +44,7 @@ def render(filters: Dict[str, Any]) -> None:
             </div>
             <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.5;">
                 • <strong>Catalog Coordinate Uncertainty:</strong> 57.5% of NASA COOLR events (73/127) are documented with <strong>±5 km positional uncertainty</strong>. Only 10 points are "Known exactly".<br>
-                • <strong>Single Pixel Vulnerability:</strong> A single 10m Sentinel-1 SAR pixel sampled at nominal coordinates frequently falls outside the actual ground failure scar. Buffer reductions (500m/1000m) capture point-zone disturbance rather than scar delineations.<br>
+                • <strong>Single Pixel Vulnerability:</strong> A single 10m Sentinel-1 SAR pixel sampled at nominal coordinates frequently falls outside the actual ground failure scar. While 500m and 1,000m buffer reductions capture aggregated point-zone disturbance rather than scar delineations, they do not resolve or remediate the ±5 km catalog positional uncertainty.<br>
                 • <strong>Scientific Scope:</strong> This workflow is strictly classified as an <strong>Experimental Point-Zone Disturbance Assessment</strong>. It does <em>not</em> claim verified scar-level detection accuracy without high-precision polygon boundaries.
             </div>
         </div>
