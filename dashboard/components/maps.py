@@ -1,4 +1,4 @@
-"""Geospatial mapping components using Plotly Mapbox and PyDeck."""
+"""Geospatial mapping components using Plotly MapLibre and PyDeck."""
 
 import pandas as pd
 import numpy as np
@@ -53,19 +53,35 @@ def render_observation_map(
     if "Location Accuracy" in plot_df.columns:
         hover_cols.append("Location Accuracy")
 
-    fig = px.scatter_mapbox(
-        plot_df,
-        lat="latitude",
-        lon="longitude",
-        color="Class",
-        color_discrete_map=color_map,
-        hover_name="Class",
-        hover_data=hover_cols,
-        zoom=5,
-        center={"lat": HIMALAYAN_CENTER["lat"], "lon": HIMALAYAN_CENTER["lon"]},
-        mapbox_style="carto-darkmatter",
-        height=height,
-    )
+    # Use supported MapLibre px.scatter_map (Plotly 5.24+ / 6+) with fallback to legacy px.scatter_mapbox
+    if hasattr(px, "scatter_map"):
+        fig = px.scatter_map(
+            plot_df,
+            lat="latitude",
+            lon="longitude",
+            color="Class",
+            color_discrete_map=color_map,
+            hover_name="Class",
+            hover_data=hover_cols,
+            zoom=5,
+            center={"lat": HIMALAYAN_CENTER["lat"], "lon": HIMALAYAN_CENTER["lon"]},
+            map_style="carto-darkmatter",
+            height=height,
+        )
+    else:
+        fig = px.scatter_mapbox(
+            plot_df,
+            lat="latitude",
+            lon="longitude",
+            color="Class",
+            color_discrete_map=color_map,
+            hover_name="Class",
+            hover_data=hover_cols,
+            zoom=5,
+            center={"lat": HIMALAYAN_CENTER["lat"], "lon": HIMALAYAN_CENTER["lon"]},
+            mapbox_style="carto-darkmatter",
+            height=height,
+        )
 
     fig.update_traces(marker=dict(size=9, opacity=0.85))
     fig.update_layout(
@@ -113,20 +129,37 @@ def render_susceptibility_grid_map(
         if col in grid_df.columns and col != value_column:
             hover_data[col] = ":.3f"
 
-    fig = px.density_mapbox(
-        grid_df,
-        lat="latitude",
-        lon="longitude",
-        z=value_column,
-        radius=28,
-        center={"lat": HIMALAYAN_CENTER["lat"], "lon": HIMALAYAN_CENTER["lon"]},
-        zoom=4.8,
-        mapbox_style="carto-darkmatter",
-        color_continuous_scale=color_scale,
-        range_color=[0.0, 1.0] if "susceptibility" in value_column else None,
-        hover_data=hover_data,
-        height=height,
-    )
+    # Use supported MapLibre px.density_map (Plotly 5.24+ / 6+) with fallback to legacy px.density_mapbox
+    if hasattr(px, "density_map"):
+        fig = px.density_map(
+            grid_df,
+            lat="latitude",
+            lon="longitude",
+            z=value_column,
+            radius=28,
+            center={"lat": HIMALAYAN_CENTER["lat"], "lon": HIMALAYAN_CENTER["lon"]},
+            zoom=4.8,
+            map_style="carto-darkmatter",
+            color_continuous_scale=color_scale,
+            range_color=[0.0, 1.0] if "susceptibility" in value_column else None,
+            hover_data=hover_data,
+            height=height,
+        )
+    else:
+        fig = px.density_mapbox(
+            grid_df,
+            lat="latitude",
+            lon="longitude",
+            z=value_column,
+            radius=28,
+            center={"lat": HIMALAYAN_CENTER["lat"], "lon": HIMALAYAN_CENTER["lon"]},
+            zoom=4.8,
+            mapbox_style="carto-darkmatter",
+            color_continuous_scale=color_scale,
+            range_color=[0.0, 1.0] if "susceptibility" in value_column else None,
+            hover_data=hover_data,
+            height=height,
+        )
 
     fig.update_layout(
         template="plotly_dark",
