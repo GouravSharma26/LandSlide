@@ -30,6 +30,48 @@ Rainfall-triggered mass wasting in the Himalayas is driven by steep, seismically
 
 ---
 
+## Data Sources and Repository Datasets
+
+The research framework synthesizes satellite remote sensing, digital elevation topography, and high-resolution precipitation observations across five authoritative sources:
+
+### 1. NASA Global Landslide Catalog (GLC / COOLR)
+- **Provider:** NASA Goddard Space Flight Center (Cooperative Open Online Landslide Repository)
+- **Coverage & Timeframe:** Global records filtered to the Himalayan study envelope ($26.0^\circ\text{N} - 35.5^\circ\text{N}$, $74.0^\circ\text{E} - 97.0^\circ\text{E}$) spanning **2017 to 2020**.
+- **Extracted Attributes:** Verified historical landslide events, geographic coordinates, occurrence timestamps, positional confidence tiers ($\le 5\text{ km}$ accuracy retained), and reported triggering mechanisms (`monsoon`, `downpour`, `continuous_rain`).
+
+### 2. Copernicus Sentinel-1 Synthetic Aperture Radar (SAR)
+- **Provider:** European Space Agency (ESA) / Copernicus Programme
+- **Sensor & Mode:** C-Band SAR, Level-1 Ground Range Detected (GRD), Interferometric Wide (IW) swath mode, 10-meter spatial resolution, 12-day repeat orbit.
+- **Scientific Role:** Provides all-weather, day-and-night surface sensing independent of cloud cover. Captures dual-polarization backscatter intensity ($\text{VV}, \text{VH}$) in ascending and descending passes before and after triggering events. Computes differential backscatter change ($\Delta\text{VH}, \Delta\text{VV}$) to capture physical surface roughness disruption, vegetation removal, and soil moisture shifts associated with mass movement.
+
+### 3. Copernicus Sentinel-2 Multi-Spectral Instrument (MSI)
+- **Provider:** European Space Agency (ESA) / Copernicus Programme
+- **Sensor Specifications:** Multi-spectral surface reflectance across 13 spectral bands at 10 m and 20 m spatial resolution.
+- **Scientific Role:** Measures vegetative vigor, surface wetness, and soil exposure using cloud-masked optical scenes. Extracted indices include Normalized Difference Vegetation Index ($\text{NDVI} = \frac{B8 - B4}{B8 + B4}$), Normalized Difference Water Index ($\text{NDWI} = \frac{B3 - B8}{B3 + B8}$), and Bare Soil Index ($\text{BSI} = \frac{(B11 + B4) - (B8 + B2)}{(B11 + B4) + (B8 + B2)}$).
+
+### 4. SRTM GL1 & MERIT Hydro Digital Elevation Models
+- **Provider:** NASA / USGS / JAXA / University of Tokyo
+- **Resolution:** 30-meter global 1-arc-second SRTM elevation paired with 90-meter MERIT Hydro flow routing.
+- **Scientific Role:** Provides topographic morphometry and terrain hydrology. Extracted parameters include elevation (meters), slope angle (degrees), aspect direction (compass degrees), profile curvature ($\text{m}^{-1}$ via $3\times 3$ Laplacian kernel), Terrain Ruggedness Index ($\text{TRI}$), and Topographic Wetness Index ($\text{TWI} = \ln(\text{upa} / \tan(\text{slope}))$).
+
+### 5. CHIRPS Daily Gridded Precipitation
+- **Provider:** Climate Hazards Center (CHC), University of California, Santa Barbara (UCSB)
+- **Resolution:** 0.05° (~5.5 km) daily gridded rainfall estimates.
+- **Scientific Role:** Merges thermal infrared satellite observations with ground-station gauge data to calculate meteorological triggers. Computes short-term triggering totals ($1\text{-day}$ peak rain, $7\text{-day}$ cumulative) and antecedent soil saturation metrics ($30\text{-day}$ cumulative rain, and the Antecedent Precipitation Index $\text{API}_t = \sum_{i=1}^{30} P_{t-i} \cdot 0.90^i$).
+
+### Repository Dataset Structure
+
+| Dataset Name | File Path | Records | Description |
+| :--- | :--- | :---: | :--- |
+| **Raw Landslide Inventory** | `Landslide_Reports.csv` | 14,750 | Global landslide database from NASA COOLR |
+| **Observation Records (Events & Controls)** | `outputs/phase2_cleaned_dataset.csv` | 254 | 127 verified events and 127 paired diagnostic controls |
+| **Multi-Source Feature Matrix** | `outputs/phase3_feature_table.csv` | 254 | Unified table with 28 topographic, radar, optical, and rainfall features |
+| **Model Performance Metrics** | `outputs/phase4_metrics_comparison.csv` | — | Cross-validation comparison between core and reduced models |
+| **Spatial Out-of-Fold Predictions** | `outputs/phase4_oof_predictions.csv` | 254 | Spatial cross-validation probabilities and fold assignments |
+| **Regional Susceptibility Grid (0.5°)** | `outputs/phase5_susceptibility_grid.csv` | 765 | 0.5° regional hazard scoring across the entire Himalayan arc |
+
+---
+
 ## Dataset Lineage and Methodological Limitations
 
 | Component | Status Designation | Description and Methodological Caveat |
@@ -112,7 +154,7 @@ The application will open at `http://localhost:8501`.
 ```bash
 python -m pytest tests/ -v
 ```
-All 51 unit, geomorphometric, governance, and schema tests must pass.
+All 59 unit, geomorphometric, mapping, governance, and schema tests must pass.
 
 ---
 
@@ -133,9 +175,10 @@ All required datasets and models are pre-packaged in `outputs/` and `artifacts/`
 
 ## Automated Testing Suite
 
-The repository contains 51 automated tests in `tests/`:
+The repository contains 59 automated tests in `tests/`:
 - `tests/test_scientific_governance.py` (7 tests): Prohibited-feature enforcement, temporal leakage checks, spatial purge distances, fold balance, artifact schemas, and model deserialization.
 - `tests/test_v2_sampling_and_features.py` (28 tests): MERIT Hydro 90m TWI, slope aggregation, positive-event validation, multi-batch candidate optimization, coordinate deduplication, 13 rejection categories, and Colab notebook structure.
+- `tests/test_maps.py` (8 tests): Geospatial map rendering, observation filter routing, attribute selection, and Plotly 6 MapLibre compatibility simulation.
 - `tests/test_data_loader.py` (7 tests): Data loaders for raw reports, cleaned subsets, feature tables, metrics, predictions, regional grids, and models.
 - `tests/test_metrics.py` (5 tests): ROC curves, PR curves, confusion matrix calculations across decision thresholds, susceptibility distribution statistics, and model comparison bar chart schema regression test.
 - `tests/test_validation.py` (4 tests): Geographic coordinate bounds ($26.0^\circ-35.5^\circ\text{N}, 74.0^\circ-97.0^\circ\text{E}$), schema compliance, missingness summaries, and label balance.
