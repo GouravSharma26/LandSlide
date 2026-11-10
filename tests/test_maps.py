@@ -114,3 +114,4 @@ def test_render_pydeck_susceptibility_map(sample_grid_data):
 
     deck_empty = render_pydeck_susceptibility_map(pd.DataFrame())
     assert isinstance(deck_empty, pdk.Deck)
+

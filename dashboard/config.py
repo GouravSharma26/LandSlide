@@ -52,14 +52,23 @@ SPATIAL_DISTANCE_REPORT_PATH = METADATA_DIR / "spatial_fold_distance_report.json
 SPATIAL_SENSITIVITY_PATH = METADATA_DIR / "spatial_purging_sensitivity.csv"
 V2_DISTRIBUTION_VAL_PATH = METADATA_DIR / "v2_candidate_distribution_validation.json"
 
-# Historical / Raw Paths
+# Primary Descriptive Dataset Paths
 RAW_LANDSLIDES_PATH = BASE_DIR / "Landslide_Reports.csv"
-PHASE2_CLEANED_PATH = OUTPUTS_DIR / "phase2_cleaned_dataset.csv"
-PHASE3_FEATURES_PATH = OUTPUTS_DIR / "phase3_feature_table.csv"
-PHASE4_METRICS_PATH = OUTPUTS_DIR / "phase4_metrics_comparison.csv"
-PHASE4_OOF_PATH = OUTPUTS_DIR / "phase4_oof_predictions.csv"
-PHASE4_MODELS_PATH = OUTPUTS_DIR / "phase4_final_models.joblib"
-PHASE5_GRID_PATH = OUTPUTS_DIR / "phase5_susceptibility_grid.csv"
+CLEANED_OBSERVATIONS_PATH = OUTPUTS_DIR / "cleaned_observation_records.csv"
+MULTISOURCE_FEATURES_PATH = OUTPUTS_DIR / "multisource_feature_matrix.csv"
+MODEL_METRICS_PATH = OUTPUTS_DIR / "model_evaluation_metrics.csv"
+SPATIAL_OOF_PATH = OUTPUTS_DIR / "spatial_oof_predictions.csv"
+REGIONAL_GRID_FEATURES_PATH = OUTPUTS_DIR / "regional_grid_features_0.5deg.csv"
+REGIONAL_GRID_PATH = OUTPUTS_DIR / "regional_susceptibility_grid.csv"
+TRAINED_MODELS_PATH = OUTPUTS_DIR / "trained_models.joblib"
+
+# Legacy Aliases for Backward Compatibility
+PHASE2_CLEANED_PATH = CLEANED_OBSERVATIONS_PATH if CLEANED_OBSERVATIONS_PATH.exists() else OUTPUTS_DIR / "phase2_cleaned_dataset.csv"
+PHASE3_FEATURES_PATH = MULTISOURCE_FEATURES_PATH if MULTISOURCE_FEATURES_PATH.exists() else OUTPUTS_DIR / "phase3_feature_table.csv"
+PHASE4_METRICS_PATH = MODEL_METRICS_PATH if MODEL_METRICS_PATH.exists() else OUTPUTS_DIR / "phase4_metrics_comparison.csv"
+PHASE4_OOF_PATH = SPATIAL_OOF_PATH if SPATIAL_OOF_PATH.exists() else OUTPUTS_DIR / "phase4_oof_predictions.csv"
+PHASE4_MODELS_PATH = TRAINED_MODELS_PATH if TRAINED_MODELS_PATH.exists() else OUTPUTS_DIR / "phase4_final_models.joblib"
+PHASE5_GRID_PATH = REGIONAL_GRID_PATH if REGIONAL_GRID_PATH.exists() else OUTPUTS_DIR / "phase5_susceptibility_grid.csv"
 
 # Geographic Domain: Himalayan Belt
 ROI_BOUNDS = {

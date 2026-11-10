@@ -365,3 +365,14 @@ def load_or_train_models() -> Dict[str, Any]:
         except Exception:
             pass
     return {}
+
+
+# -----------------------------------------------------------------------------
+# Descriptive Alias Loaders
+# -----------------------------------------------------------------------------
+load_cleaned_observations = load_phase2_cleaned
+load_multisource_features = load_phase3_features
+load_model_metrics = load_phase4_metrics
+load_spatial_oof = load_phase4_oof
+load_regional_grid = load_phase5_grid
+
