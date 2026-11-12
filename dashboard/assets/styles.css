@@ -59,20 +59,21 @@ section[data-testid="stSidebar"] h3 {
 }
 
 .kpi-card {
-    background: linear-gradient(145deg, #1C2541 0%, #151D33 100%);
-    border: 1px solid #2A3B5C;
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.18);
     border-radius: 12px;
-    padding: 1.25rem;
+    padding: 1.15rem 1.25rem;
     position: relative;
     overflow: hidden;
-    transition: transform 0.2s ease, border-color 0.2s ease;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(10px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
 .kpi-card:hover {
-    transform: translateY(-2px);
-    border-color: rgba(72, 229, 194, 0.5);
-    box-shadow: 0 8px 24px rgba(72, 229, 194, 0.12);
+    transform: translateY(-3px);
+    border-color: rgba(56, 189, 248, 0.5);
+    box-shadow: 0 10px 28px rgba(56, 189, 248, 0.18);
 }
 
 .kpi-card::before {
@@ -82,52 +83,57 @@ section[data-testid="stSidebar"] h3 {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #48E5C2, #6C63FF);
+    background: linear-gradient(90deg, #38BDF8, #A855F7);
 }
 
 .kpi-label {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #94A3B8;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.35rem;
 }
 
 .kpi-value {
     font-size: 1.85rem;
-    font-weight: 700;
+    font-weight: 800;
     color: #FFFFFF;
     line-height: 1.1;
     font-family: 'Inter', sans-serif;
+    letter-spacing: -0.02em;
 }
 
 .kpi-subtext {
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     color: #64748B;
-    margin-top: 0.4rem;
+    margin-top: 0.35rem;
 }
 
 .kpi-highlight-cyan {
-    color: #48E5C2;
+    color: #38BDF8;
+    text-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
 }
 
 .kpi-highlight-purple {
-    color: #B5179E;
+    color: #C084FC;
+    text-shadow: 0 0 14px rgba(192, 132, 252, 0.35);
 }
 
 .kpi-highlight-blue {
-    color: #3A86FF;
+    color: #60A5FA;
+    text-shadow: 0 0 14px rgba(96, 165, 250, 0.35);
 }
 
 /* Glassmorphism content container */
 .content-card {
-    background: #1C2541;
-    border: 1px solid #2A3B5C;
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.9) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.15);
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .card-title {

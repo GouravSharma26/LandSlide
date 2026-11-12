@@ -19,12 +19,15 @@ def render_sidebar() -> Dict[str, Any]:
 
         st.markdown(
             f"""
-            <div style="margin-bottom: 0.8rem;">
-                <div style="font-size: 1.05rem; font-weight: 700; color: #FFFFFF; line-height: 1.25;">
-                    Himalayan Landslides
+            <div style="margin-bottom: 0.9rem;">
+                <div style="font-size: 1.08rem; font-weight: 800; color: #FFFFFF; line-height: 1.25; letter-spacing: -0.01em;">
+                    Early Landslide Risk Detection
                 </div>
-                <div style="font-size: 0.76rem; color: #94A3B8; margin-top: 2px;">
-                    Event Detection & Susceptibility
+                <div style="font-size: 0.76rem; color: #38BDF8; font-weight: 600; margin-top: 3px;">
+                    Visual Terrain Changes & Multi-Modal AI
+                </div>
+                <div style="display: inline-block; margin-top: 6px; padding: 2px 7px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 4px; font-size: 0.68rem; color: #94A3B8;">
+                    🏔️ Himalayan Testbed Region
                 </div>
             </div>
             """,
