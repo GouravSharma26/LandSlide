@@ -18,15 +18,8 @@ from dashboard.components.kpi_cards import render_kpi_row
 
 def render(filters: Dict[str, Any]) -> None:
     """Renders Page 2: Study Area & Maps."""
-    st.markdown(
-        """
-        <div class="header-container">
-            <h1 class="brand-title">Study Area & Maps</h1>
-            <div class="brand-subtitle">Landslide observation points, controls, and regional 0.5° macro-grid</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.title("Study Area & Spatial Distribution")
+    st.caption("Observation sites, diagnostic controls, and regional 0.5° susceptibility grid across the Himalayan arc.")
 
     # Resolution Notice
     st.markdown(

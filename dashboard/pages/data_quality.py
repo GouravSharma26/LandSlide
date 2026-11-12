@@ -16,15 +16,8 @@ from dashboard.components.charts import render_missingness_chart
 
 def render(filters: Dict[str, Any]) -> None:
     """Renders Page 3: Data Quality."""
-    st.markdown(
-        """
-        <div class="header-container">
-            <h1 class="brand-title">Data Quality</h1>
-            <div class="brand-subtitle">Preprocessing funnel, missing data summary, and control sample comparison</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.title("Data Quality & Cleaning Funnel")
+    st.caption("Preprocessing funnel, feature missingness rates, and diagnostic control evaluations.")
 
     # Load artifacts
     funnel_df = load_preprocessing_funnel()

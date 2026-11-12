@@ -12,15 +12,8 @@ from dashboard.utils.visualization import apply_custom_theme
 
 def render(filters: Dict[str, Any]) -> None:
     """Renders Page 4: Environmental Analysis."""
-    st.markdown(
-        """
-        <div class="header-container">
-            <h1 class="brand-title">Environmental Analysis</h1>
-            <div class="brand-subtitle">Distributions across precipitation, topography, SAR backscatter, and optical indices</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.title("Environmental Dynamics & Feature Analysis")
+    st.caption("Distributions across precipitation, topography, SAR radar backscatter, and optical spectral indices.")
 
     df_p3 = load_phase3_features()
     vif_df = load_vif_report()

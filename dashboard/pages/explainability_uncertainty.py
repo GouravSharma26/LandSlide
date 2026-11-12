@@ -18,15 +18,8 @@ from dashboard.utils.visualization import apply_custom_theme
 
 def render(filters: Dict[str, Any]) -> None:
     """Renders Page 7: Feature Importance & Uncertainty."""
-    st.markdown(
-        """
-        <div class="header-container">
-            <h1 class="brand-title">Feature Importance & Uncertainty</h1>
-            <div class="brand-subtitle">TreeSHAP feature attributions, spatial purging sensitivity, and model disagreement</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.title("Feature Importance & Uncertainty")
+    st.caption("TreeSHAP attributions, spatial purging decay curves, and predictive uncertainty metrics.")
 
     # Load artifacts
     det_shap = load_detection_shap_summary()

@@ -22,15 +22,8 @@ from sklearn.metrics import roc_curve, precision_recall_curve
 
 def render(filters: Dict[str, Any]) -> None:
     """Renders Page 5: Event Detection (Workflow A)."""
-    st.markdown(
-        """
-        <div class="header-container">
-            <h1 class="brand-title">Event Detection (Workflow A)</h1>
-            <div class="brand-subtitle">Disturbance classification using Sentinel-1 SAR changes and event rainfall</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.title("Landslide Event Detection")
+    st.caption("Post-hoc disturbance classification using Sentinel-1 SAR backscatter changes and event precipitation.")
 
     # Positional Uncertainty & Scope Callout
     st.markdown(

@@ -19,15 +19,8 @@ from dashboard.utils.visualization import apply_custom_theme
 
 def render(filters: Dict[str, Any]) -> None:
     """Renders Page 6: Susceptibility Prediction (Workflow B)."""
-    st.markdown(
-        """
-        <div class="header-container">
-            <h1 class="brand-title">Susceptibility Prediction (Workflow B)</h1>
-            <div class="brand-subtitle">Pre-event hazard ranking based on SRTM topography, baseline SAR, and antecedent rainfall</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.title("Landslide Susceptibility Prediction")
+    st.caption("Pre-event spatial hazard modeling based on SRTM topography, baseline radar, and antecedent moisture.")
 
     # Scientific Scope & Governance Notice
     st.markdown(
