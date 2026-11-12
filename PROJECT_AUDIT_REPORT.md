@@ -1,8 +1,7 @@
 # Project Audit Report: Himalayan Landslide Intelligence Research System
 
 **Project Title:** Himalayan Landslide Intelligence: Multi-Source Remote Sensing for Landslide Event Detection and Susceptibility Prediction  
-**Author/Auditor:** Senior Geospatial AI/ML Engineer, Remote Sensing Researcher & Research Software Architect  
-**Academic Context:** B.Tech Final-Year Capstone / Research Project  
+**Project Scope:** Geospatial Machine Learning & Multi-Source Satellite Remote Sensing System  
 **Date of Audit:** November 2026  
 **Audit Scope:** Complete Repository Inspection (`c:\Gourav Sharma\work\LANDSLIDE`)  
 **Document Status:** Baseline Forensic Audit & Architectural Upgrade Plan

@@ -2,8 +2,7 @@
 
 **Project Title:** Himalayan Landslide Intelligence: Multi-Source Remote Sensing for Landslide Event Detection and Susceptibility Prediction  
 **Document Identifier:** `RESEARCH_PIPELINE_DESIGN.md`  
-**Author:** Senior Geospatial AI/ML Engineer, Remote Sensing Researcher & Research Software Architect  
-**Academic Context:** Final-Year Research Project & Thesis Technical Specification  
+**Project Scope:** Technical Architecture & Research System Specification  
 **Version:** 2.0 (Dual-Workflow Architecture)  
 **Date:** November 2026  
 **Status:** Approved Architecture Draft for Formal Review
@@ -278,7 +277,7 @@ The Streamlit dashboard will be upgraded to feature 8 distinct research sections
 5. **`05. Landslide Event Detection (Workflow A)`:** Dedicated post-hoc detection module: pre vs. post SAR backscatter, differential disturbance distributions, detection model performance (ROC/PR curves), confusion matrix with threshold sliders, and disturbance SHAP attribution.
 6. **`06. Landslide Susceptibility Prediction (Workflow B)`:** Dedicated pre-event susceptibility module: strict pre-event feature configuration, spatial cross-validation benchmarks, 0.5° regional susceptibility surface, tier zonation, model concordance, and uncertainty mapping.
 7. **`07. Explainability and Uncertainty`:** Side-by-side SHAP comparison (Event Detection vs. Susceptibility), global feature impact rankings, tree prediction standard deviation (RF uncertainty), and inter-model disagreement ($|\text{RF} - \text{XGB}|$).
-8. **`08. Research Methodology & Governance`:** Detailed scientific documentation: dual-workflow architecture flowcharts, negative sampling terrain confound analysis, spatial validation justification, and academic limitations disclaimer.
+8. **`08. Research Methodology & Governance`:** Detailed scientific documentation: dual-workflow architecture flowcharts, negative sampling terrain confound analysis, spatial validation justification, and scientific limitations disclaimer.
 
 ---
 

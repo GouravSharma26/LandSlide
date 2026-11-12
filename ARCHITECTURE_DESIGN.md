@@ -5,7 +5,7 @@
 **Target Domain:** Geospatial Machine Learning, Satellite Remote Sensing & Environmental Hazard Analytics  
 **Geographic Coverage:** Himalayan Mountain Belt ($26.0^\circ\text{N} - 35.5^\circ\text{N}$, $74.0^\circ\text{E} - 97.0^\circ\text{E}$, $\sim 2.2\text{M km}^2$)  
 **Architecture Version:** 2.1 (Production Dual-Workflow Architecture)  
-**Author:** Senior Geospatial AI Architect & Remote Sensing Systems Engineer  
+**System Specification:** Production Dual-Workflow Remote Sensing Architecture  
 
 ---
 

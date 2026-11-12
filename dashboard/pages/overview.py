@@ -27,7 +27,7 @@ def render(filters: Dict[str, Any]) -> None:
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
                 <div>
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                        <span style="background: rgba(56, 189, 248, 0.15); color: #38BDF8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.70rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">Final-Year Capstone Research</span>
+                        <span style="background: rgba(56, 189, 248, 0.15); color: #38BDF8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.70rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">Remote Sensing Intelligence</span>
                         <span style="background: rgba(168, 85, 247, 0.15); color: #C084FC; border: 1px solid rgba(168, 85, 247, 0.3); font-size: 0.70rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">Dual-Workflow Architecture</span>
                         <span style="background: rgba(34, 197, 94, 0.15); color: #4ADE80; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 0.70rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">100 km Spatial Purge Verified</span>
                     </div>
