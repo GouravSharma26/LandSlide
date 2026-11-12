@@ -2,6 +2,9 @@
 
 An applied geospatial machine-learning research system for rainfall-triggered landslide analysis across the Himalayan mountain belt ($26.0^\circ\text{N} - 35.5^\circ\text{N}$, $74.0^\circ\text{E} - 97.0^\circ\text{E}$, $\sim 2.2\text{M km}^2$).
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://landslide-ncg2cbc9pfgrt4kpujo7xq.streamlit.app/)
+**Live Interactive Dashboard:** [https://landslide-ncg2cbc9pfgrt4kpujo7xq.streamlit.app/](https://landslide-ncg2cbc9pfgrt4kpujo7xq.streamlit.app/)
+
 The project implements two decoupled machine-learning workflows:
 1. **Workflow A (Event Detection):** Post-hoc disturbance classification using pre/post Sentinel-1 SAR change, event precipitation, and terrain derivatives.
 2. **Workflow B (Susceptibility Prediction):** Pre-event spatial hazard modeling using static terrain and antecedent precipitation, evaluated against a diagnostic baseline.
@@ -35,40 +38,46 @@ Rainfall-triggered mass wasting in the Himalayas is driven by steep, seismically
 The research framework synthesizes satellite remote sensing, digital elevation topography, and high-resolution precipitation observations across five authoritative sources:
 
 ### 1. NASA Global Landslide Catalog (GLC / COOLR)
-- **Provider:** NASA Goddard Space Flight Center (Cooperative Open Online Landslide Repository)
+- **Primary Organization:** NASA Goddard Space Flight Center (Cooperative Open Online Landslide Repository)
+- **Portal Link:** [https://gpm.nasa.gov/landslides/](https://gpm.nasa.gov/landslides/)
 - **Coverage & Timeframe:** Global records filtered to the Himalayan study envelope ($26.0^\circ\text{N} - 35.5^\circ\text{N}$, $74.0^\circ\text{E} - 97.0^\circ\text{E}$) spanning **2017 to 2020**.
 - **Extracted Attributes:** Verified historical landslide events, geographic coordinates, occurrence timestamps, positional confidence tiers ($\le 5\text{ km}$ accuracy retained), and reported triggering mechanisms (`monsoon`, `downpour`, `continuous_rain`).
 
 ### 2. Copernicus Sentinel-1 Synthetic Aperture Radar (SAR)
-- **Provider:** European Space Agency (ESA) / Copernicus Programme
+- **Primary Organization:** European Space Agency (ESA) / European Commission Copernicus Programme
+- **Portal Link:** [https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-1](https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-1)
 - **Sensor & Mode:** C-Band SAR, Level-1 Ground Range Detected (GRD), Interferometric Wide (IW) swath mode, 10-meter spatial resolution, 12-day repeat orbit.
 - **Scientific Role:** Provides all-weather, day-and-night surface sensing independent of cloud cover. Captures dual-polarization backscatter intensity ($\text{VV}, \text{VH}$) in ascending and descending passes before and after triggering events. Computes differential backscatter change ($\Delta\text{VH}, \Delta\text{VV}$) to capture physical surface roughness disruption, vegetation removal, and soil moisture shifts associated with mass movement.
 
 ### 3. Copernicus Sentinel-2 Multi-Spectral Instrument (MSI)
-- **Provider:** European Space Agency (ESA) / Copernicus Programme
+- **Primary Organization:** European Space Agency (ESA) / European Commission Copernicus Programme
+- **Portal Link:** [https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-2](https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-2)
 - **Sensor Specifications:** Multi-spectral surface reflectance across 13 spectral bands at 10 m and 20 m spatial resolution.
 - **Scientific Role:** Measures vegetative vigor, surface wetness, and soil exposure using cloud-masked optical scenes. Extracted indices include Normalized Difference Vegetation Index ($\text{NDVI} = \frac{B8 - B4}{B8 + B4}$), Normalized Difference Water Index ($\text{NDWI} = \frac{B3 - B8}{B3 + B8}$), and Bare Soil Index ($\text{BSI} = \frac{(B11 + B4) - (B8 + B2)}{(B11 + B4) + (B8 + B2)}$).
 
 ### 4. SRTM GL1 & MERIT Hydro Digital Elevation Models
-- **Provider:** NASA / USGS / JAXA / University of Tokyo
+- **Primary Organizations:** NASA / USGS / JAXA / University of Tokyo
+- **Portal Links:** [USGS EarthExplorer (SRTM GL1)](https://earthexplorer.usgs.gov/) | [MERIT Hydro Data](http://hydro.iis.u-tokyo.ac.jp/~yamadai/MERIT_Hydro/)
 - **Resolution:** 30-meter global 1-arc-second SRTM elevation paired with 90-meter MERIT Hydro flow routing.
 - **Scientific Role:** Provides topographic morphometry and terrain hydrology. Extracted parameters include elevation (meters), slope angle (degrees), aspect direction (compass degrees), profile curvature ($\text{m}^{-1}$ via $3\times 3$ Laplacian kernel), Terrain Ruggedness Index ($\text{TRI}$), and Topographic Wetness Index ($\text{TWI} = \ln(\text{upa} / \tan(\text{slope}))$).
 
 ### 5. CHIRPS Daily Gridded Precipitation
-- **Provider:** Climate Hazards Center (CHC), University of California, Santa Barbara (UCSB)
+- **Primary Organization:** Climate Hazards Center (CHC), University of California, Santa Barbara (UCSB)
+- **Portal Link:** [https://www.chc.ucsb.edu/data/chirps](https://www.chc.ucsb.edu/data/chirps)
 - **Resolution:** 0.05° (~5.5 km) daily gridded rainfall estimates.
 - **Scientific Role:** Merges thermal infrared satellite observations with ground-station gauge data to calculate meteorological triggers. Computes short-term triggering totals ($1\text{-day}$ peak rain, $7\text{-day}$ cumulative) and antecedent soil saturation metrics ($30\text{-day}$ cumulative rain, and the Antecedent Precipitation Index $\text{API}_t = \sum_{i=1}^{30} P_{t-i} \cdot 0.90^i$).
 
 ### Repository Dataset Structure
 
-| Dataset Name | File Path | Records | Description |
+| Dataset Name | File Path (Descriptive & Legacy Alias) | Records | Description |
 | :--- | :--- | :---: | :--- |
 | **Raw Landslide Inventory** | `Landslide_Reports.csv` | 14,750 | Global landslide database from NASA COOLR |
-| **Observation Records (Events & Controls)** | `outputs/phase2_cleaned_dataset.csv` | 254 | 127 verified events and 127 paired diagnostic controls |
-| **Multi-Source Feature Matrix** | `outputs/phase3_feature_table.csv` | 254 | Unified table with 28 topographic, radar, optical, and rainfall features |
-| **Model Performance Metrics** | `outputs/phase4_metrics_comparison.csv` | — | Cross-validation comparison between core and reduced models |
-| **Spatial Out-of-Fold Predictions** | `outputs/phase4_oof_predictions.csv` | 254 | Spatial cross-validation probabilities and fold assignments |
-| **Regional Susceptibility Grid (0.5°)** | `outputs/phase5_susceptibility_grid.csv` | 765 | 0.5° regional hazard scoring across the entire Himalayan arc |
+| **Cleaned Observation Records** | `outputs/cleaned_observation_records.csv`<br>*(alias: `outputs/phase2_cleaned_dataset.csv`)* | 254 | 127 verified events and 127 paired diagnostic controls |
+| **Multi-Source Feature Matrix** | `outputs/multisource_feature_matrix.csv`<br>*(alias: `outputs/phase3_feature_table.csv`)* | 254 | Unified table with 28 topographic, radar, optical, and rainfall features |
+| **Model Performance Metrics** | `outputs/model_evaluation_metrics.csv`<br>*(alias: `outputs/phase4_metrics_comparison.csv`)* | — | Cross-validation comparison between core and reduced models |
+| **Spatial Out-of-Fold Predictions** | `outputs/spatial_oof_predictions.csv`<br>*(alias: `outputs/phase4_oof_predictions.csv`)* | 254 | Spatial cross-validation probabilities and fold assignments |
+| **Regional Susceptibility Grid (0.5°)** | `outputs/regional_susceptibility_grid.csv`<br>*(alias: `outputs/phase5_susceptibility_grid.csv`)* | 765 | 0.5° regional hazard scoring across the entire Himalayan arc |
+| **Version 2.0 Executed GEE Audit Notebook** | `notebooks/Phase3b_V2_Hillslope_Extraction_Colab_Executed.ipynb` | — | Complete 45.3-minute empirical hillslope GEE sampling audit with full diagnostic logs |
 
 ---
 
@@ -76,8 +85,8 @@ The research framework synthesizes satellite remote sensing, digital elevation t
 
 | Component | Status Designation | Description and Methodological Caveat |
 | :--- | :--- | :--- |
-| **Version 1.0 Dataset** | **Historical Diagnostic Baseline** | 254 points ($127$ positive events from NASA COOLR paired with $127$ unstratified negative controls). Controls were sampled from flat terrain (mean slope $1.43^\circ \pm 4.34^\circ$ vs $21.83^\circ \pm 11.99^\circ$ for positive events). This serves as a diagnostic baseline; **it is not a validated operational susceptibility model**. |
-| **Version 2.0 Dataset** | **EXTRACTION_PENDING_COLAB_GEE** | Geomorphometrically constrained hillslope sampling protocol ($6.1^\circ \le \text{slope} \le 41.4^\circ$, $>2\text{ km}$ buffer exclusion, permanent water and snow masks, SAR temporal consistency screening). Specification complete and Colab notebook prepared; **extraction has not yet been executed in authenticated Google Earth Engine**. |
+| **Version 1.0 Dataset** | **Authoritative Diagnostic Baseline** | 254 points ($127$ positive events from NASA COOLR paired with $127$ unstratified negative controls). Controls were sampled from flat terrain (mean slope $1.43^\circ \pm 4.34^\circ$ vs $21.83^\circ \pm 11.99^\circ$ for positive events). This serves as our authoritative diagnostic baseline with full disclosures; **it is not a validated operational susceptibility model**. |
+| **Version 2.0 Dataset** | **Empirical Topographic Audit (Archived)** | Geomorphometrically constrained hillslope sampling protocol ($6.1^\circ \le \text{slope} \le 41.4^\circ$, elevation $266-3,027\text{ m}$, $>2\text{ km}$ buffer exclusion, permanent water/snow masks, SAR temporal stability $\le 1.5\text{ dB}$). Executed in authenticated Google Earth Engine over 2,720.6 seconds across 117 positive events. Proved that 100% of candidate points in 10–40 km buffers fell outside the narrow Himalayan hillslope envelope (65% alpine peaks $>3,027\text{ m}$, 26% valley bottoms $<6.1^\circ$, 8% water bodies). Archived as an empirical proof of geomorphological rarity and research integrity in `notebooks/Phase3b_V2_Hillslope_Extraction_Colab_Executed.ipynb`. |
 | **Workflow A Models** | **Point-Zone Disturbance Assessment** | Post-hoc classification under catalog coordinate uncertainty. Single-pixel $\Delta\text{VH}$ features capture local zone disturbance rather than verified failure scars. |
 | **Workflow B Models** | **Diagnostic Susceptibility** | Conditioned on antecedent CHIRPS precipitation. Evaluated against V1 diagnostic controls; high metrics partly reflect mountain-versus-plains separation. |
 | **Regional Grid (0.5°)** | **Macro-Regional Illustration** | $0.5^\circ \times 0.5^\circ$ grid (765 valid cells, ~55 km width) conditioned on a September 2026 synoptic late-monsoon window. Designed for regional basin comparison; **not a local operational hazard map**. |
@@ -160,7 +169,10 @@ All 59 unit, geomorphometric, mapping, governance, and schema tests must pass.
 
 ## Streamlit Cloud Deployment
 
-This dashboard is pre-configured for one-click deployment on [Streamlit Community Cloud](https://streamlit.io/cloud):
+The live production application is deployed and accessible at:
+👉 **[https://landslide-ncg2cbc9pfgrt4kpujo7xq.streamlit.app/](https://landslide-ncg2cbc9pfgrt4kpujo7xq.streamlit.app/)**
+
+To deploy your own fork on [Streamlit Community Cloud](https://streamlit.io/cloud):
 
 1. Sign in to [share.streamlit.io](https://share.streamlit.io/) with your GitHub account.
 2. Click **New app** and select:
