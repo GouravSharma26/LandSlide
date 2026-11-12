@@ -316,7 +316,7 @@ stateDiagram-v2
     Decision_OptionA --> [*]
 ```
 
-- **Research Integrity Standard:** Rather than artificially loosening constraints or injecting synthetic points, the system documents the geomorphological rarity of Himalayan hillslopes within circular buffers as an archived scientific audit (`notebooks/Phase3b_V2_Hillslope_Extraction_Colab_Executed.ipynb`).
+- **Research Integrity Standard:** Rather than artificially loosening constraints or injecting synthetic points, the system documents the geomorphological rarity of Himalayan hillslopes within circular buffers as an archived scientific audit (`notebooks/hillslope_control_extraction_executed.ipynb`).
 
 ---
 
@@ -344,23 +344,24 @@ LANDSLIDE/
 │   │   ├── susceptibility_prediction.py     # Pre-event hazard ranking & 0.5° grid
 │   │   └── explainability_uncertainty.py    # TreeSHAP & spatial purge sensitivity
 │   └── utils/
-│       └── data_loader.py                   # Cached data loading with legacy aliases
+│       └── data_loader.py                   # Cached data loading with descriptive APIs
 ├── notebooks/                               # Research Pipeline & Audit Notebooks
-│   ├── Phase1_Data_Ingestions.ipynb         # Raw NASA catalog ingestion
-│   ├── Phase2_Preprocessing.ipynb           # 7-stage screening & coordinate projection
-│   ├── Phase3_Feature_Engineering.ipynb     # Multi-sensor extraction (SAR, DEM, CHIRPS)
-│   ├── Phase3b_V2_Hillslope_Extraction_Colab.ipynb # Executable GEE hillslope sampling
-│   ├── Phase3b_V2_Hillslope_Extraction_Colab_Executed.ipynb # Archived 45.3-min empirical audit
-│   ├── Phase4_ML_Modeling.ipynb             # Spatially purged model training
-│   └── Phase5_Output_Evaluation.ipynb       # Regional grid scoring & Shapley values
-├── outputs/                                 # Standardized Dataset Artifacts
+│   ├── data_ingestion.ipynb                 # Raw NASA catalog ingestion & initial spatial subsetting
+│   ├── data_preprocessing.ipynb             # 7-stage quality screening & coordinate projection
+│   ├── feature_engineering.ipynb           # Multi-sensor extraction (SAR, DEM, Optical, CHIRPS)
+│   ├── machine_learning_modeling.ipynb     # Spatially purged dual-workflow model training
+│   ├── susceptibility_evaluation.ipynb      # Regional grid scoring & Shapley explainability
+│   ├── hillslope_control_extraction.ipynb  # Executable GEE hillslope sampling protocol
+│   └── hillslope_control_extraction_executed.ipynb # Archived 45.3-min empirical audit logs
+├── outputs/                                 # Standardized Dataset Artifacts (Zero Duplicates)
 │   ├── cleaned_observation_records.csv      # 254 observation coordinates & dates
 │   ├── multisource_feature_matrix.csv       # 254-point x 28-feature unified matrix
 │   ├── model_evaluation_metrics.csv         # Authoritative cross-validation metrics
 │   ├── spatial_oof_predictions.csv          # 254 spatial out-of-fold predictions
-│   ├── regional_susceptibility_grid.csv     # 765-cell regional 0.5° susceptibility grid
-│   ├── trained_models.joblib                # Serialized RF & XGBoost models
-│   └── regional_susceptibility_maps.png     # Rendered regional hazard map
+│   ├── regional_grid_features_0.5deg.csv    # 765-cell multi-sensor regional grid features
+│   ├── regional_susceptibility_grid.csv     # 765-cell regional 0.5° susceptibility hazard grid
+│   ├── regional_susceptibility_maps.png     # Rendered regional hazard map
+│   └── trained_models.joblib                # Serialized RF & XGBoost models
 ├── tests/                                   # Automated 59-Test CI/CD Verification Suite
 │   ├── test_scientific_governance.py        # Leakage prevention & prohibited feature audit
 │   ├── test_v2_sampling_and_features.py     # Geomorphometric constraints & notebook tests

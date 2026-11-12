@@ -99,8 +99,8 @@ DEFAULT_PRIMARY_PURGE_KM = 100.0  # Balances strong geographic isolation (>100 k
 
 
 def load_verified_feature_table() -> pd.DataFrame:
-    """Loads and validates the Phase 3 feature table."""
-    path = OUTPUTS_DIR / "phase3_feature_table.csv"
+    """Loads and validates the feature table."""
+    path = OUTPUTS_DIR / "multisource_feature_matrix.csv" if (OUTPUTS_DIR / "multisource_feature_matrix.csv").exists() else OUTPUTS_DIR / "phase3_feature_table.csv"
     if not path.exists():
         raise FileNotFoundError(f"Feature table not found at {path}")
     df = pd.read_csv(path)
@@ -887,7 +887,7 @@ def execute_build():
     susc_prod_core["shap_summary_df"].to_csv(SUSCEPTIBILITY_DIR / "susceptibility_shap_summary.csv", index=False)
 
     # Save Regional Grid (with documented reference period)
-    p5_grid_path = OUTPUTS_DIR / "phase5_susceptibility_grid.csv"
+    p5_grid_path = OUTPUTS_DIR / "regional_susceptibility_grid.csv" if (OUTPUTS_DIR / "regional_susceptibility_grid.csv").exists() else OUTPUTS_DIR / "phase5_susceptibility_grid.csv"
     if p5_grid_path.exists():
         p5_grid = pd.read_csv(p5_grid_path)
         p5_grid["rainfall_reference_period"] = "September 2026 synoptic late-monsoon window (30-day antecedent CHIRPS)"

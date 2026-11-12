@@ -35,7 +35,7 @@ This demonstrated that Version 1.0 models ($>97\%$ AUROC) partially learned the 
 
 ## 2. Implemented Sampling Filters & Hydrological Specifications
 
-The Colab extraction notebook (`notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb`) implements strict, sequential physical and data-integrity filters applied to every candidate point:
+The Colab extraction notebook (`notebooks/hillslope_control_extraction.ipynb`) implements strict, sequential physical and data-integrity filters applied to every candidate point:
 
 | Filter ID | Filter Name | Mathematical / Dataset Definition | Rejection Category Logged |
 | :--- | :--- | :--- | :--- |
@@ -118,7 +118,7 @@ Because Google Earth Engine requires interactive OAuth authentication under GCP 
 1. **Open Google Colab:** Navigate to [https://colab.research.google.com/](https://colab.research.google.com/).
 2. **Open the Corrected Notebook:**
    Select **File -> Upload notebook**, and select:
-   [`notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb`](https://github.com/GouravSharma26/LandSlide/blob/main/notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb)
+   [`notebooks/hillslope_control_extraction.ipynb`](https://github.com/GouravSharma26/LandSlide/blob/main/notebooks/hillslope_control_extraction.ipynb) (or view the archived executed run at [`notebooks/hillslope_control_extraction_executed.ipynb`](https://github.com/GouravSharma26/LandSlide/blob/main/notebooks/hillslope_control_extraction_executed.ipynb))
 3. **Run Cell 1 (Authentication):**
    Execute Cell 1 and log in with your authorized Google account for `landslidedetection-506008`.
 4. **Run All Remaining Cells (Runtime -> Run all):**

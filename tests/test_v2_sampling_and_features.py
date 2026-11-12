@@ -389,7 +389,7 @@ def test_cross_event_duplicate_controls_detection():
 
 def test_notebook_structure_no_defaults():
     """Verifies that no arbitrary positive-event terrain defaults exist in the Colab notebook."""
-    nb_path = NOTEBOOKS_DIR / "Phase3b_V2_Hillslope_Extraction_Colab.ipynb"
+    nb_path = NOTEBOOKS_DIR / "hillslope_control_extraction.ipynb" if (NOTEBOOKS_DIR / "hillslope_control_extraction.ipynb").exists() else NOTEBOOKS_DIR / "Phase3b_V2_Hillslope_Extraction_Colab.ipynb"
     assert nb_path.exists(), f"Missing Colab notebook at {nb_path}"
     with open(nb_path, "r", encoding="utf-8") as f:
         nb = json.load(f)
@@ -405,7 +405,7 @@ def test_notebook_structure_no_defaults():
 
 def test_notebook_structure_no_premature_break():
     """Verifies that the candidate search loop does NOT break prematurely on batch 1."""
-    nb_path = NOTEBOOKS_DIR / "Phase3b_V2_Hillslope_Extraction_Colab.ipynb"
+    nb_path = NOTEBOOKS_DIR / "hillslope_control_extraction.ipynb" if (NOTEBOOKS_DIR / "hillslope_control_extraction.ipynb").exists() else NOTEBOOKS_DIR / "Phase3b_V2_Hillslope_Extraction_Colab.ipynb"
     with open(nb_path, "r", encoding="utf-8") as f:
         nb = json.load(f)
 
@@ -421,7 +421,7 @@ def test_notebook_structure_no_premature_break():
 
 def test_notebook_structure_merit_90m_twi():
     """Verifies that native 90m MERIT Hydro TWI and slope aggregation are implemented in notebook."""
-    nb_path = NOTEBOOKS_DIR / "Phase3b_V2_Hillslope_Extraction_Colab.ipynb"
+    nb_path = NOTEBOOKS_DIR / "hillslope_control_extraction.ipynb" if (NOTEBOOKS_DIR / "hillslope_control_extraction.ipynb").exists() else NOTEBOOKS_DIR / "Phase3b_V2_Hillslope_Extraction_Colab.ipynb"
     with open(nb_path, "r", encoding="utf-8") as f:
         nb = json.load(f)
 
@@ -500,9 +500,9 @@ def test_v2_status_pending_and_confound_policy():
 
 def test_v1_baseline_immutability():
     """Verifies that Version 1.0 historical diagnostic baseline is strictly preserved."""
-    p3_path = OUTPUTS_DIR / "phase3_feature_table.csv"
-    assert p3_path.exists(), "Phase 3 feature table missing"
+    p3_path = OUTPUTS_DIR / "multisource_feature_matrix.csv" if (OUTPUTS_DIR / "multisource_feature_matrix.csv").exists() else OUTPUTS_DIR / "phase3_feature_table.csv"
+    assert p3_path.exists(), "Multisource feature matrix missing"
     df = pd.read_csv(p3_path)
-    assert len(df) in [244, 254], f"Unexpected row count in Phase 3 table: {len(df)}"
+    assert len(df) in [244, 254], f"Unexpected row count in feature table: {len(df)}"
     assert (df["label"] == 1).sum() == 127, "Must have exactly 127 positive events"
     assert (df["label"] == 0).sum() in [117, 127], "Historical controls altered"

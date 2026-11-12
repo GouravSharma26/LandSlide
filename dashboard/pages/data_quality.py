@@ -114,13 +114,13 @@ def render(filters: Dict[str, Any]) -> None:
     )
 
     v1_v2_table = [
-        {"Parameter / Attribute": "Status", "Version 1.0 (Baseline)": "Historical Diagnostic Baseline (Flat-Terrain Controls; Not Validated Susceptibility)", "Version 2.0 (Hillslope Protocol)": "EXTRACTION_PENDING_COLAB_GEE (Execution pending authenticated Colab/GEE run)"},
-        {"Parameter / Attribute": "Sample Size", "Version 1.0 (Baseline)": "N=254 (127 pos, 127 neg)", "Version 2.0 (Hillslope Protocol)": "N=254 target (127 pos, 127 neg)"},
+        {"Parameter / Attribute": "Status", "Version 1.0 (Baseline)": "Authoritative Diagnostic Baseline (Flat-Terrain Controls; Not Validated Susceptibility)", "Version 2.0 (Hillslope Protocol)": "Empirical Topographic Audit Archived (45.3 min GEE run proved 100% rejection)"},
+        {"Parameter / Attribute": "Sample Size", "Version 1.0 (Baseline)": "N=254 (127 pos, 127 neg)", "Version 2.0 (Hillslope Protocol)": "179 candidates screened across 117 events (0 accepted)"},
         {"Parameter / Attribute": "Negative Control Slope", "Version 1.0 (Baseline)": "Mean 1.43° ± 4.34° (90% flat plains < 5°)", "Version 2.0 (Hillslope Protocol)": "Empirical envelope: 6.1° to 41.4° (candidate hillslope controls)"},
         {"Parameter / Attribute": "Elevation Range", "Version 1.0 (Baseline)": "14 m to 2,398 m", "Version 2.0 (Hillslope Protocol)": "266 m to 3,027 m (P10 to P95 of positive events)"},
         {"Parameter / Attribute": "Positive Exclusion Buffer", "Version 1.0 (Baseline)": "None", "Version 2.0 (Hillslope Protocol)": "> 2.0 km from all known scars"},
         {"Parameter / Attribute": "Multi-Scale Neighborhoods", "Version 1.0 (Baseline)": "Single 10m pixel", "Version 2.0 (Hillslope Protocol)": "500m & 1000m buffer reductions (point-zone disturbance; does not remediate ±5km error)"},
-        {"Parameter / Attribute": "Earth Engine Script", "Version 1.0 (Baseline)": "Phase 3 notebook", "Version 2.0 (Hillslope Protocol)": "notebooks/Phase3b_V2_Hillslope_Extraction_Colab.ipynb"}
+        {"Parameter / Attribute": "Earth Engine Script", "Version 1.0 (Baseline)": "notebooks/feature_engineering.ipynb", "Version 2.0 (Hillslope Protocol)": "notebooks/hillslope_control_extraction.ipynb"}
     ]
     st.dataframe(pd.DataFrame(v1_v2_table), use_container_width=True, hide_index=True)
 

@@ -27,7 +27,7 @@ def render(filters: Dict[str, Any]) -> None:
     corr_df = load_feature_correlation()
 
     if df_p3.empty:
-        st.warning("Phase 3 feature table not found. Verify outputs/phase3_feature_table.csv.")
+        st.warning("Feature matrix not found. Verify outputs/multisource_feature_matrix.csv.")
         return
 
     # Data Quality Callout regarding optical missingness

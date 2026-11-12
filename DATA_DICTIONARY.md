@@ -11,12 +11,12 @@
 | Dataset Identifier | File Path | Total Rows | Columns | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | **Raw Landslide Inventory** | `Landslide_Reports.csv` | 14,750 | 32 | Global Landslide Catalog (NASA COOLR) compiled from media, government reports, and regional databases (1956–2018). |
-| **Cleaned Observation Sample** | `outputs/phase2_cleaned_dataset.csv` | 254 | 8 | Filtered Himalayan subset (127 positive events + 127 locally buffered hard negatives) with 1:1 balance. |
-| **Multisource Feature Table** | `outputs/phase3_feature_table.csv` | 254 | 28 | Combined point-level dataset containing static topographic, optical, SAR backscatter, and precipitation features. |
-| **Spatial Model Metrics** | `outputs/phase4_metrics_comparison.csv` | 2 | 8 | Cross-validation performance comparison between Full and Reduced feature sets for RF and XGBoost. |
-| **Out-of-Fold Predictions** | `outputs/phase4_oof_predictions.csv` | 254 | 8 | Cross-validation spatial out-of-fold prediction probabilities and cluster fold IDs. |
-| **Dynamic Grid Checkpoint** | `outputs/phase5_dynamic_grid_checkpoint_0.5deg.csv` | 828 | 15 | Intermediate regional 0.5-degree grid feature extraction checkpoint from Google Earth Engine. |
-| **Regional Susceptibility Grid** | `outputs/phase5_susceptibility_grid.csv` | 765 | 7 | Final 0.5-degree susceptibility inference grid covering the Himalayan belt with ensemble scores and uncertainties. |
+| **Cleaned Observation Records** | `outputs/cleaned_observation_records.csv` | 254 | 8 | Filtered Himalayan subset (127 positive events + 127 locally buffered hard negatives) with 1:1 balance. |
+| **Multisource Feature Matrix** | `outputs/multisource_feature_matrix.csv` | 254 | 28 | Combined point-level dataset containing static topographic, optical, SAR backscatter, and precipitation features. |
+| **Spatial Model Metrics** | `outputs/model_evaluation_metrics.csv` | 2 | 8 | Cross-validation performance comparison between Full and Reduced feature sets for RF and XGBoost. |
+| **Out-of-Fold Predictions** | `outputs/spatial_oof_predictions.csv` | 254 | 8 | Cross-validation spatial out-of-fold prediction probabilities and cluster fold IDs. |
+| **Dynamic Grid Features** | `outputs/regional_grid_features_0.5deg.csv` | 828 | 15 | Intermediate regional 0.5-degree grid feature extraction checkpoint from Google Earth Engine. |
+| **Regional Susceptibility Grid** | `outputs/regional_susceptibility_grid.csv` | 765 | 7 | Final 0.5-degree susceptibility inference grid covering the Himalayan belt with ensemble scores and uncertainties. |
 
 ---
 
@@ -61,7 +61,7 @@
 
 ---
 
-### 2.2. Cleaned Observation Sample (`outputs/phase2_cleaned_dataset.csv`)
+### 2.2. Cleaned Observation Records (`outputs/cleaned_observation_records.csv`)
 
 | Column Name | Type | Null Count | Description |
 | :--- | :--- | :--- | :--- |
@@ -76,7 +76,7 @@
 
 ---
 
-### 2.3. Multisource Feature Table (`outputs/phase3_feature_table.csv`)
+### 2.3. Multisource Feature Table (`outputs/multisource_feature_matrix.csv`)
 
 | Column Name | Category | Native Scale | Null Count | Units / Formula | Scientific Interpretation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -111,7 +111,7 @@
 
 ---
 
-### 2.4. Spatial Model Metrics (`outputs/phase4_metrics_comparison.csv`)
+### 2.4. Spatial Model Metrics (`outputs/model_evaluation_metrics.csv`)
 
 | Column Name | Type | Value Range | Description |
 | :--- | :--- | :--- | :--- |
@@ -126,7 +126,7 @@
 
 ---
 
-### 2.5. Out-of-Fold Predictions (`outputs/phase4_oof_predictions.csv`)
+### 2.5. Out-of-Fold Predictions (`outputs/spatial_oof_predictions.csv`)
 
 | Column Name | Type | Null Count | Description |
 | :--- | :--- | :--- | :--- |
@@ -141,7 +141,7 @@
 
 ---
 
-### 2.6. Regional Susceptibility Grid (`outputs/phase5_susceptibility_grid.csv`)
+### 2.6. Regional Susceptibility Grid (`outputs/regional_susceptibility_grid.csv`)
 
 | Column Name | Type | Null Count | Summary Statistics | Description |
 | :--- | :--- | :--- | :--- | :--- |

@@ -69,15 +69,15 @@ The research framework synthesizes satellite remote sensing, digital elevation t
 
 ### Repository Dataset Structure
 
-| Dataset Name | File Path (Descriptive & Legacy Alias) | Records | Description |
+| Dataset Name | File Path | Records | Description |
 | :--- | :--- | :---: | :--- |
 | **Raw Landslide Inventory** | `Landslide_Reports.csv` | 14,750 | Global landslide database from NASA COOLR |
-| **Cleaned Observation Records** | `outputs/cleaned_observation_records.csv`<br>*(alias: `outputs/phase2_cleaned_dataset.csv`)* | 254 | 127 verified events and 127 paired diagnostic controls |
-| **Multi-Source Feature Matrix** | `outputs/multisource_feature_matrix.csv`<br>*(alias: `outputs/phase3_feature_table.csv`)* | 254 | Unified table with 28 topographic, radar, optical, and rainfall features |
-| **Model Performance Metrics** | `outputs/model_evaluation_metrics.csv`<br>*(alias: `outputs/phase4_metrics_comparison.csv`)* | — | Cross-validation comparison between core and reduced models |
-| **Spatial Out-of-Fold Predictions** | `outputs/spatial_oof_predictions.csv`<br>*(alias: `outputs/phase4_oof_predictions.csv`)* | 254 | Spatial cross-validation probabilities and fold assignments |
-| **Regional Susceptibility Grid (0.5°)** | `outputs/regional_susceptibility_grid.csv`<br>*(alias: `outputs/phase5_susceptibility_grid.csv`)* | 765 | 0.5° regional hazard scoring across the entire Himalayan arc |
-| **Version 2.0 Executed GEE Audit Notebook** | `notebooks/Phase3b_V2_Hillslope_Extraction_Colab_Executed.ipynb` | — | Complete 45.3-minute empirical hillslope GEE sampling audit with full diagnostic logs |
+| **Cleaned Observation Records** | `outputs/cleaned_observation_records.csv` | 254 | 127 verified events and 127 paired diagnostic controls |
+| **Multi-Source Feature Matrix** | `outputs/multisource_feature_matrix.csv` | 254 | Unified table with 28 topographic, radar, optical, and rainfall features |
+| **Model Performance Metrics** | `outputs/model_evaluation_metrics.csv` | — | Cross-validation comparison between core and reduced models |
+| **Spatial Out-of-Fold Predictions** | `outputs/spatial_oof_predictions.csv` | 254 | Spatial cross-validation probabilities and fold assignments |
+| **Regional Susceptibility Grid (0.5°)** | `outputs/regional_susceptibility_grid.csv` | 765 | 0.5° regional hazard scoring across the entire Himalayan arc |
+| **Version 2.0 Executed GEE Audit Notebook** | `notebooks/hillslope_control_extraction_executed.ipynb` | — | Complete 45.3-minute empirical hillslope GEE sampling audit with full diagnostic logs |
 
 ---
 
@@ -86,7 +86,7 @@ The research framework synthesizes satellite remote sensing, digital elevation t
 | Component | Status Designation | Description and Methodological Caveat |
 | :--- | :--- | :--- |
 | **Version 1.0 Dataset** | **Authoritative Diagnostic Baseline** | 254 points ($127$ positive events from NASA COOLR paired with $127$ unstratified negative controls). Controls were sampled from flat terrain (mean slope $1.43^\circ \pm 4.34^\circ$ vs $21.83^\circ \pm 11.99^\circ$ for positive events). This serves as our authoritative diagnostic baseline with full disclosures; **it is not a validated operational susceptibility model**. |
-| **Version 2.0 Dataset** | **Empirical Topographic Audit (Archived)** | Geomorphometrically constrained hillslope sampling protocol ($6.1^\circ \le \text{slope} \le 41.4^\circ$, elevation $266-3,027\text{ m}$, $>2\text{ km}$ buffer exclusion, permanent water/snow masks, SAR temporal stability $\le 1.5\text{ dB}$). Executed in authenticated Google Earth Engine over 2,720.6 seconds across 117 positive events. Proved that 100% of candidate points in 10–40 km buffers fell outside the narrow Himalayan hillslope envelope (65% alpine peaks $>3,027\text{ m}$, 26% valley bottoms $<6.1^\circ$, 8% water bodies). Archived as an empirical proof of geomorphological rarity and research integrity in `notebooks/Phase3b_V2_Hillslope_Extraction_Colab_Executed.ipynb`. |
+| **Version 2.0 Dataset** | **Empirical Topographic Audit (Archived)** | Geomorphometrically constrained hillslope sampling protocol ($6.1^\circ \le \text{slope} \le 41.4^\circ$, elevation $266-3,027\text{ m}$, $>2\text{ km}$ buffer exclusion, permanent water/snow masks, SAR temporal stability $\le 1.5\text{ dB}$). Executed in authenticated Google Earth Engine over 2,720.6 seconds across 117 positive events. Proved that 100% of candidate points in 10–40 km buffers fell outside the narrow Himalayan hillslope envelope (65% alpine peaks $>3,027\text{ m}$, 26% valley bottoms $<6.1^\circ$, 8% water bodies). Archived as an empirical proof of geomorphological rarity and research integrity in `notebooks/hillslope_control_extraction_executed.ipynb`. |
 | **Workflow A Models** | **Point-Zone Disturbance Assessment** | Post-hoc classification under catalog coordinate uncertainty. Single-pixel $\Delta\text{VH}$ features capture local zone disturbance rather than verified failure scars. |
 | **Workflow B Models** | **Diagnostic Susceptibility** | Conditioned on antecedent CHIRPS precipitation. Evaluated against V1 diagnostic controls; high metrics partly reflect mountain-versus-plains separation. |
 | **Regional Grid (0.5°)** | **Macro-Regional Illustration** | $0.5^\circ \times 0.5^\circ$ grid (765 valid cells, ~55 km width) conditioned on a September 2026 synoptic late-monsoon window. Designed for regional basin comparison; **not a local operational hazard map**. |

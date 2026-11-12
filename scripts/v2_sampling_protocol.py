@@ -368,7 +368,7 @@ def select_best_candidate_across_batches(
 
 def generate_v2_sampling_parameters():
     """Calculates empirical parameter bounds from the 127 confirmed positive events."""
-    p3_path = OUTPUTS_DIR / "phase3_feature_table.csv"
+    p3_path = OUTPUTS_DIR / "multisource_feature_matrix.csv" if (OUTPUTS_DIR / "multisource_feature_matrix.csv").exists() else OUTPUTS_DIR / "phase3_feature_table.csv"
     if not p3_path.exists():
         raise FileNotFoundError(f"Missing {p3_path}")
 
@@ -1449,6 +1449,6 @@ if __name__ == "__main__":
     print("Version 2.0 Candidate Distribution Validation Saved to:")
     print(METADATA_DIR / "v2_candidate_distribution_validation.json")
 
-    nb_path = BASE_DIR / "notebooks" / "Phase3b_V2_Hillslope_Extraction_Colab.ipynb"
+    nb_path = BASE_DIR / "notebooks" / "hillslope_control_extraction.ipynb" if (BASE_DIR / "notebooks" / "hillslope_control_extraction.ipynb").exists() else BASE_DIR / "notebooks" / "Phase3b_V2_Hillslope_Extraction_Colab.ipynb"
     create_colab_extraction_notebook(nb_path)
     print(f"Colab extraction notebook updated at: {nb_path}")
