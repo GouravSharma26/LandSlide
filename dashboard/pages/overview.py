@@ -23,42 +23,22 @@ def render(filters: Dict[str, Any]) -> None:
     """Renders Page 1: Overview."""
     st.markdown(
         """
-        <div class="header-container" style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.7) 100%); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 1.4rem 1.6rem; margin-bottom: 1.4rem; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);">
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-                <div>
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                        <span style="background: rgba(56, 189, 248, 0.15); color: #38BDF8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.70rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">Remote Sensing Intelligence</span>
-                        <span style="background: rgba(168, 85, 247, 0.15); color: #C084FC; border: 1px solid rgba(168, 85, 247, 0.3); font-size: 0.70rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">Dual-Workflow Architecture</span>
-                        <span style="background: rgba(34, 197, 94, 0.15); color: #4ADE80; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 0.70rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">100 km Spatial Purge Verified</span>
-                    </div>
-                    <h1 style="font-size: 1.85rem; font-weight: 800; color: #FFFFFF; margin: 0; line-height: 1.2; letter-spacing: -0.02em;">
-                        Early Landslide Risk Detection Using Visual Terrain Changes
-                    </h1>
-                    <div style="font-size: 0.90rem; color: #94A3B8; margin-top: 0.4rem; font-weight: 400;">
-                        Multi-Modal Remote Sensing (Sentinel-1 SAR, Sentinel-2 MSI, SRTM DEM, CHIRPS) & Machine Learning Intelligence
-                    </div>
+        <div class="hero-banner">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+                <div class="hero-tags">
+                    <span class="tag-cyan">🛰️ Multi-Modal Satellite Remote Sensing</span>
+                    <span class="tag-purple">⚡ Dual-Workflow ML Architecture</span>
+                    <span class="tag-green">✓ 100 km Spatial Purge Verified</span>
                 </div>
-                <div style="text-align: right; background: rgba(15, 23, 42, 0.65); padding: 8px 14px; border-radius: 8px; border: 1px solid #334155;">
-                    <div style="font-size: 0.68rem; color: #94A3B8; text-transform: uppercase; font-weight: 600;">Active Testbed Region</div>
-                    <div style="font-size: 0.88rem; color: #38BDF8; font-weight: 700;">Himalayan Mountain Belt</div>
-                    <div style="font-size: 0.70rem; color: #64748B;">26.0°N–35.5°N, 74.0°E–97.0°E (~2.2M km²)</div>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: #94A3B8; background: rgba(15, 23, 42, 0.7); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                    <span style="color: #38BDF8; font-weight: 700;">Demonstration Testbed:</span>
+                    <span>Himalayan Mountain Arc (26.0°N–35.5°N, 74.0°E–97.0°E)</span>
                 </div>
             </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Context Card
-    st.markdown(
-        """
-        <div style="background: rgba(14, 165, 233, 0.05); border: 1px solid rgba(14, 165, 233, 0.25); border-left: 4px solid #0284C7; border-radius: 8px; padding: 12px 18px; margin-bottom: 22px;">
-            <div style="font-size: 0.82rem; color: #E2E8F0; line-height: 1.6;">
-                <strong style="color: #38BDF8;">Project Scope & Decoupled Architecture:</strong>
-                Engineered as a globally extensible remote sensing architecture for early mass-wasting hazard analytics, demonstrated across the high-relief Himalayan mountain arc.<br>
-                • <strong style="color: #C084FC;">Workflow A (Event Detection):</strong> Post-hoc surface disturbance classification combining dual-polarization Sentinel-1 radar change (ΔVH, ΔVV), event rainfall accumulation, and topographic derivatives.<br>
-                • <strong style="color: #38BDF8;">Workflow B (Susceptibility Prediction):</strong> Pre-event spatial hazard modeling strictly conditioned on static topography, antecedent moisture, and radar baseline (Version 1.0 diagnostic baseline verified; Version 2.0 hillslope GEE empirical audit archived).
-            </div>
+            <h1 class="hero-title">Early Landslide Risk Detection Using Visual Terrain Changes</h1>
+            <p class="hero-subtitle">
+                Integration of Copernicus Sentinel-1 SAR radar backscatter changes, Sentinel-2 MSI multispectral indices, SRTM/MERIT high-resolution topography, and CHIRPS precipitation for decoupled disturbance assessment and susceptibility prediction.
+            </p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -162,16 +142,19 @@ def render(filters: Dict[str, Any]) -> None:
     with col_wfa:
         st.markdown(
             """
-            <div style="background: #1E293B; border-top: 3px solid #A855F7; border-radius: 6px; padding: 14px; min-height: 200px;">
-                <div style="font-size: 0.72rem; font-weight: 700; color: #A855F7; text-transform: uppercase;">WORKFLOW A</div>
-                <div style="font-size: 1.0rem; font-weight: 700; color: #FFFFFF; margin: 3px 0;">Landslide Event Detection</div>
-                <div style="font-size: 0.78rem; color: #94A3B8; margin-bottom: 8px;">
-                    Post-event disturbance classification
+            <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%); border: 1px solid rgba(168, 85, 247, 0.3); border-top: 3px solid #C084FC; border-radius: 10px; padding: 18px 20px; min-height: 200px; box-shadow: 0 4px 20px rgba(0,0,0,0.25);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="font-size: 0.72rem; font-weight: 800; color: #C084FC; text-transform: uppercase; letter-spacing: 0.06em;">WORKFLOW A</span>
+                    <span style="background: rgba(168, 85, 247, 0.15); color: #C084FC; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">Diagnostic Classification</span>
                 </div>
-                <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.45;">
-                    • <strong>Features:</strong> Sentinel-1 SAR changes (dVH, dVV, VH/VV post), event rainfall (rain_1d, 7d, 30d, API), topography.<br>
-                    • <strong>Scope:</strong> Point-zone disturbance proxy; catalog coordinate error is ±5 km.<br>
-                    • <strong>Evaluation:</strong> 5-fold spatial cluster cross-validation with 100 km buffer purging.
+                <div style="font-size: 1.12rem; font-weight: 700; color: #FFFFFF; margin: 4px 0 6px 0;">Landslide Event Detection</div>
+                <div style="font-size: 0.82rem; color: #94A3B8; margin-bottom: 12px; line-height: 1.4;">
+                    Post-hoc surface disturbance identification using multi-temporal satellite radar backscatter and rainfall triggers.
+                </div>
+                <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.55; border-top: 1px solid rgba(168, 85, 247, 0.15); padding-top: 10px;">
+                    • <strong>Permitted Predictors:</strong> Sentinel-1 SAR changes (ΔVH, ΔVV, VH/VV post), event rainfall (rain 1d/7d/30d, API), SRTM terrain.<br>
+                    • <strong>Spatial Scope:</strong> Point-zone disturbance proxy under catalog coordinate accuracy (±5 km).<br>
+                    • <strong>Cross-Validation:</strong> 5-fold spatial cluster partition with 100 km geographic buffer purging (Peak AUROC: <strong>0.984</strong>).
                 </div>
             </div>
             """,
@@ -181,16 +164,19 @@ def render(filters: Dict[str, Any]) -> None:
     with col_wfb:
         st.markdown(
             """
-            <div style="background: #1E293B; border-top: 3px solid #00F0FF; border-radius: 6px; padding: 14px; min-height: 200px;">
-                <div style="font-size: 0.72rem; font-weight: 700; color: #00F0FF; text-transform: uppercase;">WORKFLOW B</div>
-                <div style="font-size: 1.0rem; font-weight: 700; color: #FFFFFF; margin: 3px 0;">Landslide Susceptibility Prediction</div>
-                <div style="font-size: 0.78rem; color: #94A3B8; margin-bottom: 8px;">
-                    Pre-event terrain & environmental hazard ranking
+            <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%); border: 1px solid rgba(56, 189, 248, 0.3); border-top: 3px solid #38BDF8; border-radius: 10px; padding: 18px 20px; min-height: 200px; box-shadow: 0 4px 20px rgba(0,0,0,0.25);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="font-size: 0.72rem; font-weight: 800; color: #38BDF8; text-transform: uppercase; letter-spacing: 0.06em;">WORKFLOW B</span>
+                    <span style="background: rgba(56, 189, 248, 0.15); color: #38BDF8; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">Prognostic Hazard Mapping</span>
                 </div>
-                <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.45;">
-                    • <strong>Features:</strong> Strictly pre-event SRTM topography, pre-event SAR baseline, 30-day antecedent rain, API.<br>
-                    • <strong>Status:</strong> Version 1.0 baseline verified with full disclosure; Version 2.0 empirical hillslope audit archived in repository.<br>
-                    • <strong>Rules:</strong> Strict ban on post-event imagery, event rainfall, and spatial coordinates.
+                <div style="font-size: 1.12rem; font-weight: 700; color: #FFFFFF; margin: 4px 0 6px 0;">Susceptibility Prediction</div>
+                <div style="font-size: 0.82rem; color: #94A3B8; margin-bottom: 12px; line-height: 1.4;">
+                    Pre-event spatial terrain proneness ranking using static geomorphometry and antecedent hydrometeorology.
+                </div>
+                <div style="font-size: 0.78rem; color: #CBD5E1; line-height: 1.55; border-top: 1px solid rgba(56, 189, 248, 0.15); padding-top: 10px;">
+                    • <strong>Permitted Predictors:</strong> Strictly pre-event SRTM topography, pre-event SAR baseline, 30-day antecedent rain, API.<br>
+                    • <strong>Governance Firewall:</strong> Strictly zero post-event data, zero trigger rainfall, zero spatial coordinates.<br>
+                    • <strong>Model Performance:</strong> Cloud-independent Core model (Peak AUROC: <strong>0.973</strong>); 0.5° regional hazard grid (765 cells).
                 </div>
             </div>
             """,
