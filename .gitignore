@@ -49,3 +49,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Local documentation & artifacts
+/docs/
+/doc/
+Screenshorts/
+
+
