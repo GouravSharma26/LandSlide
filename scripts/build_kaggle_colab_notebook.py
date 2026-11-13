@@ -396,50 +396,51 @@ shap.summary_plot(shap_values_b, res_b['X_imputed'], feature_names=WORKFLOW_B_FE
 plt.tight_layout()
 plt.show()""")
 
-    # Cell 9: Regional Grid Simulation
-    add_md(r"""## 9. Regional Hazard Scoring Simulation
-Simulate susceptibility scoring across a 0.5° macro-lattice (765 points across the Himalayan arc).""")
+    # Cell 9: Regional Grid Scoring
+    add_md(r"""## 9. Regional Hazard Scoring (Himalayan Arc 0.5° Lattice)
+Evaluate susceptibility scoring across the 765 Earth Engine grid cells (~55 km resolution) across the Himalayan mountain belt.""")
 
-    add_code(r"""lats = np.linspace(26.0, 35.5, 20)
-lons = np.linspace(74.0, 97.0, 40)
-grid_lats, grid_lons = np.meshgrid(lats, lons)
-grid_df = pd.DataFrame({
-    "latitude": grid_lats.flatten(),
-    "longitude": grid_lons.flatten(),
-})
+    add_code(r"""def load_regional_grid():
+    possible_paths = [
+        Path("outputs/regional_susceptibility_grid.csv"),
+        Path("../outputs/regional_susceptibility_grid.csv"),
+        Path("/kaggle/input/himalayan-landslide-dataset/regional_susceptibility_grid.csv"),
+        Path("regional_susceptibility_grid.csv"),
+    ]
+    for p in possible_paths:
+        if p.exists():
+            print(f"Loaded regional grid from: {p}")
+            return pd.read_csv(p)
 
-np.random.seed(RANDOM_SEED)
-grid_df["slope"] = np.clip(np.random.exponential(scale=12.0, size=len(grid_df)), 0.5, 45.0)
-grid_df["aspect"] = np.random.uniform(0, 360, size=len(grid_df))
-grid_df["curvature"] = np.random.normal(0, 0.05, size=len(grid_df))
-grid_df["tri"] = grid_df["slope"] * np.random.uniform(1.2, 3.5, size=len(grid_df))
-grid_df["twi"] = np.clip(14.0 - 0.25 * grid_df["slope"], 3.0, 15.0)
-grid_df["VH_pre"] = np.random.normal(-13.5, 2.0, size=len(grid_df))
-grid_df["VV_pre"] = grid_df["VH_pre"] + np.random.normal(6.0, 1.0, size=len(grid_df))
-grid_df["rain_30d"] = np.random.gamma(shape=4.0, scale=35.0, size=len(grid_df))
-grid_df["API"] = grid_df["rain_30d"] * 0.45
+    raw_url = "https://raw.githubusercontent.com/GouravSharma26/LandSlide/main/outputs/regional_susceptibility_grid.csv"
+    print(f"Fetching regional grid from GitHub repository: {raw_url}")
+    try:
+        return pd.read_csv(raw_url)
+    except Exception as e:
+        raise RuntimeError(f"Could not load regional grid: {e}")
 
-X_grid = grid_df[WORKFLOW_B_FEATURES]
-grid_df["susceptibility_prob"] = res_b['xgb_model'].predict_proba(X_grid)[:, 1]
+grid_df = load_regional_grid()
 
+# Classify risk tiers using real ensemble susceptibility probabilities
 bins = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 labels = ["Very Low", "Low", "Moderate", "High", "Very High"]
-grid_df["risk_tier"] = pd.cut(grid_df["susceptibility_prob"], bins=bins, labels=labels)
+grid_df["risk_tier"] = pd.cut(grid_df["susceptibility"], bins=bins, labels=labels)
 
-print("Regional Himalayan Lattice Risk Classification Distribution:")
+print(f"Regional Himalayan Lattice: {len(grid_df)} valid Earth Engine grid cells")
+print("Risk Classification Distribution:")
 print(grid_df["risk_tier"].value_counts(sort=False))
 
 plt.figure(figsize=(11, 5))
 scatter = plt.scatter(
     grid_df["longitude"],
     grid_df["latitude"],
-    c=grid_df["susceptibility_prob"],
+    c=grid_df["susceptibility"],
     cmap="turbo",
     s=40,
     alpha=0.85
 )
-plt.colorbar(scatter, label="Susceptibility Probability")
-plt.title("Regional Susceptibility Hazard Lattice (Himalayan Arc)")
+plt.colorbar(scatter, label="Ensemble Susceptibility Probability")
+plt.title("Regional Susceptibility Hazard Lattice (765 Real GEE Grid Cells across the Himalayan Arc)")
 plt.xlabel("Longitude (°E)")
 plt.ylabel("Latitude (°N)")
 plt.tight_layout()
