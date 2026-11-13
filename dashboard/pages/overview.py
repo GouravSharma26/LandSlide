@@ -21,8 +21,8 @@ from dashboard.components.charts import (
 
 def render(filters: Dict[str, Any]) -> None:
     """Renders Page 1: Overview."""
-    st.title("Early Landslide Risk Detection")
-    st.caption("Visual terrain change analysis and susceptibility prediction using multi-source satellite remote sensing.")
+    st.title("Early Landslide Risk Detection Using Visual Terrain Changes")
+    st.caption("Multi-source satellite remote sensing and machine learning for mass-wasting detection and susceptibility mapping.")
 
     # Load artifacts
     df_raw = load_raw_landslides()

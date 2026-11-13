@@ -7,8 +7,8 @@ from typing import Dict, Any
 def render_sidebar() -> Dict[str, Any]:
     """Renders the simple, clean sidebar navigation and filter controls."""
     with st.sidebar:
-        st.markdown("### Landslide Detection")
-        st.caption("Visual Terrain Change Analysis")
+        st.markdown("### Early Landslide Risk Detection")
+        st.caption("Visual Terrain Changes & Remote Sensing")
         st.markdown("---")
 
         # Navigation
