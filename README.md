@@ -167,24 +167,6 @@ All 59 unit, geomorphometric, mapping, governance, and schema tests must pass.
 
 ---
 
-## Streamlit Cloud Deployment
-
-The live production application is deployed and accessible at:
-👉 **[https://landslide-ncg2cbc9pfgrt4kpujo7xq.streamlit.app/](https://landslide-ncg2cbc9pfgrt4kpujo7xq.streamlit.app/)**
-
-To deploy your own fork on [Streamlit Community Cloud](https://streamlit.io/cloud):
-
-1. Sign in to [share.streamlit.io](https://share.streamlit.io/) with your GitHub account.
-2. Click **New app** and select:
-   - **Repository:** `GouravSharma26/LandSlide`
-   - **Branch:** `main`
-   - **Main file path:** `dashboard/app.py`
-3. Click **Deploy**.
-
-All required datasets and models are pre-packaged in `outputs/` and `artifacts/`. No external database, Google Earth Engine credentials, or private API keys are required for the web application.
-
----
-
 ## Automated Testing Suite
 
 The repository contains 59 automated tests in `tests/`:
