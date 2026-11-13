@@ -28,7 +28,6 @@ from dashboard.pages import (
 # Set page configuration
 st.set_page_config(
     page_title="Early Landslide Risk Detection Using Visual Terrain Changes",
-    page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
