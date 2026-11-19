@@ -223,9 +223,13 @@ class GeoTrustNetTrainer:
                 return_mask=True,
             )
 
+            target_valid = None
+            if isinstance(batch, dict) and "mask_valid" in batch and batch["mask_valid"] is not None:
+                target_valid = batch["mask_valid"].to(self.device).bool()
+
             self.optimizer.zero_grad()
             logits = self._forward_model(x, mask)
-            loss = self.criterion(logits, y)
+            loss = self.criterion(logits, y, valid_mask=target_valid)
 
             loss.backward()
             self.optimizer.step()
@@ -250,6 +254,7 @@ class GeoTrustNetTrainer:
         num_batches = 0
         all_logits = []
         all_targets = []
+        all_valid_masks = []
 
         for batch in loader:
             x, y, mask = extract_batch_tensors(
@@ -262,21 +267,30 @@ class GeoTrustNetTrainer:
                 return_mask=True,
             )
 
+            target_valid = None
+            if isinstance(batch, dict) and "mask_valid" in batch and batch["mask_valid"] is not None:
+                target_valid = batch["mask_valid"].to(self.device).bool()
+
             logits = self._forward_model(x, mask)
-            loss = self.criterion(logits, y)
+            loss = self.criterion(logits, y, valid_mask=target_valid)
 
             total_loss += loss.item()
             num_batches += 1
 
             all_logits.append(logits.detach().cpu())
             all_targets.append(y.detach().cpu())
+            if target_valid is not None:
+                all_valid_masks.append(target_valid.detach().cpu())
+            else:
+                all_valid_masks.append(torch.ones_like(y.detach().cpu(), dtype=torch.bool))
 
         avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
 
         if all_logits and all_targets:
             concat_logits = torch.cat(all_logits, dim=0)
             concat_targets = torch.cat(all_targets, dim=0)
-            metrics = compute_segmentation_metrics(concat_logits, concat_targets)
+            concat_valid = torch.cat(all_valid_masks, dim=0) if all_valid_masks else None
+            metrics = compute_segmentation_metrics(concat_logits, concat_targets, valid_mask=concat_valid)
         else:
             metrics = {"iou": 0.0, "dice": 0.0, "precision": 0.0, "recall": 0.0}
 

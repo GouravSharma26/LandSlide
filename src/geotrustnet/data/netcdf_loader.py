@@ -1,9 +1,9 @@
 """NetCDF raster reader and contract validator for Sen12Landslides.
 
 Supports loading official Sen12Landslides NetCDF (.nc) files for:
-- Sentinel-1 SAR (VV, VH, elevation, slope, crs)
+- Sentinel-1 SAR (VV, VH backscatter, DEM elevation/slope)
 - Sentinel-2 Optical (10 bands: B02-B12, SCL cloud classification)
-- Target Landslide Mask (binary {0, 1} with nodata=255 exclusion)
+- Target Landslide Mask (binary {0, 1} with decoupled nodata=255 validity mask)
 """
 
 from pathlib import Path
@@ -39,7 +39,7 @@ def load_sen12landslides_netcdf(
         fixed_time_steps: Target temporal horizon T
         height: Spatial height (default 128)
         width: Spatial width (default 128)
-        normalize: Whether to apply official z-score normalization
+        normalize: Whether to apply official z-score normalization (default False; dataset owns normalization)
         nodata_value: Sensor nodata sentinel (-9999.0)
         mask_nodata_value: Label nodata sentinel (255)
 
@@ -50,22 +50,22 @@ def load_sen12landslides_netcdf(
     if not sar_file.exists():
         raise FileNotFoundError(f"SAR NetCDF file not found: {sar_file}")
 
-    # Standard Sen12Landslides normalization parameters
+    # Standard Sen12Landslides normalization parameters (Höhn et al., 2025)
     vv_mean, vv_std = -9.3099, 3.4868
     vh_mean, vh_std = -15.8861, 4.1814
 
     # 1. Load SAR Dataset
     with xr.open_dataset(sar_file) as ds_sar:
-        # Identify VV and VH variables
         var_names = [str(v) for v in ds_sar.data_vars]
 
-        # Find VV
+        # Case-insensitive discovery for VV and VH
         vv_var = next((v for v in var_names if v.upper() == "VV"), None)
-        # Find VH
         vh_var = next((v for v in var_names if v.upper() == "VH"), None)
 
         if vv_var is None or vh_var is None:
-            raise KeyError(f"SAR NetCDF must contain 'VV' and 'VH' variables. Found: {var_names}")
+            raise KeyError(
+                f"SAR NetCDF must contain 'VV' and 'VH' variables. Found variables: {var_names}"
+            )
 
         vv_data = ds_sar[vv_var].values  # Shape may be [T, H, W] or [H, W]
         vh_data = ds_sar[vh_var].values
@@ -76,47 +76,74 @@ def load_sen12landslides_netcdf(
 
         T_sar = vv_data.shape[0]
 
+        # Check dimensions
+        if vv_data.shape[-2:] != (height, width):
+            # Allow flexible spatial resolution but validate
+            h_actual, w_actual = vv_data.shape[-2:]
+            height, width = h_actual, w_actual
+
         # Extract DEM (elevation, slope) if present in SAR file
-        elev_var = next((v for v in var_names if "ELEV" in v.upper() or v.upper() == "DEM"), None)
+        elev_var = next((v for v in var_names if v.upper() in ["DEM", "ELEV", "ELEVATION"]), None)
         slope_var = next((v for v in var_names if "SLOPE" in v.upper()), None)
 
-        if elev_var is not None and slope_var is not None:
+        if elev_var is not None:
             elev_data = ds_sar[elev_var].values
-            slope_data = ds_sar[slope_var].values
             if elev_data.ndim == 3:
                 elev_data = elev_data[0]
-            if slope_data.ndim == 3:
-                slope_data = slope_data[0]
+            if slope_var is not None:
+                slope_data = ds_sar[slope_var].values
+                if slope_data.ndim == 3:
+                    slope_data = slope_data[0]
+            else:
+                # Topographic slope can be derived or default to 0 if not precomputed
+                slope_data = np.zeros_like(elev_data)
             has_dem = True
         else:
-            elev_data = np.zeros((height, width), dtype=np.float32)
-            slope_data = np.zeros((height, width), dtype=np.float32)
+            elev_data = None
+            slope_data = None
             has_dem = False
 
         # Extract MASK if embedded in SAR file
-        mask_var = next((v for v in var_names if "MASK" in v.upper() or "LABEL" in v.upper()), None)
+        mask_var = next((v for v in var_names if v.upper() in ["MASK", "LABEL", "LABELS", "LANDSLIDE"]), None)
         mask_data = None
         if mask_var is not None:
             mask_data = ds_sar[mask_var].values
             if mask_data.ndim == 3:
                 mask_data = mask_data[0]
 
-        # CRS
-        crs_str = str(ds_sar.attrs.get("crs", "EPSG:4326"))
+        # Extract actual coordinates without fabricating defaults
+        timestamps = []
+        if "time" in ds_sar.coords:
+            try:
+                timestamps = [str(t) for t in ds_sar["time"].values]
+            except Exception:
+                timestamps = []
+
+        bounds = (0.0, 0.0, 0.0, 0.0)
+        has_geo = False
+        if "x" in ds_sar.coords and "y" in ds_sar.coords:
+            try:
+                x_vals = ds_sar["x"].values
+                y_vals = ds_sar["y"].values
+                bounds = (float(np.min(x_vals)), float(np.min(y_vals)), float(np.max(x_vals)), float(np.max(y_vals)))
+                has_geo = True
+            except Exception:
+                pass
+
+        crs_str = str(ds_sar.attrs.get("crs", ds_sar.attrs.get("spatial_ref", "EPSG:4326")))
 
     # Process SAR Tensors
-    # Build validity mask where pixels != nodata
     sar_valid_np = (vv_data != nodata_value) & (vh_data != nodata_value) & (~np.isnan(vv_data)) & (~np.isnan(vh_data))
-    # Replace nodatas with zero
     vv_clean = np.where(sar_valid_np, vv_data, 0.0).astype(np.float32)
     vh_clean = np.where(sar_valid_np, vh_data, 0.0).astype(np.float32)
 
-    # Z-score normalization if requested
+    # Optional normalization (dataset is default owner)
+    is_normalized = False
     if normalize:
         vv_clean = np.where(sar_valid_np, (vv_clean - vv_mean) / vv_std, 0.0)
         vh_clean = np.where(sar_valid_np, (vh_clean - vh_mean) / vh_std, 0.0)
+        is_normalized = True
 
-    # Combine into [T, 2, H, W]
     sar_stack = np.stack([vv_clean, vh_clean], axis=1)  # [T, 2, H, W]
     sar_valid_stack = sar_valid_np[:, np.newaxis, :, :]  # [T, 1, H, W]
 
@@ -135,16 +162,22 @@ def load_sen12landslides_netcdf(
     sar_valid_tensor = torch.from_numpy(sar_valid_stack).bool()
 
     # Process DEM
-    dem_valid = (elev_data != nodata_value) & (slope_data != nodata_value) & (~np.isnan(elev_data))
-    elev_clean = np.where(dem_valid, elev_data, 0.0).astype(np.float32)
-    slope_clean = np.where(dem_valid, slope_data, 0.0).astype(np.float32)
-    dem_stack = np.stack([elev_clean, slope_clean], axis=0)  # [2, H, W]
-    dem_tensor = torch.from_numpy(dem_stack).float()
+    if has_dem and elev_data is not None and slope_data is not None:
+        dem_valid = (elev_data != nodata_value) & (slope_data != nodata_value) & (~np.isnan(elev_data))
+        elev_clean = np.where(dem_valid, elev_data, 0.0).astype(np.float32)
+        slope_clean = np.where(dem_valid, slope_data, 0.0).astype(np.float32)
+        dem_stack = np.stack([elev_clean, slope_clean], axis=0)  # [2, H, W]
+        dem_tensor = torch.from_numpy(dem_stack).float()
+    else:
+        # Never silently replace missing DEM with a plausible-looking zero tensor
+        dem_tensor = None
+        has_dem = False
 
     # 2. Load Optical if available
     optical_tensor = None
     optical_valid_tensor = None
     has_optical = False
+    scl_available = False
 
     if optical_path is not None:
         opt_file = Path(optical_path)
@@ -165,60 +198,100 @@ def load_sen12landslides_netcdf(
                     opt_stack = np.stack(band_arrays, axis=1)  # [T, 10, H, W]
                     T_opt = opt_stack.shape[0]
 
-                    # Nodata and cloud masking
-                    opt_valid = (opt_stack != nodata_value) & (~np.isnan(opt_stack))
+                    # Check for SCL cloud classification
+                    scl_var = next((v for v in opt_vars if v.upper() in ["SCL", "SCENE_CLASSIFICATION"]), None)
+                    if scl_var is not None:
+                        scl_data = ds_opt[scl_var].values
+                        if scl_data.ndim == 2:
+                            scl_data = scl_data[np.newaxis, ...]
+                        # Clean classes: 4 (vegetation), 5 (not vegetated), 6 (water), 7 (unclassified)
+                        scl_clean = np.isin(scl_data, [4, 5, 6, 7])
+                        if scl_clean.ndim == 3:
+                            scl_clean = scl_clean[:, np.newaxis, :, :]
+                        # Broadcast across channels
+                        opt_valid = scl_clean & (opt_stack != nodata_value) & (~np.isnan(opt_stack))
+                        scl_available = True
+                    else:
+                        opt_valid = (opt_stack != nodata_value) & (~np.isnan(opt_stack))
+
                     opt_stack = np.where(opt_valid, opt_stack, 0.0).astype(np.float32)
                     if normalize:
                         opt_stack = opt_stack / 10000.0  # Scale reflectance to [0, 1]
+                        is_normalized = True
+
+                    opt_valid_agg = np.all(opt_valid, axis=1, keepdims=True)  # [T, 1, H, W]
 
                     if T_opt < fixed_time_steps:
                         pad_t = fixed_time_steps - T_opt
                         opt_pad = np.zeros((pad_t, 10, height, width), dtype=np.float32)
                         opt_valid_pad = np.zeros((pad_t, 1, height, width), dtype=bool)
                         opt_stack = np.concatenate([opt_stack, opt_pad], axis=0)
-                        opt_valid_agg = np.all(opt_valid, axis=1, keepdims=True)
                         opt_valid_agg = np.concatenate([opt_valid_agg, opt_valid_pad], axis=0)
                     else:
                         opt_stack = opt_stack[:fixed_time_steps]
-                        opt_valid_agg = np.all(opt_valid[:fixed_time_steps], axis=1, keepdims=True)
+                        opt_valid_agg = opt_valid_agg[:fixed_time_steps]
 
                     optical_tensor = torch.from_numpy(opt_stack).float()
                     optical_valid_tensor = torch.from_numpy(opt_valid_agg).bool()
                     has_optical = True
 
+                # Check if DEM is in optical file if not already loaded
+                if not has_dem:
+                    elev_var_opt = next((v for v in opt_vars if v.upper() in ["DEM", "ELEV", "ELEVATION"]), None)
+                    slope_var_opt = next((v for v in opt_vars if "SLOPE" in v.upper()), None)
+                    if elev_var_opt is not None:
+                        elev_data = ds_opt[elev_var_opt].values
+                        if elev_data.ndim == 3:
+                            elev_data = elev_data[0]
+                        slope_data = ds_opt[slope_var_opt].values[0] if slope_var_opt is not None else np.zeros_like(elev_data)
+                        dem_valid = (elev_data != nodata_value) & (~np.isnan(elev_data))
+                        elev_clean = np.where(dem_valid, elev_data, 0.0).astype(np.float32)
+                        slope_clean = np.where(dem_valid, slope_data, 0.0).astype(np.float32)
+                        dem_stack = np.stack([elev_clean, slope_clean], axis=0)
+                        dem_tensor = torch.from_numpy(dem_stack).float()
+                        has_dem = True
+
                 # Check if MASK is in optical file
                 if mask_data is None:
-                    mask_v = next((v for v in opt_vars if "MASK" in v.upper() or "LABEL" in v.upper()), None)
+                    mask_v = next((v for v in opt_vars if v.upper() in ["MASK", "LABEL", "LABELS", "LANDSLIDE"]), None)
                     if mask_v is not None:
                         mask_data = ds_opt[mask_v].values
                         if mask_data.ndim == 3:
                             mask_data = mask_data[0]
 
-    # Process Target Mask
+    # Process Target Mask and Decoupled Target Validity
     if mask_data is not None:
         # Check nodata pixels (mask_nodata_value = 255)
         mask_valid_np = (mask_data != mask_nodata_value) & (~np.isnan(mask_data))
-        # Binary target: 1 if landslide, 0 otherwise
-        target_np = np.where((mask_data > 0) & mask_valid_np, 1.0, 0.0).astype(np.float32)
-        if target_np.ndim == 2:
-            target_np = target_np[np.newaxis, ...]
+        if mask_data.ndim == 2:
+            mask_data = mask_data[np.newaxis, ...]
+            mask_valid_np = mask_valid_np[np.newaxis, ...]
+        # Binary target: 1 if landslide, 0 otherwise (only meaningful on valid pixels)
+        target_np = np.where(mask_valid_np, (mask_data > 0).astype(np.float32), 0.0)
         mask_tensor = torch.from_numpy(target_np).float()
+        mask_valid_tensor = torch.from_numpy(mask_valid_np).bool()
     else:
-        # Fallback empty mask with 0
+        # If mask is not found, return empty mask with all-False validity
         mask_tensor = torch.zeros((1, height, width), dtype=torch.float32)
+        mask_valid_tensor = torch.zeros((1, height, width), dtype=torch.bool)
 
     metadata = PatchMetadata(
         patch_id=sample_id,
         region_id=region_id,
         event_id=event_id,
         event_date="2020-01-01T00:00:00Z",
-        timestamps=["2020-01-01T00:00:00Z"] * fixed_time_steps,
+        timestamps=timestamps,
         crs=crs_str,
-        bounds=(0.0, 0.0, 0.0, 0.0),
+        bounds=bounds,
         pixel_size_m=10.0,
         height=height,
         width=width,
-        extra_metadata={"nodata_values": {"sar": nodata_value, "optical": nodata_value, "mask": mask_nodata_value}},
+        extra_metadata={
+            "nodata_values": {"sar": nodata_value, "optical": nodata_value, "mask": mask_nodata_value},
+            "is_normalized": is_normalized,
+            "has_geo_coords": has_geo,
+            "scl_available": scl_available,
+        },
     )
 
     return PatchSample(
@@ -232,4 +305,5 @@ def load_sen12landslides_netcdf(
         dem_available=has_dem,
         optical_valid_mask=optical_valid_tensor,
         sar_valid_mask=sar_valid_tensor,
+        mask_valid=mask_valid_tensor,
     )

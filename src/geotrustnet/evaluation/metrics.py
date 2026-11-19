@@ -98,8 +98,15 @@ def compute_segmentation_metrics(
     total_predicted = int(tp + fp)
     prevalence = float(total_positives / total_pixels) if total_pixels > 0 else 0.0
 
-    # Handle edge cases (e.g. empty masks)
-    if total_positives == 0:
+    # Handle edge cases (e.g. empty masks or zero valid pixels)
+    if total_pixels == 0:
+        precision = 0.0
+        recall = 0.0
+        f1 = 0.0
+        iou = 0.0
+        dice = 0.0
+        specificity = 0.0
+    elif total_positives == 0:
         # Ground truth has zero landslide pixels
         if total_predicted == 0:
             # Model correctly predicted empty mask
@@ -107,12 +114,16 @@ def compute_segmentation_metrics(
             recall = 1.0
             f1 = 1.0
             iou = 1.0
+            dice = 1.0
         else:
             # Model predicted landslide pixels where none exist (false alarms)
             precision = 0.0
-            recall = 1.0  # Or undefined; convention 0.0 or 1.0; 0.0 for precision
+            recall = 1.0
             f1 = 0.0
             iou = 0.0
+            dice = 0.0
+        total_negatives = int(tn + fp)
+        specificity = float(tn / total_negatives) if total_negatives > 0 else 1.0
     else:
         # Ground truth has landslide pixels
         precision = float(tp / total_predicted) if total_predicted > 0 else 0.0
@@ -124,8 +135,10 @@ def compute_segmentation_metrics(
 
         denom_iou = tp + fp + fn
         iou = float(tp / denom_iou) if denom_iou > 0 else 0.0
+        dice = f1
 
-    dice = f1  # Dice is mathematically identical to F1 for binary segmentation
+        total_negatives = int(tn + fp)
+        specificity = float(tn / total_negatives) if total_negatives > 0 else 1.0
 
     # Curve AUC calculations
     pr_auc = None
@@ -150,7 +163,10 @@ def compute_segmentation_metrics(
             roc_auc = None
 
     total_negatives = int(tn + fp)
-    specificity = float(tn / total_negatives) if total_negatives > 0 else 1.0
+    if total_pixels == 0:
+        specificity = 0.0
+    else:
+        specificity = float(tn / total_negatives) if total_negatives > 0 else 1.0
     predicted_prevalence = float(total_predicted / total_pixels) if total_pixels > 0 else 0.0
 
     return {

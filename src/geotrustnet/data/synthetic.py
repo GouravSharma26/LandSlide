@@ -92,6 +92,7 @@ def create_synthetic_patch(
             sar_tensor[post_idx:, 1:2, dist_from_center <= radius] -= 3.5
 
     mask_tensor = torch.from_numpy(mask_data)
+    mask_valid_tensor = torch.ones_like(mask_tensor, dtype=torch.bool)
 
     return PatchSample(
         metadata=metadata,
@@ -104,6 +105,7 @@ def create_synthetic_patch(
         dem_available=has_dem,
         optical_valid_mask=optical_valid,
         sar_valid_mask=sar_valid,
+        mask_valid=mask_valid_tensor,
     )
 
 

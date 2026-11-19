@@ -7,7 +7,13 @@
   "is_smoke_test": true,
   "is_mock_metrics": false,
   "real_data_evaluated": false,
+  "evaluation_type": "inference_evaluation_only",
+  "split_evaluated": "test",
   "sample_count_evaluated": 6,
+  "checkpoint_path": "artifacts/geotrustnet/experiments/multimodal_fusion/best_model.pt",
+  "checkpoint_loaded": true,
+  "config_sha256": "7cb556560cda58d0dfff05938c6ad7b87ab2c555a61108631fdf7b203475676c",
+  "fixed_evaluation_threshold": 0.5,
   "provenance_statement": "Controlled smoke-test verification on synthetic validation fixtures. Real Sen12Landslides imagery was not present on local path.",
   "metrics": {
     "precision": 0.02696,
@@ -24,13 +30,13 @@
     "nodata_pixels_excluded": 0,
     "positive_prevalence": 0.026957,
     "predicted_prevalence": 1.0,
-    "pr_auc": 0.9881,
-    "roc_auc": 0.9995
+    "pr_auc": 0.02243,
+    "roc_auc": 0.43625
   },
   "calibration": {
-    "brier_score": 0.53772,
-    "ece": 0.7164,
-    "mce": 0.72265
+    "brier_score": 0.27129,
+    "ece": 0.49501,
+    "mce": 0.49501
   },
-  "timestamp": "2026-11-19T16:12:06Z"
+  "timestamp": "2026-11-19T16:36:36Z"
 }

@@ -63,6 +63,7 @@ class GeoTrustNetPatchDataset(Dataset):
         elif file_path.suffix in [".nc", ".netcdf", ".h5"]:
             from src.geotrustnet.data.netcdf_loader import load_sen12landslides_netcdf
             optical_path = self.data_root / row["s2_path"] if ("s2_path" in row and pd.notna(row["s2_path"])) else None
+            # load_sen12landslides_netcdf called with normalize=False; dataset is the sole normalization owner
             sample: PatchSample = load_sen12landslides_netcdf(
                 sar_path=file_path,
                 optical_path=optical_path,
@@ -72,13 +73,17 @@ class GeoTrustNetPatchDataset(Dataset):
                 fixed_time_steps=self.fixed_time_steps,
                 height=self.height,
                 width=self.width,
-                normalize=self.normalize,
+                normalize=False,
             )
         else:
             raise NotImplementedError(f"Unsupported raw file extension: {file_path.suffix}")
 
         T = self.fixed_time_steps
         H, W = self.height, self.width
+        is_already_normalized = bool(
+            getattr(sample, "metadata", None)
+            and sample.metadata.extra_metadata.get("is_normalized", False)
+        )
 
         # 1. Optical (10 channels)
         if sample.optical_available and sample.optical is not None:
@@ -93,6 +98,11 @@ class GeoTrustNetPatchDataset(Dataset):
                 pad_t = T - optical.shape[0]
                 optical = torch.cat([optical, torch.zeros((pad_t, 10, H, W))], dim=0)
                 optical_valid = torch.cat([optical_valid, torch.zeros((pad_t, 1, H, W), dtype=torch.bool)], dim=0)
+
+            # Optical surface reflectance scale to [0, 1] if normalizing
+            if self.normalize and not is_already_normalized:
+                optical = torch.where(optical_valid.expand_as(optical), optical / 10000.0, torch.zeros_like(optical))
+
             has_opt = True
         else:
             optical = torch.zeros((T, 10, H, W), dtype=torch.float32)
@@ -112,12 +122,15 @@ class GeoTrustNetPatchDataset(Dataset):
                 sar = torch.cat([sar, torch.zeros((pad_t, 2, H, W))], dim=0)
                 sar_valid = torch.cat([sar_valid, torch.zeros((pad_t, 1, H, W), dtype=torch.bool)], dim=0)
 
-            if self.normalize:
-                # Z-score normalize VV (dim 1, index 0) and VH (dim 1, index 1)
+            if self.normalize and not is_already_normalized:
+                # Z-score normalize VV (dim 1, index 0) and VH (dim 1, index 1) strictly on valid pixels
                 sar_norm = sar.clone()
-                sar_norm[:, 0] = (sar_norm[:, 0] - self.vv_mean) / self.vv_std
-                sar_norm[:, 1] = (sar_norm[:, 1] - self.vh_mean) / self.vh_std
-                sar = sar_norm
+                v_mask = sar_valid.squeeze(2) if sar_valid.ndim == 5 else sar_valid
+                # [T, 1, H, W] expands to [T, 2, H, W]
+                v_exp = sar_valid.expand_as(sar_norm)
+                vv_norm = torch.where(v_exp[:, 0], (sar_norm[:, 0] - self.vv_mean) / self.vv_std, torch.zeros_like(sar_norm[:, 0]))
+                vh_norm = torch.where(v_exp[:, 1], (sar_norm[:, 1] - self.vh_mean) / self.vh_std, torch.zeros_like(sar_norm[:, 1]))
+                sar = torch.stack([vv_norm, vh_norm], dim=1)
 
             has_sar = True
         else:
@@ -133,12 +146,20 @@ class GeoTrustNetPatchDataset(Dataset):
             dem = torch.zeros((2, H, W), dtype=torch.float32)
             has_dem = False
 
-        # 4. Target Mask (1 channel) with Nodata (255) handling
+        # 4. Target Mask (1 channel) with decoupled validity
         raw_mask = sample.mask if sample.mask is not None else torch.zeros((1, H, W), dtype=torch.float32)
         if raw_mask.ndim == 2:
             raw_mask = raw_mask.unsqueeze(0)
-        mask_valid = (raw_mask != 255) & (~torch.isnan(raw_mask))
-        mask_clean = torch.where(mask_valid, raw_mask, torch.zeros_like(raw_mask))
+
+        if hasattr(sample, "mask_valid") and sample.mask_valid is not None:
+            mask_valid = sample.mask_valid
+            if mask_valid.ndim == 2:
+                mask_valid = mask_valid.unsqueeze(0)
+        else:
+            # Fallback for legacy fixtures: identify sentinel 255
+            mask_valid = (raw_mask != 255) & (~torch.isnan(raw_mask))
+
+        mask_clean = torch.where(mask_valid, (raw_mask > 0).float(), torch.zeros_like(raw_mask))
 
         return {
             "sample_id": row["sample_id"],

@@ -9,15 +9,22 @@ Coordinates genuine model inference and evaluation across:
 All metrics, calibration values, and confusion matrices are computed directly
 from model predictions on DataLoader batches. No hardcoded or mock values are permitted.
 
+Safeguards:
+  - Real-data benchmarks CANNOT silently fall back to synthetic fixtures.
+  - Evaluation threshold is fixed to 0.5 (no post-hoc test-set threshold search).
+  - Checkpoint provenance, parameter counts, configuration hashes, and dataset provenance
+    are recorded in every generated artifact.
+
 Usage:
-    # Run genuine evaluation across all benchmark models:
+    # Run genuine smoke-test evaluation on synthetic fixtures:
     python scripts/run_benchmarks_and_ablations.py --model all --smoke-test
 
-    # Run specific model benchmark:
-    python scripts/run_benchmarks_and_ablations.py --model model_d --device cpu
+    # Run genuine benchmark on real Sen12Landslides data (fails if files missing):
+    python scripts/run_benchmarks_and_ablations.py --model all --real-data --device cpu
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -71,8 +78,13 @@ def load_benchmark_config(config_path: Path, smoke_test: bool = False) -> Dict[s
     return cfg
 
 
-def resolve_split_manifest(cfg: Dict[str, Any]) -> Tuple[Path, str, bool]:
+def resolve_split_manifest(cfg: Dict[str, Any], allow_synthetic_fallback: bool = False) -> Tuple[Path, str, bool]:
     """Resolves whether real or synthetic split manifest is used, verifying file existence.
+
+    Args:
+        cfg: Experiment configuration dictionary.
+        allow_synthetic_fallback: If True (smoke test mode), allows fallback to synthetic fixtures.
+                                  If False (real data mode), raises FileNotFoundError if real files are missing.
 
     Returns:
         (resolved_manifest_path, provenance_label, is_real_data)
@@ -92,7 +104,14 @@ def resolve_split_manifest(cfg: Dict[str, Any]) -> Tuple[Path, str, bool]:
         except Exception:
             pass
 
-    # Fallback to synthetic manifest
+    if not allow_synthetic_fallback:
+        raise FileNotFoundError(
+            f"Real Sen12Landslides dataset files referenced in '{manifest_rel}' were not found on disk. "
+            "Silent fallback to synthetic data is prohibited for real-data benchmark execution. "
+            "To run a rapid synthetic smoke test, pass --smoke-test explicitly."
+        )
+
+    # Fallback to synthetic manifest only when explicitly allowed
     fallback_rel = cfg.get("split_manifest_fallback", "data/manifests/synthetic_split_manifest.csv")
     fallback_path = ROOT_DIR / fallback_rel
     if fallback_path.exists():
@@ -101,7 +120,7 @@ def resolve_split_manifest(cfg: Dict[str, Any]) -> Tuple[Path, str, bool]:
     raise FileNotFoundError(f"Neither real manifest ({real_path}) nor fallback ({fallback_path}) could be resolved.")
 
 
-def instantiate_model(model_key: str, cfg: Dict[str, Any], device: torch.device) -> nn.Module:
+def instantiate_model(model_key: str, cfg: Dict[str, Any], device: torch.device) -> Tuple[nn.Module, Optional[Path]]:
     """Instantiates model architecture and loads checkpoint weights if available."""
     features = [32, 64, 128, 256]
 
@@ -156,10 +175,15 @@ def instantiate_model(model_key: str, cfg: Dict[str, Any], device: torch.device)
     else:
         print(f"  - Initialized with fresh random weights (no checkpoint found)")
 
-    return model
+    return model, loaded_ckpt
 
 
-def run_benchmark_experiment(model_key: str, smoke_test: bool = True, device_pref: str = "cpu") -> Dict[str, Any]:
+def run_benchmark_experiment(
+    model_key: str,
+    smoke_test: bool = True,
+    real_data: bool = False,
+    device_pref: str = "cpu",
+) -> Dict[str, Any]:
     """Runs genuine model evaluation across test batches and saves reproducible reports."""
     config_map = {
         "model_a": ROOT_DIR / "configs" / "experiments" / "benchmark_model_a_sar_unet.json",
@@ -181,7 +205,9 @@ def run_benchmark_experiment(model_key: str, smoke_test: bool = True, device_pre
     out_dir = ROOT_DIR / cfg["output_directory"]
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    manifest_path, provenance_label, is_real_data = resolve_split_manifest(cfg)
+    # Resolve manifest: forbid synthetic fallback if real_data=True
+    allow_fallback = smoke_test and not real_data
+    manifest_path, provenance_label, is_real_data = resolve_split_manifest(cfg, allow_synthetic_fallback=allow_fallback)
 
     print(f"\n[{cfg['model_designation']}] Genuine Evaluation Runner")
     print(f"  - Config: {config_map[model_key].name}")
@@ -189,19 +215,23 @@ def run_benchmark_experiment(model_key: str, smoke_test: bool = True, device_pre
     print(f"  - Device: {device}")
 
     # Build Test Dataset and DataLoader
+    target_split = "test"
     try:
         dataset = GeoTrustNetPatchDataset(
             manifest_df=manifest_path,
-            split="test",
+            split=target_split,
             data_root=ROOT_DIR,
+            normalize=True,
         )
     except ValueError:
         # Fallback to val if test has 0 samples in manifest
         print("    Test split had 0 samples, evaluating on val split...")
+        target_split = "val"
         dataset = GeoTrustNetPatchDataset(
             manifest_df=manifest_path,
-            split="val",
+            split=target_split,
             data_root=ROOT_DIR,
+            normalize=True,
         )
 
     loader = DataLoader(
@@ -212,7 +242,7 @@ def run_benchmark_experiment(model_key: str, smoke_test: bool = True, device_pre
     )
 
     # Instantiate model
-    model = instantiate_model(model_key, cfg, device)
+    model, loaded_ckpt = instantiate_model(model_key, cfg, device)
 
     # Run genuine inference loop
     all_probs: List[np.ndarray] = []
@@ -293,16 +323,17 @@ def run_benchmark_experiment(model_key: str, smoke_test: bool = True, device_pre
     targets_np = np.concatenate(all_targets, axis=0) if all_targets else np.zeros((0,))
     valid_np = np.concatenate(all_valid_masks, axis=0) if all_valid_masks else None
 
-    # Compute genuine segmentation metrics
+    # Compute genuine segmentation metrics with fixed threshold=0.5 (no test threshold tuning)
+    EVALUATION_THRESHOLD = 0.5
     metrics = compute_segmentation_metrics(
         logits_or_probs=probs_np,
         targets=targets_np,
-        threshold=0.5,
+        threshold=EVALUATION_THRESHOLD,
         compute_curve_auc=True,
         valid_mask=valid_np,
     )
 
-    # Compute genuine calibration metrics on valid pixels
+    # Compute genuine calibration metrics strictly on valid pixels
     probs_flat = probs_np.ravel()
     targets_flat = targets_np.ravel().astype(np.int64)
 
@@ -330,6 +361,8 @@ def run_benchmark_experiment(model_key: str, smoke_test: bool = True, device_pre
         "mce": round(mce, 5),
     }
 
+    config_hash = hashlib.sha256(json.dumps(cfg, sort_keys=True).encode("utf-8")).hexdigest()
+
     result = {
         "model_key": model_key,
         "model_designation": cfg["model_designation"],
@@ -339,9 +372,15 @@ def run_benchmark_experiment(model_key: str, smoke_test: bool = True, device_pre
         "is_smoke_test": smoke_test,
         "is_mock_metrics": False,
         "real_data_evaluated": is_real_data,
+        "evaluation_type": "inference_evaluation_only",
+        "split_evaluated": target_split,
         "sample_count_evaluated": len(dataset),
+        "checkpoint_path": str(loaded_ckpt.relative_to(ROOT_DIR)).replace("\\", "/") if loaded_ckpt else None,
+        "checkpoint_loaded": bool(loaded_ckpt),
+        "config_sha256": config_hash,
+        "fixed_evaluation_threshold": EVALUATION_THRESHOLD,
         "provenance_statement": (
-            "Empirical benchmark on real Sen12Landslides imagery."
+            "Empirical benchmark evaluation on real Sen12Landslides satellite imagery."
             if is_real_data
             else "Controlled smoke-test verification on synthetic validation fixtures. Real Sen12Landslides imagery was not present on local path."
         ),
@@ -367,7 +406,8 @@ def run_benchmark_experiment(model_key: str, smoke_test: bool = True, device_pre
 def main():
     parser = argparse.ArgumentParser(description="GeoTrustNet Controlled Benchmark Runner")
     parser.add_argument("--model", type=str, default="all", choices=["model_a", "model_b", "model_c", "model_d", "all"], help="Model to evaluate")
-    parser.add_argument("--smoke-test", action="store_true", help="Execute rapid smoke test verification")
+    parser.add_argument("--smoke-test", action="store_true", help="Execute rapid smoke test verification on synthetic fixtures")
+    parser.add_argument("--real-data", action="store_true", help="Execute evaluation on real Sen12Landslides data (fails if files missing)")
     parser.add_argument("--device", type=str, default="cpu", choices=["cpu", "cuda"], help="Device preference")
     args = parser.parse_args()
 
@@ -378,11 +418,17 @@ def main():
     print("=" * 65)
     print(f"Target Models: {targets}")
     print(f"Smoke Test:    {args.smoke_test}")
+    print(f"Real Data:     {args.real_data}")
     print(f"Device:        {args.device}")
 
     results = []
     for m in targets:
-        res = run_benchmark_experiment(m, smoke_test=args.smoke_test, device_pref=args.device)
+        res = run_benchmark_experiment(
+            model_key=m,
+            smoke_test=args.smoke_test,
+            real_data=args.real_data,
+            device_pref=args.device,
+        )
         results.append(res)
 
     print("\n" + "=" * 65)

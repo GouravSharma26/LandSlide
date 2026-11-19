@@ -4,6 +4,20 @@ Defines typed dataclasses and validation interfaces for multimodal spatio-tempor
 landslide observation patches.
 """
 
+import os
+import sys
+from pathlib import Path
+
+# On Windows, resolve torch DLL directory search path before importing torch
+if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
+    site_packages = Path(sys.executable).parent / "Lib" / "site-packages"
+    torch_lib = site_packages / "torch" / "lib"
+    if torch_lib.exists():
+        try:
+            os.add_dll_directory(str(torch_lib))
+        except Exception:
+            pass
+
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
@@ -48,6 +62,8 @@ class PatchSample:
     optical_valid_mask: Optional[torch.Tensor] = None
     # sar_valid_mask: shape [T, 1, H, W] boolean
     sar_valid_mask: Optional[torch.Tensor] = None
+    # Target mask validity: shape [1, H, W] boolean (True where target in {0, 1}, False for nodata=255)
+    mask_valid: Optional[torch.Tensor] = None
 
     def validate(self) -> Tuple[bool, List[str]]:
         """Validates internal shape and contract consistency."""
@@ -58,6 +74,11 @@ class PatchSample:
         if self.mask is not None:
             if self.mask.ndim != 3 or self.mask.shape[1:] != (H, W):
                 errors.append(f"Mask shape {self.mask.shape} does not match (1, {H}, {W})")
+
+        # Check mask_valid
+        if self.mask_valid is not None:
+            if self.mask_valid.ndim != 3 or self.mask_valid.shape[1:] != (H, W):
+                errors.append(f"Mask validity shape {self.mask_valid.shape} does not match (1, {H}, {W})")
             unique_vals = torch.unique(self.mask).cpu().numpy()
             if not np.all(np.isin(unique_vals, [0, 1])):
                 errors.append(f"Mask values must be binary {{0, 1}}, got: {unique_vals}")

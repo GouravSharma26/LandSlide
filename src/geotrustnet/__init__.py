@@ -9,8 +9,8 @@ from pathlib import Path
 
 # On Windows, resolve torch DLL directory search path
 if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
-    site_packages = Path(sys.executable).parent / "Lib" / "site-packages"
-    torch_lib = site_packages / "torch" / "lib"
+    import sysconfig
+    torch_lib = Path(sysconfig.get_path("purelib")) / "torch" / "lib"
     if torch_lib.exists():
         try:
             os.add_dll_directory(str(torch_lib))

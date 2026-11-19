@@ -1,8 +1,9 @@
 """Generate miniature valid NetCDF fixtures for Sen12Landslides testing.
 
 Produces co-registered NetCDF (.nc) files with authentic band structures:
-  - sample_sar.nc: VV, VH, elevation, slope, MASK (including sentinel nodata=255)
+  - sample_sar.nc: VV, VH, DEM, slope, MASK (including sentinel nodata=255)
   - sample_optical.nc: B02-B12 spectral bands, SCL cloud mask
+  - sample_sar_nodem.nc: VV, VH, MASK without DEM variables
 """
 
 from pathlib import Path
@@ -26,8 +27,8 @@ def generate_sample_netcdf(
     vv = rng.normal(-9.31, 3.49, size=(time_steps, height, width)).astype(np.float32)
     # VH: mean ~ -15.89, std ~ 4.18 dB
     vh = rng.normal(-15.89, 4.18, size=(time_steps, height, width)).astype(np.float32)
-    # Terrain
-    elev = rng.uniform(200.0, 2500.0, size=(height, width)).astype(np.float32)
+    # Terrain (official variable name is DEM)
+    dem = rng.uniform(200.0, 2500.0, size=(height, width)).astype(np.float32)
     slope = rng.uniform(5.0, 55.0, size=(height, width)).astype(np.float32)
 
     # Mask: 0 (stable, 92%), 1 (landslide, 5%), 255 (nodata, 3%)
@@ -40,19 +41,39 @@ def generate_sample_netcdf(
         data_vars={
             "VV": (("time", "y", "x"), vv),
             "VH": (("time", "y", "x"), vh),
-            "elevation": (("y", "x"), elev),
+            "DEM": (("y", "x"), dem),
             "slope": (("y", "x"), slope),
             "MASK": (("y", "x"), mask),
         },
         coords={
-            "time": np.arange(time_steps),
-            "y": np.arange(height),
-            "x": np.arange(width),
+            "time": [f"2020-07-0{i+1}T10:00:00Z" for i in range(time_steps)],
+            "y": np.linspace(45.0, 45.1, height),
+            "x": np.linspace(10.0, 10.1, width),
         },
-        attrs={"title": "Synthetic Sen12Landslides SAR Fixture for Testing"},
+        attrs={
+            "title": "Synthetic Sen12Landslides SAR Fixture for Testing",
+            "crs": "EPSG:4326",
+        },
     )
     sar_path = output_dir / "sample_sar.nc"
     sar_ds.to_netcdf(sar_path)
+
+    # 1b. SAR without DEM
+    sar_nodem_ds = xr.Dataset(
+        data_vars={
+            "VV": (("time", "y", "x"), vv),
+            "VH": (("time", "y", "x"), vh),
+            "MASK": (("y", "x"), mask),
+        },
+        coords={
+            "time": [f"2020-07-0{i+1}T10:00:00Z" for i in range(time_steps)],
+            "y": np.arange(height),
+            "x": np.arange(width),
+        },
+        attrs={"title": "SAR without DEM fixture"},
+    )
+    sar_nodem_path = output_dir / "sample_sar_nodem.nc"
+    sar_nodem_ds.to_netcdf(sar_nodem_path)
 
     # 2. Optical Dataset
     bands = ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"]
@@ -69,17 +90,21 @@ def generate_sample_netcdf(
     opt_ds = xr.Dataset(
         data_vars=opt_vars,
         coords={
-            "time": np.arange(time_steps),
-            "y": np.arange(height),
-            "x": np.arange(width),
+            "time": [f"2020-07-0{i+1}T10:30:00Z" for i in range(time_steps)],
+            "y": np.linspace(45.0, 45.1, height),
+            "x": np.linspace(10.0, 10.1, width),
         },
-        attrs={"title": "Synthetic Sen12Landslides Optical Fixture for Testing"},
+        attrs={
+            "title": "Synthetic Sen12Landslides Optical Fixture for Testing",
+            "crs": "EPSG:4326",
+        },
     )
     opt_path = output_dir / "sample_optical.nc"
     opt_ds.to_netcdf(opt_path)
 
     print(f"Generated NetCDF fixtures in {output_dir}:")
     print(f"  - {sar_path.name}")
+    print(f"  - {sar_nodem_path.name}")
     print(f"  - {opt_path.name}")
     return sar_path
 
