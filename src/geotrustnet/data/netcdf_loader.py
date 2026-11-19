@@ -27,6 +27,7 @@ def load_sen12landslides_netcdf(
     normalize: bool = False,
     nodata_value: float = -9999.0,
     mask_nodata_value: int = 255,
+    clear_scl_classes: Tuple[int, ...] = (4, 5, 6),
 ) -> PatchSample:
     """Load a Sen12Landslides sample from NetCDF files into a validated PatchSample contract.
 
@@ -42,6 +43,10 @@ def load_sen12landslides_netcdf(
         normalize: Whether to apply official z-score normalization (default False; dataset owns normalization)
         nodata_value: Sensor nodata sentinel (-9999.0)
         mask_nodata_value: Label nodata sentinel (255)
+        clear_scl_classes: Tuple of ESA SCL classes considered clear/valid optical surface observations.
+            Default is (4, 5, 6) for Vegetation, Not-vegetated (bare soil/rock), and Water.
+            Class 7 ('unclassified') is excluded by default due to classification ambiguity.
+            Class 2 ('dark area pixels') is excluded by default due to topographic shadow SNR loss.
 
     Returns:
         PatchSample containing co-registered tensors, validity masks, and metadata.
@@ -95,8 +100,10 @@ def load_sen12landslides_netcdf(
                 if slope_data.ndim == 3:
                     slope_data = slope_data[0]
             else:
-                # Topographic slope can be derived or default to 0 if not precomputed
-                slope_data = np.zeros_like(elev_data)
+                # Physically derive topographic slope in degrees from 10m DEM elevation
+                gy, gx = np.gradient(elev_data.astype(np.float32), 10.0, 10.0)
+                slope_rad = np.arctan(np.sqrt(gx**2 + gy**2))
+                slope_data = np.degrees(slope_rad).astype(np.float32)
             has_dem = True
         else:
             elev_data = None
@@ -204,8 +211,9 @@ def load_sen12landslides_netcdf(
                         scl_data = ds_opt[scl_var].values
                         if scl_data.ndim == 2:
                             scl_data = scl_data[np.newaxis, ...]
-                        # Clean classes: 4 (vegetation), 5 (not vegetated), 6 (water), 7 (unclassified)
-                        scl_clean = np.isin(scl_data, [4, 5, 6, 7])
+                        # Clean classes parameterized by clear_scl_classes (default 4=vegetation, 5=bare soil/rock, 6=water)
+                        # Excludes class 7 (unclassified) and class 2 (dark area) by default
+                        scl_clean = np.isin(scl_data, list(clear_scl_classes))
                         if scl_clean.ndim == 3:
                             scl_clean = scl_clean[:, np.newaxis, :, :]
                         # Broadcast across channels
@@ -243,7 +251,12 @@ def load_sen12landslides_netcdf(
                         elev_data = ds_opt[elev_var_opt].values
                         if elev_data.ndim == 3:
                             elev_data = elev_data[0]
-                        slope_data = ds_opt[slope_var_opt].values[0] if slope_var_opt is not None else np.zeros_like(elev_data)
+                        if slope_var_opt is not None:
+                            slope_data = ds_opt[slope_var_opt].values[0] if ds_opt[slope_var_opt].values.ndim == 3 else ds_opt[slope_var_opt].values
+                        else:
+                            gy, gx = np.gradient(elev_data.astype(np.float32), 10.0, 10.0)
+                            slope_rad = np.arctan(np.sqrt(gx**2 + gy**2))
+                            slope_data = np.degrees(slope_rad).astype(np.float32)
                         dem_valid = (elev_data != nodata_value) & (~np.isnan(elev_data))
                         elev_clean = np.where(dem_valid, elev_data, 0.0).astype(np.float32)
                         slope_clean = np.where(dem_valid, slope_data, 0.0).astype(np.float32)
@@ -291,6 +304,13 @@ def load_sen12landslides_netcdf(
             "is_normalized": is_normalized,
             "has_geo_coords": has_geo,
             "scl_available": scl_available,
+            "scl_policy": {
+                "clear_classes": list(clear_scl_classes),
+                "excluded_classes_rationale": {
+                    "7": "Unclassified: ESA Sen2Cor low-confidence classification excluded to prevent cloud/border noise.",
+                    "2": "Dark area pixels: Topographic cast shadows with low optical SNR excluded so model relies on SAR.",
+                },
+            },
         },
     )
 

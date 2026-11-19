@@ -1,7 +1,7 @@
 """PyTorch Dataset implementations for GeoTrustNet multimodal spatio-temporal patches."""
 
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, Tuple
 import numpy as np
 import pandas as pd
 import torch
@@ -26,6 +26,7 @@ class GeoTrustNetPatchDataset(Dataset):
         height: int = 128,
         width: int = 128,
         normalize: bool = False,
+        clear_scl_classes: Tuple[int, ...] = (4, 5, 6),
     ):
         self.data_root = Path(data_root) if data_root is not None else Path(".")
         self.split = split
@@ -33,6 +34,7 @@ class GeoTrustNetPatchDataset(Dataset):
         self.height = height
         self.width = width
         self.normalize = normalize
+        self.clear_scl_classes = clear_scl_classes
 
         if isinstance(manifest_df, (str, Path)):
             manifest_df = pd.read_csv(manifest_df)
@@ -74,6 +76,7 @@ class GeoTrustNetPatchDataset(Dataset):
                 height=self.height,
                 width=self.width,
                 normalize=False,
+                clear_scl_classes=self.clear_scl_classes,
             )
         else:
             raise NotImplementedError(f"Unsupported raw file extension: {file_path.suffix}")
