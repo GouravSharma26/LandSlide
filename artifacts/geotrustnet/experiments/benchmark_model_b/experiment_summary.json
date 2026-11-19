@@ -11,7 +11,7 @@
   "temporal_slice": null,
   "max_timesteps": 5,
   "model_config": "configs/models/convlstm_s1_baseline.json",
-  "split_manifest": "data/manifests/synthetic_split_manifest.csv",
+  "split_manifest": "data/manifests/sen12landslides_disjoint_manifest.csv",
   "split_manifest_fallback": "data/manifests/synthetic_split_manifest.csv",
   "training": {
     "batch_size": 2,

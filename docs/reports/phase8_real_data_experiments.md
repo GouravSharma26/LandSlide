@@ -12,6 +12,9 @@
 
 ## 1. Executive Summary
 
+> [!IMPORTANT]
+> **Phase 10A.1 Provenance Reconciliation Note:** As formally established in the Phase 10A.1 Provenance Audit, the pilot training run described in Section 5 was executed on local synthetic diagnostic fixtures (`data/synthetic/SMP_*.pt`) engineered to mirror Sen12Landslides tensor shapes, channel configurations, and official normalization parameters. The full ~50 GB Sen12Landslides satellite raster archive was not hosted on the local workstation. While the inventory statistics, metadata audits, and split manifests in Sections 2–4 represent authentic Sen12Landslides metadata, the numerical convergence metrics in Section 5 represent diagnostic training pipeline validation, not empirical performance on genuine satellite imagery. Genuine full-scale training is assigned to Cloud GPU infrastructure (Phase 10B/11).
+
 Phase 8 executes the transition of the GeoTrustNet research framework from synthetic architectural validation to authentic real-world dataset validation and empirical benchmark preparation using the **Sen12Landslides** dataset.
 
 ### Key Milestones Achieved
@@ -87,6 +90,9 @@ To evaluate authentic geographic generalization, GeoTrustNet partitions by holdi
 ---
 
 ## 5. Model A Baseline Pilot Training Run
+
+> [!NOTE]
+> **Data Provenance:** This pilot was executed locally on synthetic diagnostic fixtures (`data/synthetic/SMP_0001.pt` to `SMP_0024.pt`) to verify computational graphs, gradient backward passes, scheduler updates, and checkpoint serialization before full-scale cloud GPU training. Real satellite raster training is documented in Phase 10B/11.
 
 The pilot training run was executed using `scripts/run_pilot_and_benchmarks.py`:
 

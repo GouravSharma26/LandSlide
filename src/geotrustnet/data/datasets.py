@@ -1,7 +1,7 @@
 """PyTorch Dataset implementations for GeoTrustNet multimodal spatio-temporal patches."""
 
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 import numpy as np
 import pandas as pd
 import torch
@@ -19,7 +19,7 @@ class GeoTrustNetPatchDataset(Dataset):
 
     def __init__(
         self,
-        manifest_df: pd.DataFrame,
+        manifest_df: Union[pd.DataFrame, str, Path],
         split: Optional[str] = None,
         data_root: Optional[Path] = None,
         fixed_time_steps: int = 5,
@@ -33,6 +33,9 @@ class GeoTrustNetPatchDataset(Dataset):
         self.height = height
         self.width = width
         self.normalize = normalize
+
+        if isinstance(manifest_df, (str, Path)):
+            manifest_df = pd.read_csv(manifest_df)
 
         # Standard Sen12Landslides normalization parameters
         self.vv_mean = -9.3099
@@ -57,6 +60,20 @@ class GeoTrustNetPatchDataset(Dataset):
 
         if file_path.suffix == ".pt":
             sample: PatchSample = torch.load(file_path, weights_only=False)
+        elif file_path.suffix in [".nc", ".netcdf", ".h5"]:
+            from src.geotrustnet.data.netcdf_loader import load_sen12landslides_netcdf
+            optical_path = self.data_root / row["s2_path"] if ("s2_path" in row and pd.notna(row["s2_path"])) else None
+            sample: PatchSample = load_sen12landslides_netcdf(
+                sar_path=file_path,
+                optical_path=optical_path,
+                sample_id=str(row.get("sample_id", f"sample_{idx}")),
+                region_id=str(row.get("region_id", "unknown_region")),
+                event_id=str(row.get("event_id", "unknown_event")),
+                fixed_time_steps=self.fixed_time_steps,
+                height=self.height,
+                width=self.width,
+                normalize=self.normalize,
+            )
         else:
             raise NotImplementedError(f"Unsupported raw file extension: {file_path.suffix}")
 
@@ -116,8 +133,12 @@ class GeoTrustNetPatchDataset(Dataset):
             dem = torch.zeros((2, H, W), dtype=torch.float32)
             has_dem = False
 
-        # 4. Target Mask (1 channel)
-        mask = sample.mask if sample.mask is not None else torch.zeros((1, H, W), dtype=torch.float32)
+        # 4. Target Mask (1 channel) with Nodata (255) handling
+        raw_mask = sample.mask if sample.mask is not None else torch.zeros((1, H, W), dtype=torch.float32)
+        if raw_mask.ndim == 2:
+            raw_mask = raw_mask.unsqueeze(0)
+        mask_valid = (raw_mask != 255) & (~torch.isnan(raw_mask))
+        mask_clean = torch.where(mask_valid, raw_mask, torch.zeros_like(raw_mask))
 
         return {
             "sample_id": row["sample_id"],
@@ -126,7 +147,8 @@ class GeoTrustNetPatchDataset(Dataset):
             "optical": optical.float(),
             "sar": sar.float(),
             "dem": dem.float(),
-            "mask": mask.float(),
+            "mask": mask_clean.float(),
+            "mask_valid": mask_valid.bool(),
             "optical_valid": optical_valid,
             "sar_valid": sar_valid,
             "has_optical": torch.tensor(has_opt, dtype=torch.bool),
@@ -145,6 +167,7 @@ def collate_geotrustnet_patches(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
         "sar": torch.stack([b["sar"] for b in batch], dim=0),                   # [B, T, 2, H, W]
         "dem": torch.stack([b["dem"] for b in batch], dim=0),                   # [B, 2, H, W]
         "mask": torch.stack([b["mask"] for b in batch], dim=0),                 # [B, 1, H, W]
+        "mask_valid": torch.stack([b["mask_valid"] for b in batch], dim=0) if "mask_valid" in batch[0] else torch.ones_like(torch.stack([b["mask"] for b in batch], dim=0), dtype=torch.bool),
         "optical_valid": torch.stack([b["optical_valid"] for b in batch], dim=0),# [B, T, 1, H, W]
         "sar_valid": torch.stack([b["sar_valid"] for b in batch], dim=0),       # [B, T, 1, H, W]
         "has_optical": torch.stack([b["has_optical"] for b in batch], dim=0),   # [B]

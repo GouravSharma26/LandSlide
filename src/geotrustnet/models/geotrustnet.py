@@ -12,6 +12,7 @@ import torch.nn.functional as F
 from src.geotrustnet.models.unet import Up, OutConv
 from src.geotrustnet.models.encoders import SAREncoder, OpticalEncoder, TerrainEncoder
 from src.geotrustnet.models.reliability import ReliabilityAwareFusion
+from src.geotrustnet.models.convlstm import ConvLSTM
 
 
 class GeoTrustNet(nn.Module):
@@ -38,6 +39,7 @@ class GeoTrustNet(nn.Module):
         bilinear: bool = True,
         dropout: float = 0.2,
         spatial_reliability: bool = True,
+        use_temporal: bool = False,
     ):
         super().__init__()
         if features is None:
@@ -51,11 +53,22 @@ class GeoTrustNet(nn.Module):
         self.bilinear = bilinear
         self.dropout = dropout
         self.spatial_reliability = spatial_reliability
+        self.use_temporal = use_temporal
 
         # 1. Independent Sensor Encoders
         self.sar_encoder = SAREncoder(in_channels=sar_channels, features=features, dropout=dropout)
         self.optical_encoder = OpticalEncoder(in_channels=optical_channels, features=features, dropout=dropout)
         self.dem_encoder = TerrainEncoder(in_channels=dem_channels, features=features, dropout=dropout)
+
+        if self.use_temporal:
+            self.sar_convlstm = ConvLSTM(
+                in_channels=features[-1],
+                hidden_channels=features[-1],
+                kernel_size=3,
+                num_layers=1,
+                batch_first=True,
+                bias=True,
+            )
 
         # 2. Multi-Scale Reliability-Aware Fusion Modules
         self.skip_fusions = nn.ModuleList()
@@ -179,7 +192,34 @@ class GeoTrustNet(nn.Module):
         ref_shape = (B, H, W)
 
         # Prepare inputs and quality signals
-        x_sar, a_sar, q_sar = self._prepare_modality(sar, self.sar_channels, ref_shape, device, has_sar, sar_quality)
+        if self.use_temporal and sar is not None and sar.ndim == 5:
+            # Spatio-temporal ConvLSTM sequence feature extraction for 5D SAR [B, T, C, H, W]
+            B_s, T_s, C_s, H_s, W_s = sar.shape
+            sar_flat = sar.reshape(B_s * T_s, C_s, H_s, W_s).float()
+            bot_flat, skips_flat = self.sar_encoder(sar_flat)
+            F_bot, H_b, W_b = bot_flat.shape[1], bot_flat.shape[2], bot_flat.shape[3]
+            bot_seq = bot_flat.reshape(B_s, T_s, F_bot, H_b, W_b)
+            _, last_states = self.sar_convlstm(bot_seq)
+            bot_sar = last_states[-1][0]
+            # Aggregate skips using latest time step
+            skips_sar = [
+                s.reshape(B_s, T_s, s.shape[1], s.shape[2], s.shape[3])[:, -1]
+                for s in skips_flat
+            ]
+            if has_sar is not None:
+                a_sar = has_sar.to(device).bool()
+                if a_sar.ndim > 1:
+                    a_sar = a_sar.squeeze()
+            else:
+                a_sar = torch.ones(B, device=device, dtype=torch.bool)
+            if sar_quality is not None:
+                q_sar = (sar_quality[:, -1] if sar_quality.ndim == 5 else sar_quality).to(device).float()
+            else:
+                q_sar = torch.ones((B, 1, H, W), device=device, dtype=torch.float32)
+        else:
+            x_sar, a_sar, q_sar = self._prepare_modality(sar, self.sar_channels, ref_shape, device, has_sar, sar_quality)
+            bot_sar, skips_sar = self.sar_encoder(x_sar, is_available=a_sar)
+
         x_opt, a_opt, q_opt = self._prepare_modality(optical, self.optical_channels, ref_shape, device, has_optical, optical_quality)
         x_dem, a_dem, q_dem = self._prepare_modality(dem, self.dem_channels, ref_shape, device, has_dem, dem_quality)
 
@@ -187,7 +227,6 @@ class GeoTrustNet(nn.Module):
         qualities = [q_sar, q_opt, q_dem]
 
         # 1. Feature Extraction per Modality
-        bot_sar, skips_sar = self.sar_encoder(x_sar, is_available=a_sar)
         bot_opt, skips_opt = self.optical_encoder(x_opt, is_available=a_opt)
         bot_dem, skips_dem = self.dem_encoder(x_dem, is_available=a_dem)
 

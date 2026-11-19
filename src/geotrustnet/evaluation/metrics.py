@@ -16,8 +16,12 @@ def compute_segmentation_metrics(
     targets: Union[torch.Tensor, np.ndarray],
     threshold: float = 0.5,
     compute_curve_auc: bool = True,
+    valid_mask: Optional[Union[torch.Tensor, np.ndarray]] = None,
 ) -> Dict[str, Any]:
     """Calculate comprehensive binary segmentation metrics.
+
+    Nodata pixels (e.g. sentinel value 255 or where valid_mask is False)
+    are strictly excluded from confusion matrix, IoU, Dice, and AUC calculations.
 
     Args:
         logits_or_probs: Model predictions. If values outside [0, 1] are detected,
@@ -25,6 +29,7 @@ def compute_segmentation_metrics(
         targets: Binary ground truth {0, 1} matching spatial shape.
         threshold: Classification threshold for binarizing probabilities (default 0.5).
         compute_curve_auc: Whether to compute pixel-level PR-AUC and ROC-AUC.
+        valid_mask: Optional boolean or {0, 1} validity mask.
 
     Returns:
         Dictionary of metrics:
@@ -35,6 +40,7 @@ def compute_segmentation_metrics(
           - iou (Jaccard)
           - tp, fp, tn, fn
           - total_pixels
+          - nodata_pixels_excluded
           - positive_prevalence
           - pr_auc (optional)
           - roc_auc (optional)
@@ -63,6 +69,20 @@ def compute_segmentation_metrics(
             f"Shape mismatch: predictions have {probs_flat.shape[0]} elements, "
             f"targets have {targets_flat.shape[0]} elements"
         )
+
+    # Filter out nodata pixels (sentinel 255 or out of binary domain {0, 1})
+    if valid_mask is not None:
+        if isinstance(valid_mask, torch.Tensor):
+            valid_np = valid_mask.detach().cpu().numpy().ravel().astype(bool)
+        else:
+            valid_np = np.asarray(valid_mask).ravel().astype(bool)
+        valid_bool = valid_np & ((targets_flat == 0) | (targets_flat == 1))
+    else:
+        valid_bool = (targets_flat == 0) | (targets_flat == 1)
+
+    nodata_count = int(np.sum(~valid_bool))
+    probs_flat = probs_flat[valid_bool]
+    targets_flat = targets_flat[valid_bool]
 
     # Thresholded predictions
     preds_binary = (probs_flat >= threshold).astype(np.int64)
@@ -145,6 +165,7 @@ def compute_segmentation_metrics(
         "tn": tn,
         "fn": fn,
         "total_pixels": total_pixels,
+        "nodata_pixels_excluded": nodata_count,
         "positive_prevalence": round(prevalence, 6),
         "predicted_prevalence": round(predicted_prevalence, 6),
         "pr_auc": round(pr_auc, 5) if pr_auc is not None else None,

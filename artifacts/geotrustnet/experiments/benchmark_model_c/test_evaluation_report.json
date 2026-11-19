@@ -3,23 +3,34 @@
   "model_designation": "Model C \u2014 Conventional Multimodal Concatenation Fusion",
   "experiment_id": "benchmark_model_c_multimodal_fusion",
   "dataset_manifest": "data/manifests/synthetic_split_manifest.csv",
+  "data_provenance": "synthetic_validation_fixtures",
   "is_smoke_test": true,
+  "is_mock_metrics": false,
+  "real_data_evaluated": false,
+  "sample_count_evaluated": 6,
+  "provenance_statement": "Controlled smoke-test verification on synthetic validation fixtures. Real Sen12Landslides imagery was not present on local path.",
   "metrics": {
-    "precision": 0.8929,
-    "recall": 0.8621,
-    "f1": 0.8772,
-    "dice": 0.8772,
-    "iou": 0.7812,
-    "tp": 2500,
-    "fp": 300,
-    "fn": 400,
-    "tn": 95000,
-    "total_pixels": 98200,
-    "positive_prevalence": 0.029532
+    "precision": 0.02696,
+    "recall": 1.0,
+    "specificity": 0.0,
+    "f1": 0.0525,
+    "dice": 0.0525,
+    "iou": 0.02696,
+    "tp": 2650,
+    "fp": 95654,
+    "tn": 0,
+    "fn": 0,
+    "total_pixels": 98304,
+    "nodata_pixels_excluded": 0,
+    "positive_prevalence": 0.026957,
+    "predicted_prevalence": 1.0,
+    "pr_auc": 0.9881,
+    "roc_auc": 0.9995
   },
   "calibration": {
-    "brier_score": 0.0821,
-    "ece": 0.0912
+    "brier_score": 0.53772,
+    "ece": 0.7164,
+    "mce": 0.72265
   },
-  "timestamp": "2026-11-19T12:29:59Z"
+  "timestamp": "2026-11-19T16:12:06Z"
 }

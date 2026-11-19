@@ -13,7 +13,7 @@
   "fusion_strategy": "adaptive_spatial_reliability_weighting",
   "uncertainty_quantification": "monte_carlo_dropout",
   "model_config": "configs/models/geotrustnet_core.json",
-  "split_manifest": "data/manifests/synthetic_split_manifest.csv",
+  "split_manifest": "data/manifests/sen12landslides_disjoint_manifest.csv",
   "split_manifest_fallback": "data/manifests/synthetic_split_manifest.csv",
   "training": {
     "batch_size": 2,

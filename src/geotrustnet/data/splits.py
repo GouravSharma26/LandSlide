@@ -10,6 +10,25 @@ import pandas as pd
 from src.geotrustnet.data.validation import validate_split_disjointness
 
 
+class DisjointSet:
+    """Union-find data structure for computing connected components."""
+
+    def __init__(self):
+        self.parent = {}
+
+    def find(self, x: str) -> str:
+        if x not in self.parent:
+            self.parent[x] = x
+        if self.parent[x] != x:
+            self.parent[x] = self.find(self.parent[x])
+        return self.parent[x]
+
+    def union(self, x: str, y: str) -> None:
+        rx, ry = self.find(x), self.find(y)
+        if rx != ry:
+            self.parent[rx] = ry
+
+
 def generate_region_event_splits(
     manifest_df: pd.DataFrame,
     group_col: str = "region_id",
@@ -18,7 +37,11 @@ def generate_region_event_splits(
     test_ratio: float = 0.15,
     seed: int = 42,
 ) -> Tuple[pd.DataFrame, str]:
-    """Partitions dataset samples into Train, Val, and Test by holding out whole geographic regions/events.
+    """Partitions dataset samples into Train, Val, and Test by holding out geographic regions/events.
+
+    When both 'region_id' and 'event_id' exist in the manifest, samples are clustered into
+    connected components (bipartite graph of regions and events) ensuring dual disjointness:
+    neither region_id nor event_id will ever cross split boundaries.
 
     Guarantees zero spatial/event leakage across splits.
     Returns:
@@ -27,16 +50,34 @@ def generate_region_event_splits(
     assert np.isclose(train_ratio + val_ratio + test_ratio, 1.0), "Split ratios must sum to 1.0"
     df = manifest_df.copy()
 
-    if group_col not in df.columns:
-        raise ValueError(f"Group column '{group_col}' not found in manifest DataFrame")
+    # Determine whether dual disjointness (region_id + event_id) is applicable
+    has_dual_grouping = "region_id" in df.columns and "event_id" in df.columns
 
-    unique_groups = np.sort(df[group_col].dropna().unique())
+    if has_dual_grouping:
+        ds = DisjointSet()
+        for _, row in df.iterrows():
+            r_node = f"r_{row['region_id']}"
+            e_node = f"e_{row['event_id']}"
+            ds.union(r_node, e_node)
+
+        cluster_series = df["region_id"].apply(lambda r: ds.find(f"r_{r}"))
+        unique_groups = np.sort(cluster_series.unique())
+        validation_cols = ["region_id", "event_id"]
+    else:
+        if group_col not in df.columns:
+            raise ValueError(f"Group column '{group_col}' not found in manifest DataFrame")
+        cluster_series = df[group_col]
+        unique_groups = np.sort(df[group_col].dropna().unique())
+        validation_cols = [group_col]
+
     rng = np.random.RandomState(seed)
     shuffled_groups = rng.permutation(unique_groups)
 
     n_groups = len(shuffled_groups)
     if n_groups < 3:
-        raise ValueError(f"Need at least 3 distinct groups to create train/val/test splits, found {n_groups}")
+        raise ValueError(
+            f"Need at least 3 distinct independent groups/clusters to create train/val/test splits, found {n_groups}"
+        )
 
     n_train = max(1, int(np.round(n_groups * train_ratio)))
     n_val = max(1, int(np.round(n_groups * val_ratio)))
@@ -58,10 +99,10 @@ def generate_region_event_splits(
         else:
             return "test"
 
-    df["split"] = df[group_col].apply(assign_split)
+    df["split"] = cluster_series.apply(assign_split)
 
     # Validate disjointness
-    is_disjoint, report = validate_split_disjointness(df, split_col="split", group_cols=[group_col])
+    is_disjoint, report = validate_split_disjointness(df, split_col="split", group_cols=validation_cols)
     if not is_disjoint:
         raise RuntimeError(f"Generated split failed disjointness check: {report['violations']}")
 
@@ -69,7 +110,7 @@ def generate_region_event_splits(
     hash_str = "".join(f"{s}:{sp};" for s, sp in sorted(zip(df["sample_id"], df["split"])))
     split_hash = hashlib.sha256(hash_str.encode("utf-8")).hexdigest()
     df.attrs["split_hash_sha256"] = split_hash
-    df.attrs["group_col"] = group_col
+    df.attrs["group_col"] = "dual_region_event" if has_dual_grouping else group_col
     df.attrs["seed"] = seed
 
     return df, split_hash

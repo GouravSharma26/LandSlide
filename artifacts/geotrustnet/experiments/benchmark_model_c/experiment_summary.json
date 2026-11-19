@@ -12,7 +12,7 @@
   ],
   "fusion_strategy": "static_concatenation_with_availability_flags",
   "model_config": "configs/models/multimodal_fusion_baseline.json",
-  "split_manifest": "data/manifests/synthetic_split_manifest.csv",
+  "split_manifest": "data/manifests/sen12landslides_disjoint_manifest.csv",
   "split_manifest_fallback": "data/manifests/synthetic_split_manifest.csv",
   "training": {
     "batch_size": 2,
