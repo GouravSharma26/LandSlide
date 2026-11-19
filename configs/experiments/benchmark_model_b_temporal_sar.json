@@ -1,0 +1,33 @@
+{
+  "benchmark_tier": "controlled_scientific_comparison",
+  "model_designation": "Model B — Spatio-Temporal SAR ConvLSTM",
+  "model_type": "TemporalSARUNet",
+  "experiment_id": "benchmark_model_b_temporal_sar",
+  "version": "1.0.0",
+  "task": "binary_landslide_segmentation_temporal",
+  "modalities_used": ["Sentinel-1 SAR Time Series (VV, VH)"],
+  "temporal_slice": null,
+  "max_timesteps": 5,
+  "model_config": "configs/models/convlstm_s1_baseline.json",
+  "split_manifest": "data/manifests/sen12landslides_disjoint_manifest.csv",
+  "split_manifest_fallback": "data/manifests/synthetic_split_manifest.csv",
+  "training": {
+    "batch_size": 4,
+    "epochs": 25,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "scheduler": "CosineAnnealingLR",
+    "patience": 10,
+    "monitor_metric": "val_iou",
+    "monitor_mode": "max"
+  },
+  "loss": {
+    "name": "CombinedBCEDiceLoss",
+    "bce_weight": 0.5,
+    "dice_weight": 0.5,
+    "smooth": 1e-06
+  },
+  "seed": 42,
+  "device_preference": "cuda",
+  "output_directory": "artifacts/geotrustnet/experiments/benchmark_model_b"
+}

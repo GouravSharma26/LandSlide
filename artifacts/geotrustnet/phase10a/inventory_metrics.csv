@@ -1,0 +1,2 @@
+region_id,sample_count,total_pixels,positive_pixels,ground_truth_prevalence_pct,dice_at_050,iou_at_050,precision_at_050,recall_at_050,specificity_at_050,predicted_prevalence_at_050_pct,dice_at_optimal,iou_at_optimal,precision_at_optimal,recall_at_optimal,specificity_at_optimal,predicted_prevalence_at_optimal_pct
+REG_01,6,98304,2842,2.891,0.88302,0.79054,0.79054,1.0,0.99211,3.657,0.95892,0.92109,0.95276,0.96517,0.99858,2.929

@@ -1,0 +1,71 @@
+{
+  "dataset_id": "Sen12Landslides",
+  "version": "1.0.0",
+  "citation": "Höhn et al., 'A Spatio-Temporal Dataset for Satellite-Based Landslide Detection', Nature Scientific Data (2025)",
+  "doi": "https://doi.org/10.1038/s41597-025-06167-2",
+  "source_url": "https://huggingface.co/datasets/paulhoehn/Sen12Landslides",
+  "license": "CC-BY-4.0",
+  "task": "pixel_level_landslide_segmentation",
+  "spatial_specification": {
+    "patch_height": 128,
+    "patch_width": 128,
+    "pixel_resolution_meters": 10.0,
+    "coordinate_reference_system_default": "EPSG:4326",
+    "resampling_method_continuous": "bilinear",
+    "resampling_method_categorical": "nearest"
+  },
+  "temporal_specification": {
+    "max_time_steps": 15,
+    "time_dimension_name": "time",
+    "timestamp_format": "ISO8601",
+    "strict_chronological_order": true
+  },
+  "modalities": {
+    "optical": {
+      "sensor": "Sentinel-2 MSI Level-2A",
+      "bands": ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"],
+      "n_channels": 10,
+      "valid_range": [0, 10000],
+      "nodata_value": -9999.0,
+      "quality_mask_layer": "SCL",
+      "cloud_classes_scl": [3, 8, 9, 10, 11]
+    },
+    "sar": {
+      "sensor": "Sentinel-1 C-Band SAR GRD",
+      "polarizations": ["VV", "VH"],
+      "n_channels": 2,
+      "units": "decibels (dB)",
+      "valid_range": [-45.0, 10.0],
+      "nodata_value": -9999.0
+    },
+    "dem": {
+      "source": "Copernicus GLO-30 DSM",
+      "layers": ["elevation", "slope"],
+      "n_channels": 2,
+      "elevation_units": "meters",
+      "slope_units": "degrees",
+      "valid_range_elevation": [-500.0, 9000.0],
+      "valid_range_slope": [0.0, 90.0],
+      "nodata_value": -9999.0
+    },
+    "mask": {
+      "name": "MASK",
+      "n_channels": 1,
+      "binary": true,
+      "classes": {
+        "0": "non_landslide",
+        "1": "landslide"
+      },
+      "nodata_value": 255
+    }
+  },
+  "split_contract": {
+    "group_keys": ["region_id", "event_id"],
+    "leakage_rule": "strict_disjoint_region_and_event_partitions",
+    "target_ratios": {
+      "train": 0.70,
+      "val": 0.15,
+      "test": 0.15
+    }
+  }
+}

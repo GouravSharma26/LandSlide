@@ -1,0 +1,43 @@
+{
+  "experiment_id": "geotrustnet_reliability_fusion_phase5",
+  "git_commit": "323bb80effc60fad2845d8ed13d6c63e2b30a904",
+  "device": "cpu",
+  "epochs_trained": 2,
+  "best_epoch": 2,
+  "monitored_metric": "val_iou",
+  "best_metric_value": 0.03205,
+  "total_duration_seconds": 7.78,
+  "config": {
+    "experiment_id": "geotrustnet_reliability_fusion_phase5",
+    "version": "1.0.0",
+    "task": "binary_landslide_segmentation_with_uncertainty",
+    "modality": "multimodal",
+    "is_multimodal": true,
+    "model_config": "configs/models/geotrustnet_core.json",
+    "split_manifest": "data/manifests/synthetic_split_manifest.csv",
+    "training": {
+      "batch_size": 4,
+      "epochs": 10,
+      "learning_rate": 0.001,
+      "weight_decay": 0.0001,
+      "scheduler": "CosineAnnealingLR",
+      "patience": 5,
+      "monitor_metric": "val_iou",
+      "monitor_mode": "max"
+    },
+    "loss": {
+      "name": "CombinedBCEDiceLoss",
+      "bce_weight": 0.5,
+      "dice_weight": 0.5,
+      "smooth": 1e-06
+    },
+    "uncertainty": {
+      "num_mc_samples": 10,
+      "compute_calibration": true,
+      "num_calibration_bins": 10
+    },
+    "seed": 42,
+    "device_preference": "cuda",
+    "output_directory": "artifacts/geotrustnet/experiments/geotrustnet_phase5"
+  }
+}

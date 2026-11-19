@@ -1,0 +1,17 @@
+{
+  "model_name": "TemporalSARUNet-S1-ConvLSTM",
+  "architecture": "TemporalSARUNet",
+  "in_channels": 2,
+  "in_modality": "Sentinel-1 SAR Time-Series (VV, VH backscatter in dB)",
+  "out_channels": 1,
+  "features": [32, 64, 128, 256],
+  "convlstm_layers": 1,
+  "bilinear": true,
+  "dropout": 0.1,
+  "aggregation": "last",
+  "skip_aggregation": "last",
+  "input_shape": [5, 2, 128, 128],
+  "mask_shape": [1, 128, 128],
+  "parameter_count": 6667617,
+  "description": "Multi-temporal Sentinel-1 SAR ConvLSTM baseline segmentation model for GeoTrustNet Phase 3."
+}

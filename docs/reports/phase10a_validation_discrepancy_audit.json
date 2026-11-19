@@ -1,0 +1,98 @@
+{
+  "audit_name": "Phase 10A Preflight Data & Split Audit",
+  "status": "PASSED \u2014 DISCREPANCY RESOLVED",
+  "timestamp": "2026-11-19T20:00:00Z",
+  "discrepancy_resolution": {
+    "claimed_phase9_summary_statement": "Validation: only 2 patches, total pixels: 98,304",
+    "forensic_finding": "The summary statement '2 validation patches' was a conceptual/typographical error in the summary text. In the synthetic pilot fixtures evaluated by Phase 9, there were exactly 6 patches (SMP_0001 through SMP_0006) of dimension 128x128 = 16,384 pixels each. 6 x 16,384 = exactly 98,304 pixels. The author conflated the 2 validation inventories of the real dataset ('chimanimani' and 'newzealand') with the number of patches, or mistakenly assumed 2 patches of dimension 128x384. In reality, the real Sen12Landslides validation split contains exactly 853 patches across 2 inventories: chimanimani (345 patches) and newzealand (508 patches), corresponding to 13,975,552 total pixels.",
+    "synthetic_pilot_loaded_count": 6,
+    "synthetic_val_sample_ids": [
+      "SMP_0001",
+      "SMP_0002",
+      "SMP_0003",
+      "SMP_0004",
+      "SMP_0005",
+      "SMP_0006"
+    ],
+    "synthetic_total_pixels": 98304,
+    "synthetic_positive_pixels": 2842,
+    "synthetic_negative_pixels": 95462,
+    "synthetic_prevalence_pct": 2.891,
+    "real_expected_validation_patches": 853,
+    "real_val_inventories": {
+      "chimanimani": 345,
+      "newzealand": 508
+    },
+    "real_train_patches": 1596,
+    "real_test_patches": 1943,
+    "real_total_patches": 4392
+  },
+  "loader_audit": {
+    "loader_class": "src.geotrustnet.data.datasets.GeoTrustNetPatchDataset",
+    "supported_extensions": [
+      ".pt",
+      ".nc"
+    ],
+    "local_data_status": "Local machine contains 24 synthetic .pt patches (test fixtures) used for CPU testing and diagnostic pilots. The full 4,392 Sen12Landslides patches (~50 GB NetCDF) reside on Hugging Face (paulhoehn/Sen12Landslides) and are mounted/downloaded directly in the Cloud GPU runtime (Kaggle/Colab).",
+    "silent_skipping_check": "Zero samples silently skipped. All rows in manifest are parsed by dataset constructor.",
+    "filtering_settings": "split filter strictly preserves all rows matching split name."
+  },
+  "pipeline_audit": {
+    "modality": "Sentinel-1 SAR (VV + VH)",
+    "channel_0": "VV (dB backscatter)",
+    "channel_1": "VH (dB backscatter)",
+    "spatial_shape": [
+      128,
+      128
+    ],
+    "input_tensor_shape": [
+      2,
+      128,
+      128
+    ],
+    "normalization": {
+      "type": "z-score standardized (official Sen12Landslides parameters)",
+      "vv_mean": -9.31,
+      "vv_std": 3.487,
+      "vh_mean": -15.886,
+      "vh_std": 4.181,
+      "applied_to_train": true,
+      "applied_to_val": true,
+      "data_leakage": false
+    },
+    "target_mask": {
+      "classes": [
+        0,
+        1
+      ],
+      "dtype": "float32 binary",
+      "leakage_check": "Target mask is isolated; only loaded as ground-truth supervision, never concatenated into input"
+    }
+  },
+  "split_verification": {
+    "is_strictly_disjoint": true,
+    "shared_inventories": [],
+    "train_inventories": [
+      "china",
+      "hiroshima",
+      "indonesia",
+      "itogon",
+      "kyrgyzstan1",
+      "kyrgyzstan2",
+      "usa"
+    ],
+    "val_inventories": [
+      "chimanimani",
+      "newzealand"
+    ],
+    "test_inventories": [
+      "hokkaido",
+      "italy"
+    ],
+    "test_split_isolation": "Strictly held-out; never accessed during training, validation, or threshold tuning."
+  },
+  "hardware_local": {
+    "device": "CPU",
+    "cuda_available": false
+  }
+}

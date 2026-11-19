@@ -1,0 +1,69 @@
+{
+  "phase": "10A",
+  "model": "Model A: SAR U-Net",
+  "parameters": 1948001,
+  "epochs_completed": 20,
+  "runtime_seconds": 35.69,
+  "device": "cpu",
+  "device_name": "CPU (Intel64 Family 6 Model 141 Stepping 1, GenuineIntel)",
+  "best_epoch": 4,
+  "best_val_loss": 0.6061,
+  "validation_pooled_metrics_at_050": {
+    "precision": 0.79054,
+    "recall": 1.0,
+    "specificity": 0.99211,
+    "f1": 0.88302,
+    "dice": 0.88302,
+    "iou": 0.79054,
+    "tp": 2842,
+    "fp": 753,
+    "tn": 94709,
+    "fn": 0,
+    "total_pixels": 98304,
+    "positive_prevalence": 0.02891,
+    "predicted_prevalence": 0.03657,
+    "pr_auc": 0.99564,
+    "roc_auc": 0.99986
+  },
+  "validation_pooled_metrics_at_optimal_threshold": {
+    "precision": 0.95276,
+    "recall": 0.96517,
+    "specificity": 0.99858,
+    "f1": 0.95892,
+    "dice": 0.95892,
+    "iou": 0.92109,
+    "tp": 2743,
+    "fp": 136,
+    "tn": 95326,
+    "fn": 99,
+    "total_pixels": 98304,
+    "positive_prevalence": 0.02891,
+    "predicted_prevalence": 0.029287,
+    "pr_auc": 0.99564,
+    "roc_auc": 0.99986
+  },
+  "optimal_threshold": 0.85,
+  "pr_auc": 0.99564,
+  "macro_average_inventory_dice_at_optimal": 0.95892,
+  "median_inventory_dice_at_optimal": 0.95892,
+  "worst_inventory": "REG_01",
+  "best_inventory": "REG_01",
+  "artifacts": {
+    "experiment_config": "C:\\Gourav Sharma\\work\\LANDSLIDE\\artifacts\\geotrustnet\\phase10a\\experiment_config.json",
+    "training_history": "C:\\Gourav Sharma\\work\\LANDSLIDE\\artifacts\\geotrustnet\\phase10a\\training_history.csv",
+    "threshold_analysis": "C:\\Gourav Sharma\\work\\LANDSLIDE\\artifacts\\geotrustnet\\phase10a\\threshold_analysis.csv",
+    "inventory_metrics": "C:\\Gourav Sharma\\work\\LANDSLIDE\\artifacts\\geotrustnet\\phase10a\\inventory_metrics.csv",
+    "checkpoints": {
+      "best_val_loss": "C:\\Gourav Sharma\\work\\LANDSLIDE\\artifacts\\geotrustnet\\phase10a\\checkpoints\\best_val_loss.pt",
+      "best_val_dice_at_050": "C:\\Gourav Sharma\\work\\LANDSLIDE\\artifacts\\geotrustnet\\phase10a\\checkpoints\\best_val_dice_at_050.pt",
+      "latest_checkpoint": "C:\\Gourav Sharma\\work\\LANDSLIDE\\artifacts\\geotrustnet\\phase10a\\checkpoints\\latest_checkpoint.pt"
+    },
+    "plots": {
+      "training_curves": "C:\\Gourav Sharma\\work\\LANDSLIDE\\artifacts\\geotrustnet\\phase10a\\training_curves.png",
+      "threshold_plots": "C:\\Gourav Sharma\\work\\LANDSLIDE\\artifacts\\geotrustnet\\phase10a\\threshold_plots.png",
+      "probability_histograms": "C:\\Gourav Sharma\\work\\LANDSLIDE\\artifacts\\geotrustnet\\phase10a\\probability_histograms.png"
+    }
+  },
+  "benchmark_provenance": "SYNTHETIC_PIPELINE_BENCHMARK",
+  "real_dataset_benchmark_completed": false
+}

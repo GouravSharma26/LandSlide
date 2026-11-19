@@ -1,0 +1,59 @@
+{
+  "experiment_id": "pilot_model_a_sar_unet",
+  "model_architecture": "Model A: Single-Modality SAR U-Net",
+  "parameters": 1948001,
+  "hardware": {
+    "device": "cpu",
+    "device_name": "CPU (Intel64 Family 6 Model 141 Stepping 1, GenuineIntel)",
+    "vram_gb": "Host RAM",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "python_version": "3.12.6",
+    "torch_version": "2.14.0+cpu"
+  },
+  "training_configuration": {
+    "epochs": 2,
+    "batch_size": 4,
+    "learning_rate": 0.001,
+    "optimizer": "AdamW",
+    "scheduler": "CosineAnnealingLR",
+    "loss_function": "CombinedBCEDiceLoss (0.5/0.5)",
+    "seed": 42
+  },
+  "provenance": "Synthetic Local Pilot Verification",
+  "data_manifest": "synthetic_split_manifest.csv",
+  "total_duration_seconds": 3.81,
+  "checkpoint_integrity_verified": true,
+  "training_history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.8133,
+      "val_loss": 2.0051,
+      "val_dice": 0.0562,
+      "val_iou": 0.0289,
+      "duration_sec": 1.08
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.7386,
+      "val_loss": 3.1255,
+      "val_dice": 0.0562,
+      "val_iou": 0.0289,
+      "duration_sec": 1.14
+    }
+  ],
+  "validation_best_dice": 0.0562,
+  "test_metrics": {
+    "precision": 0.027,
+    "recall": 1.0,
+    "f1": 0.0525,
+    "dice": 0.0525,
+    "iou": 0.027,
+    "total_pixels": 98304,
+    "landslide_pixels": 2650
+  },
+  "calibration": {
+    "brier_score": 0.9529,
+    "expected_calibration_error": 0.9624
+  },
+  "timestamp": "2026-11-19T13:14:24Z"
+}

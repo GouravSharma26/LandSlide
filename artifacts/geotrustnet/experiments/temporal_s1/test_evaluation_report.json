@@ -1,0 +1,18 @@
+{
+  "test_loss": 1.5192,
+  "metrics": {
+    "precision": 0.02696,
+    "recall": 1.0,
+    "f1": 0.0525,
+    "dice": 0.0525,
+    "iou": 0.02696,
+    "tp": 2650,
+    "fp": 95654,
+    "tn": 0,
+    "fn": 0,
+    "total_pixels": 98304,
+    "positive_prevalence": 0.026957,
+    "pr_auc": 0.98397,
+    "roc_auc": 0.99922
+  }
+}

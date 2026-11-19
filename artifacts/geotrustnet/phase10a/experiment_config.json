@@ -1,0 +1,36 @@
+{
+  "experiment_id": "phase10a_model_a_sar_unet",
+  "phase": "10A",
+  "model_name": "Model A (SAR U-Net)",
+  "in_channels": 2,
+  "out_channels": 1,
+  "features": [
+    32,
+    64,
+    128,
+    256
+  ],
+  "bilinear": true,
+  "dropout": 0.1,
+  "trainable_parameters": 1948001,
+  "epochs": 20,
+  "batch_size": 4,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "loss": "CombinedBCEDiceLoss(bce=0.5, dice=0.5)",
+  "scheduler": "CosineAnnealingLR(T_max=20, eta_min=1e-6)",
+  "seed": 42,
+  "device": "cpu",
+  "device_name": "CPU (Intel64 Family 6 Model 141 Stepping 1, GenuineIntel)",
+  "manifest_path": "C:/Gourav Sharma/work/LANDSLIDE/data/manifests/synthetic_split_manifest.csv",
+  "manifest_sha256": "679a6f82f423b4949bb4c4336b7e81d7e5cf5e82f412ac7b9fa79aba5b7b9117",
+  "normalization": {
+    "type": "z-score standardized",
+    "vv_mean": -9.3099,
+    "vv_std": 3.4868,
+    "vh_mean": -15.8861,
+    "vh_std": 4.1814
+  },
+  "disjoint_split_policy": "Strict geographic isolation; train and val share 0 inventories; test held out",
+  "timestamp": "2026-11-19T14:32:26Z"
+}

@@ -1,0 +1,157 @@
+{
+  "dataset_name": "Sen12Landslides (S12LS-LD Harmonized Benchmark)",
+  "source": "https://huggingface.co/datasets/paulhoehn/Sen12Landslides",
+  "citation": "H\u00f6hn et al., Nature Scientific Data (2025)",
+  "license": "CC-BY-4.0",
+  "total_aligned_samples": 4392,
+  "spatial_dimensions": {
+    "height": 128,
+    "width": 128,
+    "resolution_m": 10.0
+  },
+  "modalities": {
+    "sar_asc": "VV, VH (dB)",
+    "sar_dsc": "VV, VH (dB)",
+    "optical": "10 bands B02-B12 (Surface Refl.)",
+    "dem": "Elevation (m) and derived Slope (deg)",
+    "mask": "Binary {0, 1} where MASK > 0"
+  },
+  "inventory_count": 11,
+  "inventories": [
+    "chimanimani",
+    "china",
+    "hiroshima",
+    "hokkaido",
+    "indonesia",
+    "italy",
+    "itogon",
+    "kyrgyzstan1",
+    "kyrgyzstan2",
+    "newzealand",
+    "usa"
+  ],
+  "official_iid_split_counts": {
+    "train": 2810,
+    "test": 879,
+    "val": 703
+  },
+  "disjoint_split_counts": {
+    "test": 1943,
+    "train": 1596,
+    "val": 853
+  },
+  "disjoint_split_inventories": {
+    "train": [
+      "china",
+      "hiroshima",
+      "indonesia",
+      "itogon",
+      "kyrgyzstan1",
+      "kyrgyzstan2",
+      "usa"
+    ],
+    "val": [
+      "chimanimani",
+      "newzealand"
+    ],
+    "test": [
+      "hokkaido",
+      "italy"
+    ]
+  },
+  "overall_pixel_prevalence": {
+    "total_pixels": 71958528,
+    "total_landslide_pixels": 2694238,
+    "mean_landslide_pixel_prevalence_pct": 3.744
+  },
+  "inventory_statistics": {
+    "chimanimani": {
+      "samples": 345,
+      "total_annotated_pixels": 163019,
+      "mean_annotated_pixels": 472.5188405797102,
+      "mean_landslide_ratio": 0.028840249275362318,
+      "max_landslide_ratio": 0.197083,
+      "min_landslide_ratio": 0.003052
+    },
+    "china": {
+      "samples": 47,
+      "total_annotated_pixels": 11254,
+      "mean_annotated_pixels": 239.4468085106383,
+      "mean_landslide_ratio": 0.014614617021276597,
+      "max_landslide_ratio": 0.049194,
+      "min_landslide_ratio": 0.003174
+    },
+    "hiroshima": {
+      "samples": 322,
+      "total_annotated_pixels": 127206,
+      "mean_annotated_pixels": 395.0496894409938,
+      "mean_landslide_ratio": 0.024111937888198758,
+      "max_landslide_ratio": 0.246826,
+      "min_landslide_ratio": 0.003052
+    },
+    "hokkaido": {
+      "samples": 144,
+      "total_annotated_pixels": 337335,
+      "mean_annotated_pixels": 2342.6041666666665,
+      "mean_landslide_ratio": 0.14298120833333333,
+      "max_landslide_ratio": 0.513611,
+      "min_landslide_ratio": 0.003784
+    },
+    "indonesia": {
+      "samples": 253,
+      "total_annotated_pixels": 168435,
+      "mean_annotated_pixels": 665.7509881422925,
+      "mean_landslide_ratio": 0.0406341976284585,
+      "max_landslide_ratio": 0.315369,
+      "min_landslide_ratio": 0.003113
+    },
+    "italy": {
+      "samples": 1799,
+      "total_annotated_pixels": 792659,
+      "mean_annotated_pixels": 440.6108949416342,
+      "mean_landslide_ratio": 0.02689275375208449,
+      "max_landslide_ratio": 0.331238,
+      "min_landslide_ratio": 0.003052
+    },
+    "itogon": {
+      "samples": 82,
+      "total_annotated_pixels": 17171,
+      "mean_annotated_pixels": 209.40243902439025,
+      "mean_landslide_ratio": 0.01278090243902439,
+      "max_landslide_ratio": 0.09729,
+      "min_landslide_ratio": 0.003357
+    },
+    "kyrgyzstan1": {
+      "samples": 694,
+      "total_annotated_pixels": 506160,
+      "mean_annotated_pixels": 729.3371757925072,
+      "mean_landslide_ratio": 0.044515188760806915,
+      "max_landslide_ratio": 0.490967,
+      "min_landslide_ratio": 0.003052
+    },
+    "kyrgyzstan2": {
+      "samples": 170,
+      "total_annotated_pixels": 44239,
+      "mean_annotated_pixels": 260.2294117647059,
+      "mean_landslide_ratio": 0.015883170588235296,
+      "max_landslide_ratio": 0.106812,
+      "min_landslide_ratio": 0.003052
+    },
+    "newzealand": {
+      "samples": 508,
+      "total_annotated_pixels": 522250,
+      "mean_annotated_pixels": 1028.0511811023623,
+      "mean_landslide_ratio": 0.06274724803149606,
+      "max_landslide_ratio": 0.543884,
+      "min_landslide_ratio": 0.003052
+    },
+    "usa": {
+      "samples": 28,
+      "total_annotated_pixels": 4510,
+      "mean_annotated_pixels": 161.07142857142858,
+      "mean_landslide_ratio": 0.009831000000000001,
+      "max_landslide_ratio": 0.031738,
+      "min_landslide_ratio": 0.003052
+    }
+  }
+}

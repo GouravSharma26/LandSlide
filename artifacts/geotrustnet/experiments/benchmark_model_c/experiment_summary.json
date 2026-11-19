@@ -1,0 +1,36 @@
+{
+  "benchmark_tier": "controlled_scientific_comparison",
+  "model_designation": "Model C \u2014 Conventional Multimodal Concatenation Fusion",
+  "model_type": "MultimodalFusionUNet",
+  "experiment_id": "benchmark_model_c_multimodal_fusion",
+  "version": "1.0.0",
+  "task": "binary_landslide_segmentation_multimodal",
+  "modalities_used": [
+    "Sentinel-1 SAR",
+    "Sentinel-2 Optical (10 bands)",
+    "Copernicus DEM (Elevation, Slope)"
+  ],
+  "fusion_strategy": "static_concatenation_with_availability_flags",
+  "model_config": "configs/models/multimodal_fusion_baseline.json",
+  "split_manifest": "data/manifests/synthetic_split_manifest.csv",
+  "split_manifest_fallback": "data/manifests/synthetic_split_manifest.csv",
+  "training": {
+    "batch_size": 2,
+    "epochs": 1,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "scheduler": "CosineAnnealingLR",
+    "patience": 10,
+    "monitor_metric": "val_iou",
+    "monitor_mode": "max"
+  },
+  "loss": {
+    "name": "CombinedBCEDiceLoss",
+    "bce_weight": 0.5,
+    "dice_weight": 0.5,
+    "smooth": 1e-06
+  },
+  "seed": 42,
+  "device_preference": "cpu",
+  "output_directory": "artifacts/geotrustnet/experiments/benchmark_model_c"
+}

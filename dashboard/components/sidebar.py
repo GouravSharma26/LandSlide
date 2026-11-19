@@ -20,6 +20,7 @@ def render_sidebar() -> Dict[str, Any]:
             "Event Detection",
             "Susceptibility Prediction",
             "Feature Importance",
+            "GeoTrustNet Intelligence",
         ]
 
         if "selected_page" not in st.session_state or st.session_state["selected_page"] not in pages:

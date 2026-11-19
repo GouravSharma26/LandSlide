@@ -1,0 +1,112 @@
+{
+  "plan_version": "1.0.0",
+  "project": "GeoTrustNet Intelligence",
+  "objective": "Empirical Benchmark Execution on Sen12Landslides (S12LS-LD)",
+  "execution_platforms": {
+    "primary": "Google Colab Pro (NVIDIA A100 / L4)",
+    "secondary": "Kaggle Notebooks (Dual NVIDIA Tesla T4 / P100)",
+    "local_verification": "Windows Workstation (CPU Smoke Testing & Unit Tests)"
+  },
+  "dataset_specifications": {
+    "name": "Sen12Landslides",
+    "task": "S12LS-LD Harmonized Supervised Landslide Detection",
+    "total_aligned_samples": 4392,
+    "split_manifest": "data/manifests/sen12landslides_disjoint_manifest.csv",
+    "leakage_defense": "Strict Disjoint Geographic Inventory Holdout (Train=7, Val=2, Test=2 inventories)",
+    "normalization": "configs/data/sen12landslides_norm.json",
+    "seed": 42
+  },
+  "hyperparameter_standards": {
+    "optimizer": "AdamW",
+    "weight_decay": 0.0001,
+    "scheduler": "CosineAnnealingLR (T_max=epochs, eta_min=1e-5)",
+    "loss_function": "CombinedBCEDiceLoss (bce_weight=0.5, dice_weight=0.5, smooth=1e-6)",
+    "gradient_clip_norm": 1.0,
+    "early_stopping_patience": 8,
+    "early_stopping_metric": "val_dice",
+    "early_stopping_mode": "max",
+    "threshold_calibration": "Optimal validation threshold search (tau in [0.5, 0.99])",
+    "uncertainty_mc_passes": 10
+  },
+  "compute_budgets": {
+    "A100_GPU": {
+      "batch_size": 16,
+      "max_epochs": 25,
+      "amp_fp16": true,
+      "estimated_time_per_model_minutes": 25,
+      "storage_per_model_mb": 150
+    },
+    "T4_GPU": {
+      "batch_size": 8,
+      "max_epochs": 20,
+      "amp_fp16": true,
+      "estimated_time_per_model_minutes": 55,
+      "storage_per_model_mb": 150
+    }
+  },
+  "execution_order_rationale": "Prioritize single-modality baseline first to establish minimum credible performance; follow with multimodal concatenation to measure multi-sensor information gain; execute GeoTrustNet to isolate reliability gating contribution; evaluate temporal ConvLSTM independently to assess time-series overhead; complete controlled ablations last.",
+  "experiment_pipeline": [
+    {
+      "priority": 1,
+      "experiment_id": "benchmark_model_a_sar_unet_v2",
+      "model_designation": "Model A: Single-Modality SAR Baseline",
+      "architecture": "UNet",
+      "input_modalities": ["Sentinel-1 SAR (VV, VH)"],
+      "parameters": 1948001,
+      "checkpoint_name": "model_a_best.pt",
+      "required_outputs": ["metrics.json", "training_history.csv", "best_checkpoint.pt", "validation_threshold_curve.csv"]
+    },
+    {
+      "priority": 2,
+      "experiment_id": "benchmark_model_c_multimodal_fusion_v2",
+      "model_designation": "Model C: Conventional Multimodal Concatenation",
+      "architecture": "MultimodalFusionUNet",
+      "input_modalities": ["Sentinel-1 SAR", "Sentinel-2 Optical (10 bands)", "Copernicus DEM (Elevation, Slope)"],
+      "parameters": 7444481,
+      "checkpoint_name": "model_c_best.pt",
+      "required_outputs": ["metrics.json", "training_history.csv", "best_checkpoint.pt", "validation_threshold_curve.csv"]
+    },
+    {
+      "priority": 3,
+      "experiment_id": "benchmark_model_d_geotrustnet_v2",
+      "model_designation": "Model D: Proposed GeoTrustNet Core",
+      "architecture": "GeoTrustNet",
+      "input_modalities": ["Sentinel-1 SAR", "Sentinel-2 Optical (10 bands)", "Copernicus DEM (Elevation, Slope)"],
+      "parameters": 6740813,
+      "checkpoint_name": "geotrustnet_best.pt",
+      "required_outputs": [
+        "metrics.json",
+        "training_history.csv",
+        "best_checkpoint.pt",
+        "uncertainty_report.json",
+        "reliability_maps.pt",
+        "selective_prediction_curve.csv"
+      ]
+    },
+    {
+      "priority": 4,
+      "experiment_id": "benchmark_model_b_temporal_sar_v2",
+      "model_designation": "Model B: Spatio-Temporal SAR ConvLSTM",
+      "architecture": "TemporalSARUNet",
+      "input_modalities": ["Sentinel-1 SAR Time-Series (T=5)"],
+      "parameters": 6667617,
+      "checkpoint_name": "model_b_best.pt",
+      "required_outputs": ["metrics.json", "training_history.csv", "best_checkpoint.pt"]
+    },
+    {
+      "priority": 5,
+      "experiment_id": "ablation_geotrustnet_robustness_suite",
+      "model_designation": "GeoTrustNet Controlled Robustness & Ablations",
+      "architecture": "GeoTrustNet",
+      "scenarios": [
+        "Cloud Contamination Sweep (0%, 25%, 50%, 75%, 100%)",
+        "Missing Optical Input (SAR + DEM only)",
+        "Missing SAR Input (Optical + DEM only)",
+        "Missing DEM Input (SAR + Optical only)",
+        "Ablation: Static Average Pooling vs Reliability Softmax"
+      ],
+      "required_outputs": ["robustness_benchmark_report.json", "ablation_summary.json"]
+    }
+  ],
+  "storage_budget_total_mb": 950
+}

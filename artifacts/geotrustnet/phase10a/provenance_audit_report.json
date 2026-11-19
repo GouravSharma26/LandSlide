@@ -1,0 +1,148 @@
+{
+  "audit_name": "Phase 10A.1 Provenance Audit",
+  "timestamp": "2026-11-19T21:15:00Z",
+  "phase10a_classification": "SYNTHETIC PIPELINE BASELINE BENCHMARK (MODEL A)",
+  "summary": "Phase 10A verified the complete Model A pipeline, 20-epoch training loop, z-score normalization, threshold calibration, and checkpoint serialization using the synthetic diagnostic dataset fixtures. It did NOT train or evaluate on the genuine 50 GB Sen12Landslides NetCDF rasters. The reported metrics (Dice 0.8830 @0.50, Dice 0.9589 @tau*=0.850, PR-AUC 0.9956) are confirmed as synthetic pipeline validation results.",
+  "actual_loaded_data_provenance": {
+    "source_manifest": "C:/Gourav Sharma/work/LANDSLIDE/data/manifests/synthetic_split_manifest.csv",
+    "manifest_sha256": "679a6f82f423b4949bb4c4336b7e81d7e5cf5e82f412ac7b9fa79aba5b7b9117",
+    "storage_format": "PyTorch .pt files containing PatchSample objects",
+    "storage_directory": "data/synthetic/",
+    "train_split": {
+      "sample_count": 12,
+      "sample_ids": [
+        "SMP_0007",
+        "SMP_0008",
+        "SMP_0009",
+        "SMP_0010",
+        "SMP_0011",
+        "SMP_0012",
+        "SMP_0019",
+        "SMP_0020",
+        "SMP_0021",
+        "SMP_0022",
+        "SMP_0023",
+        "SMP_0024"
+      ],
+      "file_paths": [
+        "data\\synthetic\\SMP_0007.pt",
+        "data\\synthetic\\SMP_0008.pt",
+        "data\\synthetic\\SMP_0009.pt",
+        "data\\synthetic\\SMP_0010.pt",
+        "data\\synthetic\\SMP_0011.pt",
+        "data\\synthetic\\SMP_0012.pt",
+        "data\\synthetic\\SMP_0019.pt",
+        "data\\synthetic\\SMP_0020.pt",
+        "data\\synthetic\\SMP_0021.pt",
+        "data\\synthetic\\SMP_0022.pt",
+        "data\\synthetic\\SMP_0023.pt",
+        "data\\synthetic\\SMP_0024.pt"
+      ],
+      "regions": [
+        "REG_02",
+        "REG_04"
+      ],
+      "total_pixels": 196608
+    },
+    "validation_split": {
+      "sample_count": 6,
+      "sample_ids": [
+        "SMP_0001",
+        "SMP_0002",
+        "SMP_0003",
+        "SMP_0004",
+        "SMP_0005",
+        "SMP_0006"
+      ],
+      "file_paths": [
+        "data\\synthetic\\SMP_0001.pt",
+        "data\\synthetic\\SMP_0002.pt",
+        "data\\synthetic\\SMP_0003.pt",
+        "data\\synthetic\\SMP_0004.pt",
+        "data\\synthetic\\SMP_0005.pt",
+        "data\\synthetic\\SMP_0006.pt"
+      ],
+      "regions": [
+        "REG_01"
+      ],
+      "total_pixels": 98304,
+      "positive_pixels": 2842,
+      "negative_pixels": 95462,
+      "prevalence_pct": 2.891
+    },
+    "test_split": {
+      "sample_count": 6,
+      "sample_ids": [
+        "SMP_0013",
+        "SMP_0014",
+        "SMP_0015",
+        "SMP_0016",
+        "SMP_0017",
+        "SMP_0018"
+      ],
+      "file_paths": [
+        "data\\synthetic\\SMP_0013.pt",
+        "data\\synthetic\\SMP_0014.pt",
+        "data\\synthetic\\SMP_0015.pt",
+        "data\\synthetic\\SMP_0016.pt",
+        "data\\synthetic\\SMP_0017.pt",
+        "data\\synthetic\\SMP_0018.pt"
+      ],
+      "regions": [
+        "REG_03"
+      ],
+      "evaluated_in_phase10a": false,
+      "isolation_status": "Strictly held-out; untouched"
+    }
+  },
+  "real_sen12landslides_status": {
+    "source_manifest": "C:/Gourav Sharma/work/LANDSLIDE/data/manifests/sen12landslides_disjoint_manifest.csv",
+    "manifest_sha256": "3854d7e886ee4309d728c7a433789a3413a28e8bbbeedcb5a6fc3e4695a91cec",
+    "manifest_total_samples": 4392,
+    "manifest_train_samples": 1596,
+    "manifest_val_samples": 853,
+    "manifest_test_samples": 1943,
+    "local_raster_status": "Not downloaded on local workstation (50 GB remote on Hugging Face)",
+    "demonstrated_real_evaluation": false,
+    "next_step_action": "Establish a separate real-data benchmark on Cloud GPU (Colab/Kaggle) with mounted Sen12Landslides rasters"
+  },
+  "checkpoint_provenance": {
+    "training_device": "CPU (Intel64 Family 6 Model 141 Stepping 1, GenuineIntel)",
+    "trained_epochs": 20,
+    "training_samples_per_epoch": 12,
+    "validation_samples_per_epoch": 6,
+    "checkpoints": {
+      "best_val_loss.pt": {
+        "path": "C:/Gourav Sharma/work/LANDSLIDE/artifacts/geotrustnet/phase10a/checkpoints/best_val_loss.pt",
+        "size_bytes": 23467151,
+        "sha256": "2226ea91abd06b7f95da670ae92d3ec2a4dbaebc1d5b48420ca0c5863840e841"
+      },
+      "best_val_dice_at_050.pt": {
+        "path": "C:/Gourav Sharma/work/LANDSLIDE/artifacts/geotrustnet/phase10a/checkpoints/best_val_dice_at_050.pt",
+        "size_bytes": 23468790,
+        "sha256": "c2bd4ecf4cde422687de270489b93814df651c2f7d58e965910ba5f6e4feab8b"
+      },
+      "latest_checkpoint.pt": {
+        "path": "C:/Gourav Sharma/work/LANDSLIDE/artifacts/geotrustnet/phase10a/checkpoints/latest_checkpoint.pt",
+        "size_bytes": 23468115,
+        "sha256": "64b48399d6925e7305c7c6e8ee93594ca0057494343fe72eec9e7e109f3009c8"
+      }
+    }
+  },
+  "metric_origins": {
+    "train_loss_start_end": [
+      0.8091,
+      0.59219
+    ],
+    "val_loss_start_end": [
+      0.82599,
+      0.60988
+    ],
+    "val_dice_at_050": 0.88302,
+    "optimal_threshold": 0.85,
+    "val_dice_at_optimal_threshold": 0.95892,
+    "val_iou_at_optimal_threshold": 0.92109,
+    "pr_auc": 0.99564,
+    "scientific_interpretation": "Confirmed synthetic pipeline benchmark; real-data benchmark must be run separately on cloud GPU."
+  }
+}

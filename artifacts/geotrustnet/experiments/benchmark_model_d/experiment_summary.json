@@ -1,0 +1,42 @@
+{
+  "benchmark_tier": "controlled_scientific_comparison",
+  "model_designation": "Model D \u2014 GeoTrustNet (Reliability-Aware Fusion & Uncertainty)",
+  "model_type": "GeoTrustNet",
+  "experiment_id": "benchmark_model_d_geotrustnet",
+  "version": "1.0.0",
+  "task": "binary_landslide_segmentation_reliability_uncertainty",
+  "modalities_used": [
+    "Sentinel-1 SAR",
+    "Sentinel-2 Optical (10 bands)",
+    "Copernicus DEM (Elevation, Slope)"
+  ],
+  "fusion_strategy": "adaptive_spatial_reliability_weighting",
+  "uncertainty_quantification": "monte_carlo_dropout",
+  "model_config": "configs/models/geotrustnet_core.json",
+  "split_manifest": "data/manifests/synthetic_split_manifest.csv",
+  "split_manifest_fallback": "data/manifests/synthetic_split_manifest.csv",
+  "training": {
+    "batch_size": 2,
+    "epochs": 1,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "scheduler": "CosineAnnealingLR",
+    "patience": 10,
+    "monitor_metric": "val_iou",
+    "monitor_mode": "max"
+  },
+  "loss": {
+    "name": "CombinedBCEDiceLoss",
+    "bce_weight": 0.5,
+    "dice_weight": 0.5,
+    "smooth": 1e-06
+  },
+  "uncertainty": {
+    "num_mc_samples": 10,
+    "compute_calibration": true,
+    "num_calibration_bins": 10
+  },
+  "seed": 42,
+  "device_preference": "cpu",
+  "output_directory": "artifacts/geotrustnet/experiments/benchmark_model_d"
+}

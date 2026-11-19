@@ -1,0 +1,96 @@
+{
+  "cloud_degradation_benchmark": {
+    "cloud_0pct": {
+      "iou": 0.04666,
+      "dice": 0.08916,
+      "precision": 0.04667,
+      "recall": 0.99547,
+      "pr_auc": 0.26837,
+      "brier_score": 0.25201,
+      "ece": 0.47557
+    },
+    "cloud_25pct": {
+      "iou": 0.0504,
+      "dice": 0.09596,
+      "precision": 0.05052,
+      "recall": 0.95509,
+      "pr_auc": 0.22802,
+      "brier_score": 0.25074,
+      "ece": 0.47417
+    },
+    "cloud_50pct": {
+      "iou": 0.03712,
+      "dice": 0.07158,
+      "precision": 0.03712,
+      "recall": 0.99547,
+      "pr_auc": 0.37534,
+      "brier_score": 0.25211,
+      "ece": 0.47563
+    },
+    "cloud_75pct": {
+      "iou": 0.032,
+      "dice": 0.06202,
+      "precision": 0.032,
+      "recall": 1.0,
+      "pr_auc": 0.91855,
+      "brier_score": 0.25199,
+      "ece": 0.47558
+    },
+    "cloud_100pct": {
+      "iou": 0.03077,
+      "dice": 0.05971,
+      "precision": 0.03077,
+      "recall": 1.0,
+      "pr_auc": 0.45434,
+      "brier_score": 0.25291,
+      "ece": 0.47676
+    }
+  },
+  "modality_missingness_benchmark": {
+    "Full Multimodal (SAR+Opt+DEM)": {
+      "iou": 0.03279,
+      "dice": 0.0635,
+      "precision": 0.03279,
+      "recall": 1.0,
+      "pr_auc": 0.2317,
+      "brier_score": 0.2546,
+      "ece": 0.47845
+    },
+    "Missing Optical (SAR+DEM)": {
+      "iou": 0.02763,
+      "dice": 0.05378,
+      "precision": 0.02763,
+      "recall": 1.0,
+      "pr_auc": 0.96087,
+      "brier_score": 0.25715,
+      "ece": 0.48133
+    },
+    "SAR Only": {
+      "iou": 0.02699,
+      "dice": 0.05257,
+      "precision": 0.02699,
+      "recall": 1.0,
+      "pr_auc": 0.53878,
+      "brier_score": 0.27909,
+      "ece": 0.50387
+    },
+    "Optical Only": {
+      "iou": 0.0,
+      "dice": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "pr_auc": 0.01943,
+      "brier_score": 0.24254,
+      "ece": 0.46496
+    },
+    "DEM Only": {
+      "iou": 0.02204,
+      "dice": 0.04312,
+      "precision": 0.02549,
+      "recall": 0.14,
+      "pr_auc": 0.03157,
+      "brier_score": 0.24534,
+      "ece": 0.46816
+    }
+  }
+}

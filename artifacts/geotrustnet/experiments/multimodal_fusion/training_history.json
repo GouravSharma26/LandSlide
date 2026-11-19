@@ -1,0 +1,28 @@
+[
+  {
+    "epoch": 1,
+    "train_loss": 0.81419,
+    "val_loss": 1.13906,
+    "val_iou": 0.02891,
+    "val_dice": 0.0562,
+    "val_precision": 0.02891,
+    "val_recall": 1.0,
+    "val_pr_auc": 0.98945,
+    "learning_rate": 0.001,
+    "duration_seconds": 3.74,
+    "improved": true
+  },
+  {
+    "epoch": 2,
+    "train_loss": 0.73066,
+    "val_loss": 1.9558,
+    "val_iou": 0.02891,
+    "val_dice": 0.0562,
+    "val_precision": 0.02891,
+    "val_recall": 1.0,
+    "val_pr_auc": 0.99315,
+    "learning_rate": 0.0005,
+    "duration_seconds": 3.33,
+    "improved": false
+  }
+]

@@ -1,0 +1,153 @@
+"""PyTorch Dataset implementations for GeoTrustNet multimodal spatio-temporal patches."""
+
+from pathlib import Path
+from typing import Dict, List, Optional, Any
+import numpy as np
+import pandas as pd
+import torch
+from torch.utils.data import Dataset
+
+from src.geotrustnet.data.contracts import PatchSample
+
+
+class GeoTrustNetPatchDataset(Dataset):
+    """Multimodal spatio-temporal landslide patch dataset.
+
+    Handles Sentinel-1 SAR, Sentinel-2 optical, DEM topography, and binary landslide masks.
+    Supports missing modality masking and variable time steps.
+    """
+
+    def __init__(
+        self,
+        manifest_df: pd.DataFrame,
+        split: Optional[str] = None,
+        data_root: Optional[Path] = None,
+        fixed_time_steps: int = 5,
+        height: int = 128,
+        width: int = 128,
+        normalize: bool = False,
+    ):
+        self.data_root = Path(data_root) if data_root is not None else Path(".")
+        self.split = split
+        self.fixed_time_steps = fixed_time_steps
+        self.height = height
+        self.width = width
+        self.normalize = normalize
+
+        # Standard Sen12Landslides normalization parameters
+        self.vv_mean = -9.3099
+        self.vv_std = 3.4868
+        self.vh_mean = -15.8861
+        self.vh_std = 4.1814
+
+        if split is not None and "split" in manifest_df.columns:
+            self.df = manifest_df[manifest_df["split"] == split].reset_index(drop=True)
+        else:
+            self.df = manifest_df.reset_index(drop=True)
+
+        if len(self.df) == 0:
+            raise ValueError(f"No samples found for split '{split}' in manifest")
+
+    def __len__(self) -> int:
+        return len(self.df)
+
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        row = self.df.iloc[idx]
+        file_path = self.data_root / row["file_path"]
+
+        if file_path.suffix == ".pt":
+            sample: PatchSample = torch.load(file_path, weights_only=False)
+        else:
+            raise NotImplementedError(f"Unsupported raw file extension: {file_path.suffix}")
+
+        T = self.fixed_time_steps
+        H, W = self.height, self.width
+
+        # 1. Optical (10 channels)
+        if sample.optical_available and sample.optical is not None:
+            optical = sample.optical[:T]
+            optical_valid = (
+                sample.optical_valid_mask[:T]
+                if sample.optical_valid_mask is not None
+                else torch.ones((optical.shape[0], 1, H, W), dtype=torch.bool)
+            )
+            # Pad if shorter than fixed_time_steps
+            if optical.shape[0] < T:
+                pad_t = T - optical.shape[0]
+                optical = torch.cat([optical, torch.zeros((pad_t, 10, H, W))], dim=0)
+                optical_valid = torch.cat([optical_valid, torch.zeros((pad_t, 1, H, W), dtype=torch.bool)], dim=0)
+            has_opt = True
+        else:
+            optical = torch.zeros((T, 10, H, W), dtype=torch.float32)
+            optical_valid = torch.zeros((T, 1, H, W), dtype=torch.bool)
+            has_opt = False
+
+        # 2. SAR (2 channels: VV, VH)
+        if sample.sar_available and sample.sar is not None:
+            sar = sample.sar[:T]
+            sar_valid = (
+                sample.sar_valid_mask[:T]
+                if sample.sar_valid_mask is not None
+                else torch.ones((sar.shape[0], 1, H, W), dtype=torch.bool)
+            )
+            if sar.shape[0] < T:
+                pad_t = T - sar.shape[0]
+                sar = torch.cat([sar, torch.zeros((pad_t, 2, H, W))], dim=0)
+                sar_valid = torch.cat([sar_valid, torch.zeros((pad_t, 1, H, W), dtype=torch.bool)], dim=0)
+
+            if self.normalize:
+                # Z-score normalize VV (dim 1, index 0) and VH (dim 1, index 1)
+                sar_norm = sar.clone()
+                sar_norm[:, 0] = (sar_norm[:, 0] - self.vv_mean) / self.vv_std
+                sar_norm[:, 1] = (sar_norm[:, 1] - self.vh_mean) / self.vh_std
+                sar = sar_norm
+
+            has_sar = True
+        else:
+            sar = torch.zeros((T, 2, H, W), dtype=torch.float32)
+            sar_valid = torch.zeros((T, 1, H, W), dtype=torch.bool)
+            has_sar = False
+
+        # 3. DEM (2 channels: elevation, slope)
+        if sample.dem_available and sample.dem is not None:
+            dem = sample.dem
+            has_dem = True
+        else:
+            dem = torch.zeros((2, H, W), dtype=torch.float32)
+            has_dem = False
+
+        # 4. Target Mask (1 channel)
+        mask = sample.mask if sample.mask is not None else torch.zeros((1, H, W), dtype=torch.float32)
+
+        return {
+            "sample_id": row["sample_id"],
+            "region_id": row["region_id"],
+            "event_id": row["event_id"],
+            "optical": optical.float(),
+            "sar": sar.float(),
+            "dem": dem.float(),
+            "mask": mask.float(),
+            "optical_valid": optical_valid,
+            "sar_valid": sar_valid,
+            "has_optical": torch.tensor(has_opt, dtype=torch.bool),
+            "has_sar": torch.tensor(has_sar, dtype=torch.bool),
+            "has_dem": torch.tensor(has_dem, dtype=torch.bool),
+        }
+
+
+def collate_geotrustnet_patches(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Collate function for DataLoader batching."""
+    return {
+        "sample_ids": [b["sample_id"] for b in batch],
+        "region_ids": [b["region_id"] for b in batch],
+        "event_ids": [b["event_id"] for b in batch],
+        "optical": torch.stack([b["optical"] for b in batch], dim=0),           # [B, T, 10, H, W]
+        "sar": torch.stack([b["sar"] for b in batch], dim=0),                   # [B, T, 2, H, W]
+        "dem": torch.stack([b["dem"] for b in batch], dim=0),                   # [B, 2, H, W]
+        "mask": torch.stack([b["mask"] for b in batch], dim=0),                 # [B, 1, H, W]
+        "optical_valid": torch.stack([b["optical_valid"] for b in batch], dim=0),# [B, T, 1, H, W]
+        "sar_valid": torch.stack([b["sar_valid"] for b in batch], dim=0),       # [B, T, 1, H, W]
+        "has_optical": torch.stack([b["has_optical"] for b in batch], dim=0),   # [B]
+        "has_sar": torch.stack([b["has_sar"] for b in batch], dim=0),           # [B]
+        "has_dem": torch.stack([b["has_dem"] for b in batch], dim=0),           # [B]
+    }

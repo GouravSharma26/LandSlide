@@ -1,0 +1,12 @@
+{
+  "description": "Synthetic multi-region test manifest for GeoTrustNet Phase 1",
+  "group_column": "region_id",
+  "seed": 42,
+  "split_hash_sha256": "e2c22b327109f56eb8025e37bdcae13844deb464bea1f6b57e6e9b5ae02fe6a8",
+  "total_samples": 24,
+  "split_distribution": {
+    "train": 12,
+    "val": 6,
+    "test": 6
+  }
+}

@@ -4,13 +4,29 @@ Run using:
     streamlit run dashboard/app.py
 """
 
+import os
 import sys
 from pathlib import Path
+
+# On Windows, ensure torch/lib DLL directory is registered before importing torch/pages
+if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
+    site_packages = Path(sys.executable).parent / "Lib" / "site-packages"
+    torch_lib = site_packages / "torch" / "lib"
+    if torch_lib.exists():
+        try:
+            os.add_dll_directory(str(torch_lib))
+        except Exception:
+            pass
 
 # Add project root directory to Python path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
+
+try:
+    import torch
+except Exception:
+    pass
 
 import streamlit as st
 from dashboard.config import ASSETS_DIR
@@ -23,6 +39,7 @@ from dashboard.pages import (
     event_detection,
     susceptibility_prediction,
     explainability_uncertainty,
+    geotrustnet_intelligence,
 )
 
 # Set page configuration
@@ -59,6 +76,7 @@ def main():
         "Event Detection": event_detection.render,
         "Susceptibility Prediction": susceptibility_prediction.render,
         "Feature Importance": explainability_uncertainty.render,
+        "GeoTrustNet Intelligence": geotrustnet_intelligence.render,
     }
 
     render_fn = page_routers.get(selected_page)

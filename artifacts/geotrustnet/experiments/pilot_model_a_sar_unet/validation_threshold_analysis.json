@@ -1,0 +1,41 @@
+{
+  "dataset_split": "validation",
+  "total_pixels_evaluated": 98304,
+  "ground_truth_prevalence_pct": 2.891,
+  "raw_probabilities_summary": {
+    "min": 0.5553,
+    "mean": 0.9518,
+    "median": 0.961,
+    "max": 0.9869,
+    "std": 0.0391
+  },
+  "default_threshold_0_50": {
+    "threshold": 0.5,
+    "precision": 0.0289,
+    "recall": 1.0,
+    "dice": 0.0562,
+    "iou": 0.0289,
+    "predicted_prevalence_pct": 100.0,
+    "tp": 2842,
+    "fp": 95462,
+    "fn": 0,
+    "tn": 0
+  },
+  "optimal_threshold": {
+    "threshold": 0.975,
+    "precision": 0.9538,
+    "recall": 0.9433,
+    "dice": 0.9485,
+    "iou": 0.9021,
+    "predicted_prevalence_pct": 2.859,
+    "tp": 2681,
+    "fp": 130,
+    "fn": 161,
+    "tn": 95332
+  },
+  "performance_gain": {
+    "dice_gain": 0.8923,
+    "iou_gain": 0.8732
+  },
+  "diagnostic_conclusion": "The model successfully discriminates scarp boundaries from background terrain, but under severe class imbalance and 2 epochs of training, uncalibrated raw sigmoid outputs are shifted toward 0.95. At the default threshold (0.50), all pixels are predicted positive, mathematically fixing Dice to 2*prev/(1+prev)=0.0562. Calibrating the operating threshold to tau=0.975 on the validation set resolves this and increases Dice to 0.9485."
+}
