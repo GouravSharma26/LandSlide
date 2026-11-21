@@ -28,6 +28,7 @@ def load_sen12landslides_netcdf(
     nodata_value: float = -9999.0,
     mask_nodata_value: int = 255,
     clear_scl_classes: Tuple[int, ...] = (4, 5, 6),
+    temporal_policy: str = "fixed",
 ) -> PatchSample:
     """Load a Sen12Landslides sample from NetCDF files into a validated PatchSample contract.
 
@@ -47,6 +48,12 @@ def load_sen12landslides_netcdf(
             Default is (4, 5, 6) for Vegetation, Not-vegetated (bare soil/rock), and Water.
             Class 7 ('unclassified') is excluded by default due to classification ambiguity.
             Class 2 ('dark area pixels') is excluded by default due to topographic shadow SNR loss.
+        temporal_policy: Policy for temporal sequence selection. Supported:
+            'fixed' (default): slice to fixed_time_steps (or pad with false validity if shorter).
+            'full': retain complete available multi-temporal sequence (no padding/truncation).
+            'pre_event': slice strictly to pre-event acquisitions (using pre_post_dates metadata).
+            'post_event': slice strictly to post-event acquisitions.
+            'chronological': chronological sequence up to fixed_time_steps.
 
     Returns:
         PatchSample containing co-registered tensors, validity masks, and metadata.
@@ -139,6 +146,24 @@ def load_sen12landslides_netcdf(
 
         crs_str = str(ds_sar.attrs.get("crs", ds_sar.attrs.get("spatial_ref", "EPSG:4326")))
 
+        # Extract pre-event and post-event split metadata if present
+        pre_post_raw = ds_sar.attrs.get("pre_post_dates", None)
+        pre_idx, post_idx = None, None
+        if pre_post_raw is not None:
+            if isinstance(pre_post_raw, str):
+                import ast
+                try:
+                    parsed = ast.literal_eval(pre_post_raw)
+                except Exception:
+                    parsed = None
+            else:
+                parsed = pre_post_raw
+            if isinstance(parsed, tuple) and len(parsed) > 0:
+                parsed = parsed[0]
+            if isinstance(parsed, dict):
+                pre_idx = parsed.get("pre")
+                post_idx = parsed.get("post")
+
     # Process SAR Tensors
     sar_valid_np = (vv_data != nodata_value) & (vh_data != nodata_value) & (~np.isnan(vv_data)) & (~np.isnan(vh_data))
     vv_clean = np.where(sar_valid_np, vv_data, 0.0).astype(np.float32)
@@ -154,16 +179,29 @@ def load_sen12landslides_netcdf(
     sar_stack = np.stack([vv_clean, vh_clean], axis=1)  # [T, 2, H, W]
     sar_valid_stack = sar_valid_np[:, np.newaxis, :, :]  # [T, 1, H, W]
 
-    # Pad or truncate to fixed_time_steps
-    if T_sar < fixed_time_steps:
-        pad_t = fixed_time_steps - T_sar
-        sar_pad = np.zeros((pad_t, 2, height, width), dtype=np.float32)
-        sar_valid_pad = np.zeros((pad_t, 1, height, width), dtype=bool)
-        sar_stack = np.concatenate([sar_stack, sar_pad], axis=0)
-        sar_valid_stack = np.concatenate([sar_valid_stack, sar_valid_pad], axis=0)
+    # Slicing according to temporal_policy
+    if temporal_policy == "full":
+        pass
+    elif temporal_policy == "pre_event":
+        if pre_idx is not None and pre_idx < T_sar:
+            sar_stack = sar_stack[: pre_idx + 1]
+            sar_valid_stack = sar_valid_stack[: pre_idx + 1]
+    elif temporal_policy == "post_event":
+        if post_idx is not None and post_idx < T_sar:
+            sar_stack = sar_stack[post_idx :]
+            sar_valid_stack = sar_valid_stack[post_idx :]
+    elif temporal_policy in ["fixed", "chronological"]:
+        if T_sar < fixed_time_steps:
+            pad_t = fixed_time_steps - T_sar
+            sar_pad = np.zeros((pad_t, 2, height, width), dtype=np.float32)
+            sar_valid_pad = np.zeros((pad_t, 1, height, width), dtype=bool)
+            sar_stack = np.concatenate([sar_stack, sar_pad], axis=0)
+            sar_valid_stack = np.concatenate([sar_valid_stack, sar_valid_pad], axis=0)
+        else:
+            sar_stack = sar_stack[:fixed_time_steps]
+            sar_valid_stack = sar_valid_stack[:fixed_time_steps]
     else:
-        sar_stack = sar_stack[:fixed_time_steps]
-        sar_valid_stack = sar_valid_stack[:fixed_time_steps]
+        raise ValueError(f"Unsupported temporal_policy: {temporal_policy}")
 
     sar_tensor = torch.from_numpy(sar_stack).float()
     sar_valid_tensor = torch.from_numpy(sar_valid_stack).bool()
@@ -229,15 +267,28 @@ def load_sen12landslides_netcdf(
 
                     opt_valid_agg = np.all(opt_valid, axis=1, keepdims=True)  # [T, 1, H, W]
 
-                    if T_opt < fixed_time_steps:
-                        pad_t = fixed_time_steps - T_opt
-                        opt_pad = np.zeros((pad_t, 10, height, width), dtype=np.float32)
-                        opt_valid_pad = np.zeros((pad_t, 1, height, width), dtype=bool)
-                        opt_stack = np.concatenate([opt_stack, opt_pad], axis=0)
-                        opt_valid_agg = np.concatenate([opt_valid_agg, opt_valid_pad], axis=0)
+                    if temporal_policy == "full":
+                        pass
+                    elif temporal_policy == "pre_event":
+                        if pre_idx is not None and pre_idx < T_opt:
+                            opt_stack = opt_stack[: pre_idx + 1]
+                            opt_valid_agg = opt_valid_agg[: pre_idx + 1]
+                    elif temporal_policy == "post_event":
+                        if post_idx is not None and post_idx < T_opt:
+                            opt_stack = opt_stack[post_idx :]
+                            opt_valid_agg = opt_valid_agg[post_idx :]
+                    elif temporal_policy in ["fixed", "chronological"]:
+                        if T_opt < fixed_time_steps:
+                            pad_t = fixed_time_steps - T_opt
+                            opt_pad = np.zeros((pad_t, 10, height, width), dtype=np.float32)
+                            opt_valid_pad = np.zeros((pad_t, 1, height, width), dtype=bool)
+                            opt_stack = np.concatenate([opt_stack, opt_pad], axis=0)
+                            opt_valid_agg = np.concatenate([opt_valid_agg, opt_valid_pad], axis=0)
+                        else:
+                            opt_stack = opt_stack[:fixed_time_steps]
+                            opt_valid_agg = opt_valid_agg[:fixed_time_steps]
                     else:
-                        opt_stack = opt_stack[:fixed_time_steps]
-                        opt_valid_agg = opt_valid_agg[:fixed_time_steps]
+                        raise ValueError(f"Unsupported temporal_policy: {temporal_policy}")
 
                     optical_tensor = torch.from_numpy(opt_stack).float()
                     optical_valid_tensor = torch.from_numpy(opt_valid_agg).bool()
@@ -304,6 +355,9 @@ def load_sen12landslides_netcdf(
             "is_normalized": is_normalized,
             "has_geo_coords": has_geo,
             "scl_available": scl_available,
+            "temporal_policy": temporal_policy,
+            "effective_timesteps": sar_stack.shape[0],
+            "pre_post_indices": {"pre": pre_idx, "post": post_idx},
             "scl_policy": {
                 "clear_classes": list(clear_scl_classes),
                 "excluded_classes_rationale": {

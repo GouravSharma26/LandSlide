@@ -52,4 +52,13 @@ Thumbs.db
 # Local documentation & artifacts
 Screenshorts/
 
+# Authentic datasets and downloaded rasters (MUST NOT BE COMMITTED TO GIT)
+data/authentic/
+data/downloads/
+data/raw/
+*.nc
+*.tar.gz
+*.h5
+artifacts/scratch/
+
 

@@ -27,6 +27,7 @@ class GeoTrustNetPatchDataset(Dataset):
         width: int = 128,
         normalize: bool = False,
         clear_scl_classes: Tuple[int, ...] = (4, 5, 6),
+        temporal_policy: str = "fixed",
     ):
         self.data_root = Path(data_root) if data_root is not None else Path(".")
         self.split = split
@@ -35,6 +36,7 @@ class GeoTrustNetPatchDataset(Dataset):
         self.width = width
         self.normalize = normalize
         self.clear_scl_classes = clear_scl_classes
+        self.temporal_policy = temporal_policy
 
         if isinstance(manifest_df, (str, Path)):
             manifest_df = pd.read_csv(manifest_df)
@@ -77,11 +79,15 @@ class GeoTrustNetPatchDataset(Dataset):
                 width=self.width,
                 normalize=False,
                 clear_scl_classes=self.clear_scl_classes,
+                temporal_policy=self.temporal_policy,
             )
         else:
             raise NotImplementedError(f"Unsupported raw file extension: {file_path.suffix}")
 
-        T = self.fixed_time_steps
+        if self.temporal_policy in ["full", "pre_event", "post_event"] and sample.sar is not None:
+            T = sample.sar.shape[0]
+        else:
+            T = self.fixed_time_steps
         H, W = self.height, self.width
         is_already_normalized = bool(
             getattr(sample, "metadata", None)

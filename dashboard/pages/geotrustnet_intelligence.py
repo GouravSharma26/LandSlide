@@ -283,6 +283,13 @@ def render_overview_tab(reports: Dict[str, Any]):
             "Parameters": "1,948,001",
             "Status": "Pilot Verified / Ready for Cloud GPU",
         },
+        {
+            "Phase": "Phase 10E",
+            "Module": "Multi-Inventory Authentic Qualification",
+            "Scope": "6 authentic inventories qualified (Chimanimani, NZ, Italy, Hokkaido, Kyrgyzstan, Indonesia); SCL & DEM verified",
+            "Parameters": "-",
+            "Status": "6/6 Inventories Pipeline Qualified (Data Only — Training Pending)",
+        },
     ]
     st.dataframe(pd.DataFrame(milestones_data), use_container_width=True, hide_index=True)
 
